@@ -654,6 +654,40 @@ export const WALL_COLOR_OPTIONS: {
 // Presets arquitectónicos predeterminados
 export const DEFAULT_PRESETS: PresetConfig[] = [
   {
+    id: 'preset_comercial_2d_neutro',
+    name: 'Plano 2D Comercial Neutro (con Superficies Útiles)',
+    createdAt: 0,
+    isDefault: true,
+    config: {
+      cameraAngle: 'plan_2d_furnished',
+      colorPalette: 'neutral_balanced',
+      interiorStyle: 'contemporary_minimal',
+      lighting: 'ambient_studio',
+      aspectRatio: '16:9',
+      flooringLiving: 'light_oak_wood',
+      flooringKitchen: 'matching_living_oak',
+      kitchenGresColor: 'gres_gris_perla',
+      flooringBathroomGres60: 'gres_60_gris_perla',
+      flooringTerrace: 'grey_outdoor_porcelain',
+      windowType: 'oscilobatiente',
+      windowFrames: 'black_anthracite_metal',
+      doorFinish: 'white_lacquer',
+      interiorWallColor: 'blanco_roto_luz',
+      exteriorWallColor: 'gris_niebla',
+      roomMarkers: [
+        { id: 'm1', name: 'VESTÍBULO', category: 'recibidor_distribuidor', x: 20, y: 80, areaSqMeters: 3.75 },
+        { id: 'm2', name: 'SALON-COMEDOR-COCINA', category: 'salon_comedor', x: 45, y: 38, areaSqMeters: 26.40, notes: 'Concepto abierto cocina integrada' },
+        { id: 'm3', name: 'DISTRIBUIDOR', category: 'recibidor_distribuidor', x: 50, y: 65, areaSqMeters: 1.45 },
+        { id: 'm4', name: 'BAÑO', category: 'bano_principal', x: 70, y: 75, areaSqMeters: 4.05, notes: 'Plato ducha blanco puro' },
+        { id: 'm5', name: 'DORMITORIO 1', category: 'dormitorio_principal', x: 78, y: 38, areaSqMeters: 10.90, notes: 'Armario empotrado lacado blanco' },
+        { id: 'm6', name: 'ASEO', category: 'aseo_cortesia', x: 35, y: 80, areaSqMeters: 3.00 },
+        { id: 'm7', name: 'DORMITORIO 2', category: 'dormitorio_secundario', x: 22, y: 45, areaSqMeters: 10.60 }
+      ],
+      extraDetails: 'Plano comercial amueblado de catálogo con cuadro de superficies útiles',
+      strictBlueprintFidelity: true
+    }
+  },
+  {
     id: 'preset_nordic_standard',
     name: 'Estándar Nórdico (Roble & Blanco)',
     createdAt: 1,

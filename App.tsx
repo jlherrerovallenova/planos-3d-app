@@ -589,6 +589,7 @@ export function App() {
               isGenerating={isGenerating}
               cameraAngle={config.cameraAngle}
               roomMarkers={config.roomMarkers || []}
+              projectTitle={projectTitle}
               activeMarkerId={activeMarkerId}
               isPinningMode={isPinningMode}
               onMarkerClick={(id) => setActiveMarkerId(id)}
@@ -637,6 +638,7 @@ export function App() {
         onClose={() => setIsExportOpen(false)}
         config={config}
         currentPrompt={currentPrompt}
+        projectTitle={projectTitle}
         renderedResult={renderedResult}
         history={history}
       />

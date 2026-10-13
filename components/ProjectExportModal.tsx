@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
 import { RenderConfig, RenderHistoryItem } from '../types';
-import { safeDownloadFile, downloadJsonConfig } from '../services/downloadHelper';
+import {
+  safeDownloadFile,
+  downloadJsonConfig,
+  exportCommercialBrochureImage
+} from '../services/downloadHelper';
 
 interface ProjectExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   config: RenderConfig;
   currentPrompt: string;
+  projectTitle?: string;
   renderedResult: { base64: string; mimeType: string } | null;
   history: RenderHistoryItem[];
 }
@@ -16,10 +21,12 @@ export function ProjectExportModal({
   onClose,
   config,
   currentPrompt,
+  projectTitle = 'Proyecto Residencial Los Álamos',
   renderedResult,
   history
 }: ProjectExportModalProps) {
   const [copied, setCopied] = useState(false);
+  const [isExportingFicha, setIsExportingFicha] = useState(false);
 
   if (!isOpen) return null;
 
@@ -32,6 +39,18 @@ export function ProjectExportModal({
   const handleDownloadImage = (base64: string, mimeType: string, index?: number) => {
     const filename = `dollhouse_render_${index !== undefined ? index + 1 : 'final'}.png`;
     safeDownloadFile({ base64, mimeType, filename });
+  };
+
+  const handleDownloadFichaComercial = async () => {
+    if (!renderedResult) return;
+    setIsExportingFicha(true);
+    await exportCommercialBrochureImage({
+      imageSrc: `data:${renderedResult.mimeType};base64,${renderedResult.base64}`,
+      projectTitle,
+      markers: config.roomMarkers || [],
+      filename: `ficha_comercial_${projectTitle.toLowerCase().replace(/[^\w]/g, '_')}.png`
+    });
+    setIsExportingFicha(false);
   };
 
   const handleDownloadConfigJson = () => {
@@ -86,6 +105,42 @@ export function ProjectExportModal({
             >
               <span className="material-symbols-outlined text-[16px]">download</span>
               <span>Descargar PNG</span>
+            </button>
+          </div>
+
+          {/* Opción 1.5: Descargar Ficha Comercial Completa (Plano + Cuadro de Superficies) */}
+          <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-200/80 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div
+                className="w-10 h-10 rounded-xl text-white flex items-center justify-center shrink-0 shadow-xs"
+                style={{ backgroundColor: '#0F2C59' }}
+              >
+                <span className="material-symbols-outlined text-[22px]">description</span>
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-stone-900">
+                    Ficha Comercial de Venta (Plano + Superficies Útiles)
+                  </h4>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
+                    4K Editorial
+                  </span>
+                </div>
+                <p className="text-[11px] text-stone-500">
+                  Genera la lámina comercial completa con el plano amueblado y el Cuadro de Superficies Útiles oficial en azul marino.
+                </p>
+              </div>
+            </div>
+            <button
+              disabled={!renderedResult || isExportingFicha}
+              onClick={handleDownloadFichaComercial}
+              className="px-4 py-2 rounded-xl text-white text-xs font-semibold transition shrink-0 flex items-center gap-1.5 shadow-xs disabled:opacity-40 cursor-pointer"
+              style={{ backgroundColor: '#0F2C59' }}
+            >
+              <span className="material-symbols-outlined text-[16px]">
+                {isExportingFicha ? 'progress_activity' : 'download'}
+              </span>
+              <span>{isExportingFicha ? 'Generando...' : 'Descargar Ficha'}</span>
             </button>
           </div>
 

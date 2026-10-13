@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { CameraAngle, RoomMarker, RoomCategory } from '../types';
 import { ROOM_CATEGORIES, SAMPLE_PLANS } from '../constants';
+import { SurfaceScheduleTable } from './SurfaceScheduleTable';
+import { exportCommercialBrochureImage } from '../services/downloadHelper';
 
 interface PlanCanvasPreviewProps {
   sourceImage: { base64: string; mimeType: string; name?: string } | null;
@@ -8,6 +10,7 @@ interface PlanCanvasPreviewProps {
   isGenerating: boolean;
   cameraAngle: CameraAngle;
   roomMarkers?: RoomMarker[];
+  projectTitle?: string;
   activeMarkerId?: string | null;
   isPinningMode?: boolean;
   onMarkerClick?: (id: string) => void;
@@ -29,6 +32,7 @@ export function PlanCanvasPreview({
   isGenerating,
   cameraAngle,
   roomMarkers = [],
+  projectTitle = 'Proyecto Residencial Los Álamos',
   activeMarkerId = null,
   isPinningMode = false,
   onMarkerClick,
@@ -43,9 +47,11 @@ export function PlanCanvasPreview({
   onDownloadRender,
   downloadStatus = 'idle'
 }: PlanCanvasPreviewProps) {
-  const [activeTab, setActiveTab] = useState<'rendered' | 'split' | 'source'>('rendered');
+  const [activeTab, setActiveTab] = useState<'ficha' | 'rendered' | 'split' | 'source'>('rendered');
   const [sliderPosition, setSliderPosition] = useState<number>(50);
   const [showMarkersOverlay, setShowMarkersOverlay] = useState<boolean>(true);
+  const [showScheduleOverlay, setShowScheduleOverlay] = useState<boolean>(true);
+  const [isExportingFicha, setIsExportingFicha] = useState<boolean>(false);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
@@ -55,19 +61,38 @@ export function PlanCanvasPreview({
 
   const is2DMode = cameraAngle === 'plan_2d_furnished';
 
-  // Cambiar automáticamente a pestaña rendered cuando llega el resultado
+  // Cambiar automáticamente a pestaña Ficha Comercial cuando llega el resultado renderizado
   useEffect(() => {
     if (renderedResult) {
-      setActiveTab('rendered');
+      setActiveTab('ficha');
     }
   }, [renderedResult]);
 
   // Si no hay resultado todavía, asegurar que se muestre el source
   useEffect(() => {
-    if (!renderedResult && sourceImage && activeTab !== 'source') {
+    if (!renderedResult && sourceImage && activeTab !== 'source' && activeTab !== 'ficha') {
       setActiveTab('source');
     }
   }, [renderedResult, sourceImage]);
+
+  // Exportar Ficha Comercial Completa (Plano + Cuadro de Superficies) en Imagen
+  const handleExportFicha = async () => {
+    const targetImg = renderDataUrl || sourceDataUrl;
+    if (!targetImg) return;
+    setIsExportingFicha(true);
+    await exportCommercialBrochureImage({
+      imageSrc: targetImg,
+      projectTitle,
+      markers: roomMarkers,
+      filename: `ficha_comercial_${projectTitle.toLowerCase().replace(/[^\w]/g, '_')}.png`
+    });
+    setIsExportingFicha(false);
+  };
+
+  // Imprimir Ficha
+  const handlePrintFicha = () => {
+    window.print();
+  };
 
   // Manejo de clicks en el canvas para posicionar pines
   const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -211,6 +236,21 @@ export function PlanCanvasPreview({
         {/* Título de estado y pestañas */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 bg-stone-900 border border-stone-800 p-1 rounded-xl">
+            {/* Pestaña Ficha Comercial con Superficies */}
+            {(renderedResult || sourceImage) && (
+              <button
+                onClick={() => setActiveTab('ficha')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  activeTab === 'ficha'
+                    ? 'bg-[#0F2C59] text-white shadow-xs border border-blue-400/40'
+                    : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">description</span>
+                <span>Ficha Comercial</span>
+              </button>
+            )}
+
             {renderedResult && (
               <>
                 <button
@@ -245,7 +285,7 @@ export function PlanCanvasPreview({
               <button
                 onClick={() => setActiveTab('source')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  activeTab === 'source' || (!renderedResult && activeTab !== 'rendered')
+                  activeTab === 'source' || (!renderedResult && activeTab !== 'rendered' && activeTab !== 'ficha')
                     ? 'bg-stone-800 text-stone-100 shadow-xs'
                     : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800'
                 }`}
@@ -267,6 +307,47 @@ export function PlanCanvasPreview({
 
         {/* Acciones del Canvas a la derecha */}
         <div className="flex items-center gap-2">
+          {/* Botones contextuales cuando está activa la Ficha Comercial */}
+          {activeTab === 'ficha' && (
+            <>
+              <button
+                onClick={handleExportFicha}
+                disabled={isExportingFicha}
+                className="px-3.5 py-1.5 rounded-xl bg-[#0F2C59] hover:bg-[#1a4280] disabled:opacity-50 text-white text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 border border-blue-400/30"
+                title="Descargar Ficha Comercial completa (Plano + Cuadro de Superficies) en alta resolución"
+              >
+                <span className="material-symbols-outlined text-[16px]">
+                  {isExportingFicha ? 'progress_activity' : 'download'}
+                </span>
+                <span>{isExportingFicha ? 'Generando...' : 'Descargar Ficha'}</span>
+              </button>
+
+              <button
+                onClick={handlePrintFicha}
+                className="p-1.5 rounded-xl bg-stone-800/80 hover:bg-stone-700 text-stone-300 hover:text-white border border-stone-700 transition cursor-pointer"
+                title="Imprimir o Guardar Ficha en PDF"
+              >
+                <span className="material-symbols-outlined text-[18px]">print</span>
+              </button>
+            </>
+          )}
+
+          {/* Toggle de Cuadro de Superficies Flotante en vistas 3D o 2D */}
+          {activeTab !== 'ficha' && roomMarkers.length > 0 && (
+            <button
+              onClick={() => setShowScheduleOverlay(!showScheduleOverlay)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                showScheduleOverlay
+                  ? 'bg-[#0F2C59] text-white border-blue-400/40 shadow-xs'
+                  : 'bg-stone-800/80 border-stone-700 text-stone-300 hover:text-white hover:bg-stone-700'
+              }`}
+              title={showScheduleOverlay ? 'Ocultar cuadro de superficies' : 'Mostrar cuadro de superficies'}
+            >
+              <span className="material-symbols-outlined text-[16px]">table_rows</span>
+              <span>{showScheduleOverlay ? 'Superficies ON' : 'Superficies'}</span>
+            </button>
+          )}
+
           {/* Toggle de Modo Marcador / Pines */}
           {onTogglePinningMode && (
             <button
@@ -286,7 +367,7 @@ export function PlanCanvasPreview({
           )}
 
           {/* Ocultar/Mostrar overlay de marcadores */}
-          {roomMarkers.length > 0 && (
+          {roomMarkers.length > 0 && activeTab !== 'ficha' && (
             <button
               onClick={() => setShowMarkersOverlay(!showMarkersOverlay)}
               className={`p-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
@@ -303,7 +384,7 @@ export function PlanCanvasPreview({
           )}
 
           {/* Botón Descargar Render Directo */}
-          {renderedResult && onDownloadRender && (
+          {renderedResult && onDownloadRender && activeTab !== 'ficha' && (
             <button
               onClick={onDownloadRender}
               disabled={downloadStatus !== 'idle'}
@@ -387,10 +468,72 @@ export function PlanCanvasPreview({
           ref={imageContainerRef}
           onClick={handleContainerClick}
           className="relative max-w-full max-h-full flex items-center justify-center transition-transform duration-150 ease-out"
-          style={{ transform: `scale(${zoomLevel})` }}
+          style={{ transform: activeTab === 'ficha' ? 'none' : `scale(${zoomLevel})` }}
         >
-          {/* MODO 1: COMPARADOR SPLIT SLIDER */}
-          {activeTab === 'split' && sourceDataUrl && renderDataUrl ? (
+          {/* MODO 0: FICHA COMERCIAL DE VENTA CON CUADRO DE SUPERFICIES ÚTILES */}
+          {activeTab === 'ficha' ? (
+            <div className="w-full max-w-5xl mx-auto bg-white text-stone-900 rounded-2xl shadow-2xl border border-stone-200/90 p-5 sm:p-7 flex flex-col justify-between max-h-[76vh] overflow-y-auto animate-fadeIn select-text">
+              {/* Encabezado Comercial */}
+              <div className="border-b border-stone-200 pb-3 mb-4 flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#0F2C59]" />
+                    <h2 className="text-base sm:text-lg font-black tracking-tight text-[#0F2C59] uppercase font-sans">
+                      {projectTitle || 'Vivienda Residencial'}
+                    </h2>
+                  </div>
+                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mt-0.5">
+                    FICHA COMERCIAL • PLANO AMUEBLADO Y CUADRO DE SUPERFICIES ÚTILES
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-md bg-stone-100 text-stone-600 text-[11px] font-bold border border-stone-200 font-mono">
+                    REF: VT-01
+                  </span>
+                  <button
+                    onClick={handleExportFicha}
+                    disabled={isExportingFicha}
+                    className="px-3 py-1 bg-[#0F2C59] hover:bg-[#1a4280] text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[15px]">download</span>
+                    <span>{isExportingFicha ? 'Generando...' : 'Descargar Ficha'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Cuerpo de la Ficha: Plano a la Izquierda y Cuadro de Superficies a la Derecha */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center flex-1 my-auto">
+                {/* Columna Izquierda / Central: Plano Renderizado o Base */}
+                <div className="lg:col-span-7 flex items-center justify-center bg-stone-50 rounded-xl p-3 border border-stone-200/80 min-h-[340px] max-h-[56vh]">
+                  {renderDataUrl || sourceDataUrl ? (
+                    <img
+                      src={renderDataUrl || sourceDataUrl!}
+                      alt="Plano Ficha Comercial"
+                      className="max-h-[52vh] w-auto max-w-full object-contain rounded-lg shadow-sm"
+                    />
+                  ) : (
+                    <div className="text-stone-400 text-xs italic">Carga un plano para visualizar la ficha</div>
+                  )}
+                </div>
+
+                {/* Columna Derecha: Cuadro de Superficies Útiles (en esa misma posición exacta de la captura) */}
+                <div className="lg:col-span-5 flex flex-col justify-center items-center lg:items-end">
+                  <SurfaceScheduleTable markers={roomMarkers} />
+                </div>
+              </div>
+
+              {/* Pie de Ficha con Cláusula Legal */}
+              <div className="mt-4 pt-3 border-t border-stone-200 flex items-center justify-between text-[10px] text-stone-400">
+                <span>
+                  Documento con carácter comercial y orientativo. Las superficies corresponden a superficie útil interior estimada.
+                </span>
+                <span className="font-medium text-stone-500 hidden sm:inline">
+                  Dollhouse 3D Studio
+                </span>
+              </div>
+            </div>
+          ) : activeTab === 'split' && sourceDataUrl && renderDataUrl ? (
             <div className="relative max-h-[72vh] max-w-full rounded-2xl overflow-hidden shadow-2xl border border-stone-700">
               {/* Imagen 3D de fondo */}
               <img
@@ -452,10 +595,9 @@ export function PlanCanvasPreview({
                 <span>Render 4K Ultra HD</span>
               </div>
             </div>
-          ) : (
+          ) : sourceDataUrl ? (
             /* MODO 3: PLANO 2D BASE (Con Pines Interactivos) */
-            sourceDataUrl && (
-              <div className="relative max-h-[72vh] rounded-2xl overflow-hidden shadow-2xl border border-stone-800">
+            <div className="relative max-h-[72vh] rounded-2xl overflow-hidden shadow-2xl border border-stone-800">
                 <img
                   src={sourceDataUrl}
                   alt="Plano Base 2D"
@@ -580,34 +722,51 @@ export function PlanCanvasPreview({
                     );
                   })}
               </div>
-            )
-          )}
+            ) : null}
         </div>
 
-        {/* Barra flotante de zoom en la esquina inferior */}
-        <div className="absolute bottom-4 left-4 z-20 flex items-center gap-1 bg-stone-950/80 backdrop-blur-md border border-stone-800 rounded-xl p-1 text-white shadow-xl">
-          <button
-            onClick={handleZoomOut}
-            className="p-1.5 rounded-lg hover:bg-stone-800 text-stone-400 hover:text-white transition cursor-pointer"
-            title="Alejar"
-          >
-            <span className="material-symbols-outlined text-[16px]">zoom_out</span>
-          </button>
-          <button
-            onClick={handleZoomReset}
-            className="px-2 py-1 text-[11px] font-mono font-bold text-stone-300 hover:text-white rounded-lg hover:bg-stone-800 transition cursor-pointer"
-            title="Restablecer tamaño (100%)"
-          >
-            {Math.round(zoomLevel * 100)}%
-          </button>
-          <button
-            onClick={handleZoomIn}
-            className="p-1.5 rounded-lg hover:bg-stone-800 text-stone-400 hover:text-white transition cursor-pointer"
-            title="Acercar"
-          >
-            <span className="material-symbols-outlined text-[16px]">zoom_in</span>
-          </button>
-        </div>
+        {/* Cuadro de Superficies Flotante sobre el render o plano base */}
+        {showScheduleOverlay && roomMarkers.length > 0 && activeTab !== 'ficha' && (
+          <div className="absolute bottom-5 right-5 z-30 max-w-xs shadow-2xl animate-fadeIn hidden sm:block">
+            <div className="relative">
+              <button
+                onClick={() => setShowScheduleOverlay(false)}
+                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-stone-900 text-stone-300 hover:text-white flex items-center justify-center text-xs shadow-md border border-stone-700 z-10 cursor-pointer"
+                title="Ocultar cuadro de superficies"
+              >
+                ✕
+              </button>
+              <SurfaceScheduleTable markers={roomMarkers} />
+            </div>
+          </div>
+        )}
+
+        {/* Barra flotante de zoom en la esquina inferior (solo en modos interactivos de plano/render) */}
+        {activeTab !== 'ficha' && (
+          <div className="absolute bottom-4 left-4 z-20 flex items-center gap-1 bg-stone-950/80 backdrop-blur-md border border-stone-800 rounded-xl p-1 text-white shadow-xl">
+            <button
+              onClick={handleZoomOut}
+              className="p-1.5 rounded-lg hover:bg-stone-800 text-stone-400 hover:text-white transition cursor-pointer"
+              title="Alejar"
+            >
+              <span className="material-symbols-outlined text-[16px]">zoom_out</span>
+            </button>
+            <button
+              onClick={handleZoomReset}
+              className="px-2 py-1 text-[11px] font-mono font-bold text-stone-300 hover:text-white rounded-lg hover:bg-stone-800 transition cursor-pointer"
+              title="Restablecer tamaño (100%)"
+            >
+              {Math.round(zoomLevel * 100)}%
+            </button>
+            <button
+              onClick={handleZoomIn}
+              className="p-1.5 rounded-lg hover:bg-stone-800 text-stone-400 hover:text-white transition cursor-pointer"
+              title="Acercar"
+            >
+              <span className="material-symbols-outlined text-[16px]">zoom_in</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

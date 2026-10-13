@@ -64,14 +64,15 @@ export function StyleSelector({
   };
 
   // Manejo de Estancias
-  const handleAddMarker = (category: RoomCategory, name?: string) => {
+  const handleAddMarker = (category: RoomCategory, name?: string, area?: number) => {
     const newMarker: RoomMarker = {
       id: `room_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       name: name || 'Nueva Estancia',
       category,
       x: 50,
       y: 50,
-      notes: ''
+      notes: '',
+      areaSqMeters: area
     };
     const updated = [...(config.roomMarkers || []), newMarker];
     updateField('roomMarkers', updated);

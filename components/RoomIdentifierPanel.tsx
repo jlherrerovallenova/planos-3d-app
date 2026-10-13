@@ -4,7 +4,7 @@ import { ROOM_CATEGORIES } from '../constants';
 
 interface RoomIdentifierPanelProps {
   markers: RoomMarker[];
-  onAddMarker: (category: RoomCategory, name?: string) => void;
+  onAddMarker: (category: RoomCategory, name?: string, area?: number) => void;
   onUpdateMarker: (id: string, updates: Partial<RoomMarker>) => void;
   onDeleteMarker: (id: string) => void;
   onClearMarkers: () => void;
@@ -28,6 +28,7 @@ export function RoomIdentifierPanel({
   disabled
 }: RoomIdentifierPanelProps) {
   const [customRoomName, setCustomRoomName] = useState<string>('');
+  const [customArea, setCustomArea] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<RoomCategory>('salon_comedor');
 
   // Accesos directos a las estancias más comunes
@@ -49,8 +50,10 @@ export function RoomIdentifierPanel({
     e.preventDefault();
     const catInfo = ROOM_CATEGORIES.find((c) => c.id === selectedCategory);
     const name = customRoomName.trim() || catInfo?.label || 'Nueva Estancia';
-    onAddMarker(selectedCategory, name);
+    const area = customArea ? parseFloat(customArea) : undefined;
+    onAddMarker(selectedCategory, name, area);
     setCustomRoomName('');
+    setCustomArea('');
   };
 
   const activeMarker = markers.find((m) => m.id === activeMarkerId);
@@ -129,7 +132,7 @@ export function RoomIdentifierPanel({
 
       {/* 3. Formulario personalizado colapsable */}
       <form onSubmit={handleCustomAdd} className="p-3 bg-stone-50 border border-stone-200 rounded-2xl space-y-2">
-        <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="grid grid-cols-3 gap-2 text-xs">
           <div>
             <span className="text-[10px] font-medium text-stone-500 block mb-0.5">Categoría:</span>
             <select
@@ -150,9 +153,21 @@ export function RoomIdentifierPanel({
             <input
               type="text"
               disabled={disabled}
-              placeholder="Ej: Sala de Cine, Aseo 2..."
+              placeholder="Ej: Sala de Cine..."
               value={customRoomName}
               onChange={(e) => setCustomRoomName(e.target.value)}
+              className="w-full bg-white border border-stone-300 rounded-lg px-2 py-1.5 text-xs text-stone-800 focus:outline-none focus:border-[#c25e38]"
+            />
+          </div>
+          <div>
+            <span className="text-[10px] font-medium text-stone-500 block mb-0.5">Superficie (m²):</span>
+            <input
+              type="number"
+              step="0.01"
+              disabled={disabled}
+              placeholder="Ej: 14.50"
+              value={customArea}
+              onChange={(e) => setCustomArea(e.target.value)}
               className="w-full bg-white border border-stone-300 rounded-lg px-2 py-1.5 text-xs text-stone-800 focus:outline-none focus:border-[#c25e38]"
             />
           </div>
@@ -185,9 +200,9 @@ export function RoomIdentifierPanel({
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="grid grid-cols-3 gap-2 text-xs">
             <div>
-              <span className="text-[10px] text-stone-500">Nombre de la estancia:</span>
+              <span className="text-[10px] text-stone-500">Nombre:</span>
               <input
                 type="text"
                 value={activeMarker.name}
@@ -210,6 +225,21 @@ export function RoomIdentifierPanel({
                   </option>
                 ))}
               </select>
+            </div>
+            <div>
+              <span className="text-[10px] text-stone-500">Superficie (m²):</span>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="m²"
+                value={activeMarker.areaSqMeters !== undefined ? activeMarker.areaSqMeters : ''}
+                onChange={(e) =>
+                  onUpdateMarker(activeMarker.id, {
+                    areaSqMeters: e.target.value ? parseFloat(e.target.value) : undefined
+                  })
+                }
+                className="w-full mt-0.5 bg-white border border-stone-300 rounded-lg px-2 py-1 text-xs font-mono font-bold"
+              />
             </div>
           </div>
 
@@ -289,7 +319,12 @@ export function RoomIdentifierPanel({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {marker.areaSqMeters !== undefined && (
+                      <span className="text-[11px] font-bold text-[#0F2C59] bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 font-mono">
+                        {marker.areaSqMeters.toLocaleString('es-ES', { minimumFractionDigits: 2 })} m²
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => {
@@ -316,6 +351,18 @@ export function RoomIdentifierPanel({
                 </div>
               );
             })}
+
+            {markers.some((m) => m.areaSqMeters) && (
+              <div className="mt-2 pt-2 border-t border-stone-200 flex items-center justify-between text-xs px-1">
+                <span className="font-bold text-stone-600">Superficie Útil Total:</span>
+                <span className="font-black text-[#0F2C59] font-mono text-xs">
+                  {markers
+                    .reduce((acc, m) => acc + (m.areaSqMeters || 0), 0)
+                    .toLocaleString('es-ES', { minimumFractionDigits: 2 })}{' '}
+                  m²
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>

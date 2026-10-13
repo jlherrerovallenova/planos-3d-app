@@ -94,6 +94,8 @@ export interface RoomMarker {
   x: number;
   y: number;
   notes?: string;
+  /** Superficie útil en metros cuadrados (m²) */
+  areaSqMeters?: number;
 }
 export interface RenderConfig {
   // 1. General
