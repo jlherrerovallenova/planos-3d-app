@@ -7,8 +7,7 @@ import {
 } from './types';
 import {
   DEFAULT_PRESETS,
-  SAMPLE_PLANS,
-  ROOM_CATEGORIES
+  SAMPLE_PLANS
 } from './constants';
 import { buildArchitecturalPrompt } from './services/promptBuilder';
 import { PlanCanvasPreview } from './components/PlanCanvasPreview';
@@ -18,7 +17,8 @@ import { ProjectExportModal } from './components/ProjectExportModal';
 import { safeDownloadFile, cleanBase64Data } from './services/downloadHelper';
 
 export function App() {
-  // 1. Configuración de renderizado
+  // 1. Título y Configuración de renderizado
+  const [projectTitle, setProjectTitle] = useState<string>('Proyecto Residencial Los Álamos');
   const [presets, setPresets] = useState<PresetConfig[]>(DEFAULT_PRESETS);
   const [activePresetId, setActivePresetId] = useState<string | null>(DEFAULT_PRESETS[0].id);
   const [config, setConfig] = useState<RenderConfig>(DEFAULT_PRESETS[0].config);
@@ -43,6 +43,7 @@ export function App() {
   // 4. Estados de Generación y Descarga
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const [generationSuccessMessage, setGenerationSuccessMessage] = useState<string | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<'idle' | 'downloading' | 'done'>('idle');
 
   // 5. Historial y Modales
@@ -122,13 +123,12 @@ export function App() {
       }
     }
 
-    // Si no está Flow o falla, abrir selector de archivos local
+    // Fallback: abrir selector de archivos local
     fileInputRef.current?.click();
   };
 
   // Cargar muestra de demostración
   const handleLoadSample = (sampleUrl: string, sampleName: string) => {
-    // Convertir muestra externa a base64 seguro
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
@@ -146,6 +146,7 @@ export function App() {
           name: sampleName
         });
         setRenderedResult(null);
+        setGenerationError(null);
       }
     };
     img.src = sampleUrl;
@@ -154,7 +155,6 @@ export function App() {
   // Manejo de Pines en el Canvas
   const handleCanvasClickToPositionMarker = (x: number, y: number) => {
     if (!config.roomMarkers || config.roomMarkers.length === 0) {
-      // Si no hay marcadores creados, añadir el primero en el punto clickeado
       const newMarker: RoomMarker = {
         id: `room_${Date.now()}`,
         name: 'Salón Principal',
@@ -172,7 +172,6 @@ export function App() {
     }
 
     if (activeMarkerId) {
-      // Mover el pin actualmente seleccionado a las nuevas coordenadas
       setConfig((prev) => ({
         ...prev,
         roomMarkers: prev.roomMarkers.map((m) =>
@@ -180,7 +179,6 @@ export function App() {
         )
       }));
     } else {
-      // Si no hay ninguno activo, mover el último de la lista o activar el más cercano
       const last = config.roomMarkers[config.roomMarkers.length - 1];
       setConfig((prev) => ({
         ...prev,
@@ -192,12 +190,26 @@ export function App() {
     }
   };
 
+  const handleUpdateMarker = (id: string, updates: Partial<RoomMarker>) => {
+    setConfig((prev) => ({
+      ...prev,
+      roomMarkers: prev.roomMarkers.map((m) => (m.id === id ? { ...m, ...updates } : m))
+    }));
+  };
+
+  const handleDeleteMarker = (id: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      roomMarkers: prev.roomMarkers.filter((m) => m.id !== id)
+    }));
+    if (activeMarkerId === id) setActiveMarkerId(null);
+  };
+
   // Manejo de Presets
   const handleApplyPreset = (preset: PresetConfig) => {
     setActivePresetId(preset.id);
     setConfig({
       ...preset.config,
-      // Conservar marcadores de habitación ya colocados por el usuario si los hay
       roomMarkers: config.roomMarkers?.length ? config.roomMarkers : preset.config.roomMarkers
     });
   };
@@ -221,12 +233,13 @@ export function App() {
   // Generación con IA
   const handleGenerate = async () => {
     if (!sourceImage) {
-      setGenerationError('Por favor, selecciona o sube un plano antes de generar.');
+      setGenerationError('Por favor, selecciona o sube un plano 2D antes de generar la maqueta.');
       return;
     }
 
     setIsGenerating(true);
     setGenerationError(null);
+    setGenerationSuccessMessage(null);
 
     const flowSdk = (window as any).Flow;
 
@@ -237,7 +250,6 @@ export function App() {
         let genRes: any = null;
 
         try {
-          // Intento con modelo principal
           genRes = await flowSdk.generate.image({
             prompt: currentPrompt,
             referenceImageMediaIds: refIds,
@@ -245,8 +257,7 @@ export function App() {
             modelDisplayName: '🍌 Nano Banana Pro'
           });
         } catch (modelErr) {
-          console.warn('Fallo con Nano Banana Pro, reintentando con Nano Banana 2.1:', modelErr);
-          // Fallback dinámico a versión 2.1
+          console.warn('Fallback a Nano Banana 2.1:', modelErr);
           genRes = await flowSdk.generate.image({
             prompt: currentPrompt,
             referenceImageMediaIds: refIds,
@@ -260,7 +271,6 @@ export function App() {
           const result = { base64: cleanBase64, mimeType: genRes.mimeType || mimeType };
           setRenderedResult(result);
 
-          // Guardar en historial
           const historyItem: RenderHistoryItem = {
             id: `render_${Date.now()}`,
             mediaId: genRes.mediaId || '',
@@ -271,15 +281,16 @@ export function App() {
             timestamp: Date.now()
           };
           setHistory((prev) => [historyItem, ...prev]);
+          setGenerationSuccessMessage('¡Render 3D generado con éxito!');
           setIsGenerating(false);
           return;
         }
       }
 
-      // 2. Llamada directa a la API de Gemini (entorno local o Vite)
+      // 2. Llamada directa a Gemini API
       const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
       if (!apiKey) {
-        throw new Error('No se encontró VITE_GEMINI_API_KEY en .env.local para procesar el render.');
+        throw new Error('No se encontró VITE_GEMINI_API_KEY en .env.local.');
       }
 
       const candidateModels = [
@@ -297,7 +308,6 @@ export function App() {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
           const parts: any[] = [];
 
-          // Incluir plano 2D de referencia
           if (sourceImage && sourceImage.base64) {
             const { cleanBase64, mimeType } = cleanBase64Data(sourceImage.base64);
             parts.push({
@@ -308,7 +318,6 @@ export function App() {
             });
           }
 
-          // Incluir prompt arquitectónico compilado
           parts.push({ text: currentPrompt });
 
           const response = await fetch(endpoint, {
@@ -340,7 +349,7 @@ export function App() {
             break;
           }
         } catch (modelErr: any) {
-          console.warn(`Error al conectar con ${model}:`, modelErr);
+          console.warn(`Error llamando a ${model}:`, modelErr);
           lastErrorMessage = modelErr?.message || 'Error de conexión con Gemini';
         }
       }
@@ -358,13 +367,14 @@ export function App() {
           timestamp: Date.now()
         };
         setHistory((prev) => [historyItem, ...prev]);
+        setGenerationSuccessMessage('¡Maqueta 3D renderizada con éxito!');
         setIsGenerating(false);
         return;
       }
 
       throw new Error(
         lastErrorMessage ||
-          'El modelo generativo no devolvió una imagen renderizada válida. Revisa tu conexión y clave de API.'
+          'El modelo generativo no devolvió una imagen válida. Verifica tu conexión.'
       );
     } catch (err: any) {
       console.error('Error al generar render:', err);
@@ -381,7 +391,7 @@ export function App() {
     const success = await safeDownloadFile({
       base64: renderedResult.base64,
       mimeType: renderedResult.mimeType,
-      filename: `plano_3d_${config.cameraAngle}_${Date.now()}.png`
+      filename: `${projectTitle.toLowerCase().replace(/\s+/g, '_')}_3d_${config.cameraAngle}.png`
     });
     setDownloadStatus(success ? 'done' : 'idle');
     setTimeout(() => setDownloadStatus('idle'), 2500);
@@ -398,94 +408,181 @@ export function App() {
         className="hidden"
       />
 
-      {/* Barra de Navegación Superior */}
-      <header className="border-b border-stone-200 bg-white/90 backdrop-blur sticky top-0 z-40 px-4 lg:px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#c25e38] text-white flex items-center justify-center shadow-xs">
-            <span className="material-symbols-outlined text-[22px]">view_in_ar</span>
+      {/* 1. Header Comercial / Barra Superior */}
+      <header className="border-b border-stone-200/90 bg-white/95 backdrop-blur-md sticky top-0 z-40 px-4 lg:px-8 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#c25e38] to-[#e07a5f] text-white flex items-center justify-center shadow-md shadow-[#c25e38]/20">
+            <span className="material-symbols-outlined text-[24px]">view_in_ar</span>
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-serif italic text-lg lg:text-xl text-stone-900 font-normal">
-                Dollhouse 3D Studio
-              </h1>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-[#c25e38]">
-                Arquitectura IA
+            <div className="flex items-center gap-2.5">
+              <input
+                type="text"
+                value={projectTitle}
+                onChange={(e) => setProjectTitle(e.target.value)}
+                className="font-serif italic text-lg lg:text-xl text-stone-900 font-normal bg-transparent hover:bg-stone-50 focus:bg-white rounded-lg px-1.5 py-0.5 border border-transparent hover:border-stone-200 focus:border-[#c25e38] focus:outline-none transition-all"
+                title="Haz clic para renombrar el proyecto"
+              />
+              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-orange-100 text-[#c25e38]">
+                <span>✨</span> Dollhouse 3D Studio
               </span>
             </div>
-            <p className="text-[11px] text-stone-500 hidden sm:block">
-              Generador de maquetas seccionadas 3D y planos comerciales amueblados
+            <p className="text-[11px] text-stone-400 hidden md:block">
+              De plano 2D a maqueta arquitectónica 3D fotorrealista con IA
             </p>
           </div>
         </div>
 
+        {/* Acciones principales a la derecha */}
         <div className="flex items-center gap-2">
-          {/* Muestras rápidas si no hay plano */}
-          {!sourceImage && (
-            <div className="hidden md:flex items-center gap-1.5 mr-2">
-              <span className="text-[11px] text-stone-400 font-medium">Probar muestra:</span>
-              {SAMPLE_PLANS.map((sample, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleLoadSample(sample.url, sample.name)}
-                  className="text-xs px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition"
-                >
-                  {sample.type}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Badge de conexión a IA */}
+          <div className="hidden xl:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Motor: Gemini Nano Banana</span>
+          </div>
 
           <button
             onClick={() => setIsIntroOpen(true)}
-            className="p-2 lg:px-3 lg:py-1.5 rounded-xl text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-100 transition flex items-center gap-1.5"
-            title="Guía de uso"
+            className="p-2 lg:px-3 lg:py-1.5 rounded-xl text-xs font-semibold text-stone-600 hover:text-stone-900 hover:bg-stone-100 transition flex items-center gap-1.5 cursor-pointer"
+            title="Guía rápida"
           >
             <span className="material-symbols-outlined text-[18px]">help_outline</span>
-            <span className="hidden lg:inline">Guía</span>
+            <span className="hidden sm:inline">Guía</span>
           </button>
 
           <button
             onClick={() => setIsExportOpen(true)}
-            className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-800 transition flex items-center gap-1.5 border border-stone-200"
+            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-800 transition flex items-center gap-1.5 border border-stone-200 cursor-pointer shadow-2xs"
           >
-            <span className="material-symbols-outlined text-[17px]">download</span>
+            <span className="material-symbols-outlined text-[17px]">archive</span>
             <span>Exportar</span>
           </button>
 
+          {/* Botón Primario de Generación */}
           <button
             onClick={handleGenerate}
             disabled={isGenerating || !sourceImage}
-            className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-[#c25e38] hover:bg-[#a84d2b] disabled:opacity-50 text-white shadow-xs transition flex items-center gap-1.5 active:scale-95"
+            className="px-5 py-2 rounded-xl text-xs font-bold bg-[#c25e38] hover:bg-[#a84d2b] disabled:opacity-50 text-white shadow-md shadow-[#c25e38]/25 transition flex items-center gap-2 cursor-pointer active:scale-95"
           >
             <span className="material-symbols-outlined text-[18px]">
               {isGenerating ? 'progress_activity' : 'auto_awesome'}
             </span>
-            <span>{isGenerating ? 'Generando...' : 'Generar Render 3D'}</span>
+            <span>{isGenerating ? 'Renderizando...' : 'Generar Render 3D'}</span>
           </button>
         </div>
       </header>
 
-      {/* Espacio de Trabajo Principal */}
-      <main className="flex-1 p-3 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 max-w-[1850px] w-full mx-auto">
-        {/* Columna Izquierda: Visor de Planos y Canvas (7 columnas) */}
-        <section className="lg:col-span-7 flex flex-col gap-3 min-h-[500px]">
+      {/* 2. Barra de Pasos / Guía de Flujo Sutil */}
+      <div className="bg-stone-100/60 border-b border-stone-200/80 px-4 lg:px-8 py-2 flex items-center justify-between text-xs text-stone-500 overflow-x-auto">
+        <div className="flex items-center gap-6 min-w-max">
+          <div className="flex items-center gap-2 font-medium">
+            <span
+              className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                sourceImage ? 'bg-emerald-600 text-white' : 'bg-[#c25e38] text-white'
+              }`}
+            >
+              {sourceImage ? '✓' : '1'}
+            </span>
+            <span className={sourceImage ? 'text-stone-900 font-semibold' : 'text-[#c25e38] font-bold'}>
+              1. Carga tu Plano 2D
+            </span>
+          </div>
+
+          <span className="text-stone-300">→</span>
+
+          <div className="flex items-center gap-2 font-medium">
+            <span
+              className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                config.roomMarkers?.length ? 'bg-emerald-600 text-white' : 'bg-stone-200 text-stone-700'
+              }`}
+            >
+              {config.roomMarkers?.length ? '✓' : '2'}
+            </span>
+            <span className={config.roomMarkers?.length ? 'text-stone-900 font-semibold' : 'text-stone-500'}>
+              2. Marca Estancias ({config.roomMarkers?.length || 0})
+            </span>
+          </div>
+
+          <span className="text-stone-300">→</span>
+
+          <div className="flex items-center gap-2 font-medium">
+            <span className="w-5 h-5 rounded-full bg-stone-200 text-stone-700 flex items-center justify-center text-[11px] font-bold">
+              3
+            </span>
+            <span className="text-stone-900 font-semibold">
+              3. Elige Estilo & Calidades
+            </span>
+          </div>
+
+          <span className="text-stone-300">→</span>
+
+          <div className="flex items-center gap-2 font-medium">
+            <span
+              className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                renderedResult ? 'bg-emerald-600 text-white' : 'bg-stone-200 text-stone-700'
+              }`}
+            >
+              {renderedResult ? '✓' : '4'}
+            </span>
+            <span className={renderedResult ? 'text-emerald-700 font-bold' : 'text-stone-500'}>
+              4. Render 3D & Descarga
+            </span>
+          </div>
+        </div>
+
+        {/* Acceso rápido a muestras de prueba */}
+        {!sourceImage && (
+          <div className="hidden lg:flex items-center gap-2 shrink-0">
+            <span className="text-[11px] text-stone-400">Probar plano muestra:</span>
+            {SAMPLE_PLANS.map((sample, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleLoadSample(sample.url, sample.name)}
+                className="px-2.5 py-0.5 rounded-lg bg-white border border-stone-200 hover:border-[#c25e38] text-stone-700 text-[11px] font-medium transition cursor-pointer"
+              >
+                {sample.type}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 3. Espacio Principal de Trabajo (Proporción Áurea: 7 cols Canvas + 5 cols Control) */}
+      <main className="flex-1 p-3 sm:p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 max-w-[1900px] w-full mx-auto">
+        {/* Columna Izquierda: Visor Interactivo (7 columnas) */}
+        <section className="lg:col-span-7 flex flex-col gap-3 min-h-[520px]">
+          {/* Mensajes de Notificación */}
           {generationError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[18px]">error</span>
+            <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-800 flex items-center justify-between shadow-xs animate-fadeIn">
+              <span className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px] text-red-600">error</span>
                 <span>{generationError}</span>
               </span>
               <button
                 onClick={() => setGenerationError(null)}
-                className="text-red-500 hover:text-red-800 font-bold ml-2"
+                className="text-red-500 hover:text-red-900 font-bold cursor-pointer"
               >
                 ✕
               </button>
             </div>
           )}
 
-          <div className="flex-1 h-full min-h-[480px]">
+          {generationSuccessMessage && (
+            <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-800 flex items-center justify-between shadow-xs animate-fadeIn">
+              <span className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px] text-emerald-600">check_circle</span>
+                <span>{generationSuccessMessage}</span>
+              </span>
+              <button
+                onClick={() => setGenerationSuccessMessage(null)}
+                className="text-emerald-500 hover:text-emerald-900 font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          <div className="flex-1 h-full min-h-[500px]">
             <PlanCanvasPreview
               sourceImage={sourceImage}
               renderedResult={renderedResult}
@@ -496,19 +593,23 @@ export function App() {
               isPinningMode={isPinningMode}
               onMarkerClick={(id) => setActiveMarkerId(id)}
               onCanvasClickToPositionMarker={handleCanvasClickToPositionMarker}
+              onUpdateMarker={handleUpdateMarker}
+              onDeleteMarker={handleDeleteMarker}
+              onTogglePinningMode={() => setIsPinningMode(!isPinningMode)}
               onClearPlan={() => {
                 setSourceImage(null);
                 setRenderedResult(null);
               }}
               onSelectFromGallery={handleSelectFromGallery}
               onUploadLocalFile={() => fileInputRef.current?.click()}
+              onLoadSamplePlan={handleLoadSample}
               onDownloadRender={handleDownloadRender}
               downloadStatus={downloadStatus}
             />
           </div>
         </section>
 
-        {/* Columna Derecha: Selector de Estilos & Memoria de Calidades (5 columnas) */}
+        {/* Columna Derecha: Panel de Estilo & Memoria de Calidades (5 columnas) */}
         <section className="lg:col-span-5 flex flex-col gap-3">
           <StyleSelector
             config={config}
@@ -522,6 +623,8 @@ export function App() {
             onSelectMarker={setActiveMarkerId}
             isPinningMode={isPinningMode}
             onTogglePinningMode={() => setIsPinningMode(!isPinningMode)}
+            onGenerateRender={handleGenerate}
+            isGenerating={isGenerating}
             disabled={isGenerating}
           />
         </section>

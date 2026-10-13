@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CameraAngle, RoomMarker } from '../types';
-import { ROOM_CATEGORIES } from '../constants';
+import { CameraAngle, RoomMarker, RoomCategory } from '../types';
+import { ROOM_CATEGORIES, SAMPLE_PLANS } from '../constants';
+
 interface PlanCanvasPreviewProps {
   sourceImage: { base64: string; mimeType: string; name?: string } | null;
   renderedResult: { base64: string; mimeType: string } | null;
@@ -11,12 +12,17 @@ interface PlanCanvasPreviewProps {
   isPinningMode?: boolean;
   onMarkerClick?: (id: string) => void;
   onCanvasClickToPositionMarker?: (x: number, y: number) => void;
+  onUpdateMarker?: (id: string, updates: Partial<RoomMarker>) => void;
+  onDeleteMarker?: (id: string) => void;
+  onTogglePinningMode?: () => void;
   onClearPlan: () => void;
   onSelectFromGallery: () => void;
   onUploadLocalFile?: () => void;
+  onLoadSamplePlan?: (url: string, name: string) => void;
   onDownloadRender?: () => void;
   downloadStatus?: 'idle' | 'downloading' | 'done';
 }
+
 export function PlanCanvasPreview({
   sourceImage,
   renderedResult,
@@ -27,338 +33,584 @@ export function PlanCanvasPreview({
   isPinningMode = false,
   onMarkerClick,
   onCanvasClickToPositionMarker,
+  onUpdateMarker,
+  onDeleteMarker,
+  onTogglePinningMode,
   onClearPlan,
   onSelectFromGallery,
   onUploadLocalFile,
+  onLoadSamplePlan,
   onDownloadRender,
   downloadStatus = 'idle'
 }: PlanCanvasPreviewProps) {
   const [activeTab, setActiveTab] = useState<'rendered' | 'split' | 'source'>('rendered');
   const [sliderPosition, setSliderPosition] = useState<number>(50);
   const [showMarkersOverlay, setShowMarkersOverlay] = useState<boolean>(true);
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const imageContainerRef = useRef<HTMLDivElement | null>(null);
+
   const is2DMode = cameraAngle === 'plan_2d_furnished';
 
+  // Cambiar automáticamente a pestaña rendered cuando llega el resultado
   useEffect(() => {
     if (renderedResult) {
       setActiveTab('rendered');
     }
   }, [renderedResult]);
-  if (!sourceImage && !renderedResult) {
-    return (
-      <div className="w-full h-full min-h-[480px] lg:min-h-[620px] bg-stone-100/70 border-2 border-dashed border-stone-300 rounded-2xl flex flex-col items-center justify-center p-8 text-center transition-all hover:border-[#c25e38]/50 hover:bg-stone-100">
-        <div className="w-20 h-20 rounded-2xl bg-white shadow-sm border border-stone-200 flex items-center justify-center text-[#c25e38] mb-4">
-          <span className="material-symbols-outlined text-[40px]">architecture</span>
-        </div>
-        <h3 className="font-serif italic text-2xl lg:text-3xl text-stone-800 mb-1">
-          Ningún plano seleccionado
-        </h3>
-        <p className="text-stone-500 text-sm max-w-md mb-6">
-          Sube un plano comercial de una vivienda (JPG/PNG) para generar la maqueta 3D amueblada o el plano 2D delineado de catálogo.
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          {onUploadLocalFile && (
-            <button
-              onClick={onUploadLocalFile}
-              className="px-6 py-3 rounded-xl bg-[#c25e38] hover:bg-[#a84d2b] text-white text-sm font-medium transition-all shadow-sm flex items-center gap-2 hover:shadow active:scale-95"
-            >
-              <span className="material-symbols-outlined text-[20px]">upload_file</span>
-              <span>Subir Archivo (JPG / PNG)</span>
-            </button>
-          )}
-          <button
-            onClick={onSelectFromGallery}
-            className="px-5 py-3 rounded-xl bg-white hover:bg-stone-50 border border-stone-300 text-stone-700 text-sm font-medium transition-all shadow-2xs flex items-center gap-2"
-          >
-            <span className="material-symbols-outlined text-[20px] text-stone-500">photo_library</span>
-            <span>Galería Flow</span>
-          </button>
-        </div>
-      </div>
-    );
-  }
-  const sourceDataUrl = sourceImage ? `data:${sourceImage.mimeType};base64,${sourceImage.base64}` : null;
-  const renderDataUrl = renderedResult ? `data:${renderedResult.mimeType};base64,${renderedResult.base64}` : null;
-  const currentViewingImage = (activeTab === 'source' || (!renderDataUrl && sourceDataUrl))
-    ? sourceDataUrl
-    : renderDataUrl;
+
+  // Si no hay resultado todavía, asegurar que se muestre el source
+  useEffect(() => {
+    if (!renderedResult && sourceImage && activeTab !== 'source') {
+      setActiveTab('source');
+    }
+  }, [renderedResult, sourceImage]);
+
+  // Manejo de clicks en el canvas para posicionar pines
   const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!onCanvasClickToPositionMarker) return;
-    if (!imageContainerRef.current) return;
+    if (editingMarkerId) {
+      setEditingMarkerId(null);
+      return;
+    }
+    if (!onCanvasClickToPositionMarker || !imageContainerRef.current) return;
+
     const rect = imageContainerRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
-    const clampedX = Math.max(2, Math.min(98, x));
-    const clampedY = Math.max(2, Math.min(98, y));
+
+    const clampedX = Math.max(3, Math.min(97, x));
+    const clampedY = Math.max(3, Math.min(97, y));
+
     onCanvasClickToPositionMarker(clampedX, clampedY);
   };
-  return (
-    <div className="w-full h-full flex flex-col bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
-      {/* Barra superior de visor */}
-      <div className="px-4 py-2.5 border-b border-stone-200 bg-stone-50 flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-[18px] text-[#c25e38]">apartment</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-stone-700">
-            {renderedResult
-              ? (is2DMode ? 'Plano 2D Comercial Amueblado' : 'Visor 3D Dollhouse')
-              : 'Plano Base'}
-          </span>
-          {isGenerating && (
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-800 animate-pulse">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-              {is2DMode ? 'Delineando Plano 2D & Amueblando...' : 'Levantando 3D & Amueblando...'}
+
+  // Toggle fullscreen
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  };
+
+  // Zoom handlers
+  const handleZoomIn = () => setZoomLevel((prev) => Math.min(2.5, prev + 0.25));
+  const handleZoomOut = () => setZoomLevel((prev) => Math.max(0.75, prev - 0.25));
+  const handleZoomReset = () => setZoomLevel(1);
+
+  // EMPTY STATE: Cuando no hay plano cargado
+  if (!sourceImage && !renderedResult) {
+    return (
+      <div className="w-full h-full min-h-[540px] bg-white rounded-3xl border border-stone-200/90 shadow-sm flex flex-col justify-between p-6 lg:p-8 overflow-hidden relative">
+        {/* Glow de fondo arquitectónico */}
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-orange-100/40 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-stone-100/60 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col items-center justify-center text-center max-w-xl mx-auto my-auto pt-4">
+          <div className="relative mb-5">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#c25e38] to-[#e07a5f] text-white flex items-center justify-center shadow-lg shadow-[#c25e38]/20">
+              <span className="material-symbols-outlined text-[38px]">architecture</span>
+            </div>
+            <span className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full bg-stone-900 text-white flex items-center justify-center text-xs shadow-md">
+              ✨
             </span>
+          </div>
+
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-stone-100 text-stone-700 mb-3 border border-stone-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#c25e38] animate-pulse" />
+            Paso 1: Sube o elige tu plano
+          </span>
+
+          <h3 className="font-serif italic text-3xl lg:text-4xl text-stone-900 font-normal mb-2 tracking-tight">
+            Comienza con tu plano 2D
+          </h3>
+          <p className="text-stone-500 text-sm max-w-md leading-relaxed mb-6">
+            Arrastra el plano comercial, anteproyecto o croquis de la vivienda. La IA levantará la maqueta 3D amueblada respetando todos tus tabiques.
+          </p>
+
+          {/* Botones de acción principales */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
+            {onUploadLocalFile && (
+              <button
+                onClick={onUploadLocalFile}
+                className="px-6 py-3.5 rounded-xl bg-[#c25e38] hover:bg-[#a84d2b] text-white text-sm font-semibold transition-all shadow-md shadow-[#c25e38]/25 flex items-center gap-2 hover:scale-[1.02] active:scale-95 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[20px]">upload_file</span>
+                <span>Subir plano (JPG / PNG)</span>
+              </button>
+            )}
+
+            <button
+              onClick={onSelectFromGallery}
+              className="px-5 py-3.5 rounded-xl bg-white hover:bg-stone-50 border border-stone-300 text-stone-700 text-sm font-medium transition-all shadow-xs flex items-center gap-2 cursor-pointer hover:border-stone-400"
+            >
+              <span className="material-symbols-outlined text-[20px] text-stone-500">photo_library</span>
+              <span>Galería de proyectos</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Tarjetas de Planos de Demostración para 1 clic */}
+        {onLoadSamplePlan && SAMPLE_PLANS && SAMPLE_PLANS.length > 0 && (
+          <div className="relative z-10 pt-4 border-t border-stone-200/80">
+            <div className="flex items-center justify-between mb-3 px-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[15px] text-[#c25e38]">lightbulb</span>
+                <span>¿No tienes un plano a mano? Prueba con estas muestras reales:</span>
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {SAMPLE_PLANS.map((sample, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => onLoadSamplePlan(sample.url, sample.name)}
+                  className="group p-3 rounded-2xl bg-stone-50/80 hover:bg-stone-100/90 border border-stone-200/90 hover:border-[#c25e38]/60 transition-all cursor-pointer flex items-center gap-3.5 shadow-2xs"
+                >
+                  <img
+                    src={sample.url}
+                    alt={sample.name}
+                    className="w-14 h-14 object-cover rounded-xl border border-stone-200 shrink-0 group-hover:scale-105 transition-transform"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-stone-900 truncate">{sample.name}</span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-stone-200 text-stone-700">
+                        {sample.type}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-stone-500 line-clamp-1 mt-0.5">{sample.desc}</p>
+                  </div>
+                  <span className="material-symbols-outlined text-[18px] text-stone-400 group-hover:text-[#c25e38] transition-colors shrink-0">
+                    arrow_forward
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const sourceDataUrl = sourceImage ? `data:${sourceImage.mimeType};base64,${sourceImage.base64}` : null;
+  const renderDataUrl = renderedResult ? `data:${renderedResult.mimeType};base64,${renderedResult.base64}` : null;
+
+  return (
+    <div
+      ref={containerRef}
+      className={`w-full h-full flex flex-col bg-stone-900 rounded-3xl border border-stone-800 shadow-xl overflow-hidden relative ${
+        isFullscreen ? 'fixed inset-0 z-50 rounded-none' : ''
+      }`}
+    >
+      {/* 1. Header Toolbar del Visor */}
+      <div className="px-4 py-3 bg-stone-950/80 backdrop-blur-md border-b border-stone-800 flex items-center justify-between flex-wrap gap-2 text-white z-20">
+        {/* Título de estado y pestañas */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 bg-stone-900 border border-stone-800 p-1 rounded-xl">
+            {renderedResult && (
+              <>
+                <button
+                  onClick={() => setActiveTab('rendered')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeTab === 'rendered'
+                      ? 'bg-[#c25e38] text-white shadow-xs'
+                      : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">
+                    {is2DMode ? 'space_dashboard' : 'view_in_ar'}
+                  </span>
+                  <span>{is2DMode ? 'Plano 2D Comercial' : 'Render 3D Dollhouse'}</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('split')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeTab === 'split'
+                      ? 'bg-[#c25e38] text-white shadow-xs'
+                      : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">compare</span>
+                  <span>Comparativa 2D / 3D</span>
+                </button>
+              </>
+            )}
+
+            {sourceImage && (
+              <button
+                onClick={() => setActiveTab('source')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  activeTab === 'source' || (!renderedResult && activeTab !== 'rendered')
+                    ? 'bg-stone-800 text-stone-100 shadow-xs'
+                    : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">map</span>
+                <span>Plano Base 2D</span>
+              </button>
+            )}
+          </div>
+
+          {/* Badge de estado de generación */}
+          {isGenerating && (
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+              <span className="font-medium animate-pulse">Renderizando maqueta 3D con IA...</span>
+            </div>
           )}
         </div>
-        {/* Acciones del visor */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Toggle de visibilidad de marcadores */}
+
+        {/* Acciones del Canvas a la derecha */}
+        <div className="flex items-center gap-2">
+          {/* Toggle de Modo Marcador / Pines */}
+          {onTogglePinningMode && (
+            <button
+              onClick={onTogglePinningMode}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                isPinningMode
+                  ? 'bg-amber-500 text-stone-950 border-amber-400 shadow-xs font-bold'
+                  : 'bg-stone-800/80 border-stone-700 text-stone-300 hover:text-white hover:bg-stone-700'
+              }`}
+              title="Fija o arrastra estancias directamente sobre el plano"
+            >
+              <span className="material-symbols-outlined text-[16px]">
+                {isPinningMode ? 'touch_app' : 'pin_drop'}
+              </span>
+              <span>{isPinningMode ? 'Modo Marcador ACTIVO' : 'Marcar Estancias'}</span>
+            </button>
+          )}
+
+          {/* Ocultar/Mostrar overlay de marcadores */}
           {roomMarkers.length > 0 && (
             <button
               onClick={() => setShowMarkersOverlay(!showMarkersOverlay)}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 border transition-all ${showMarkersOverlay
-                  ? 'bg-orange-50 border-orange-200 text-[#c25e38]'
-                  : 'bg-white border-stone-200 text-stone-500 hover:text-stone-800'
-                }`}
-              title="Mostrar u ocultar los marcadores de estancias sobre el plano"
+              className={`p-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
+                showMarkersOverlay
+                  ? 'bg-stone-800 border-stone-700 text-stone-200'
+                  : 'bg-stone-900 border-stone-800 text-stone-500 hover:text-stone-300'
+              }`}
+              title={showMarkersOverlay ? 'Ocultar pines' : 'Mostrar pines'}
             >
-              <span className="material-symbols-outlined text-[15px]">
+              <span className="material-symbols-outlined text-[18px]">
                 {showMarkersOverlay ? 'visibility' : 'visibility_off'}
               </span>
-              <span>{showMarkersOverlay ? 'Estancias' : 'Ocultar'} ({roomMarkers.length})</span>
             </button>
           )}
+
+          {/* Botón Descargar Render Directo */}
           {renderedResult && onDownloadRender && (
             <button
               onClick={onDownloadRender}
               disabled={downloadStatus !== 'idle'}
-              className="px-3 py-1.5 rounded-lg bg-[#c25e38] hover:bg-[#a84d2b] text-white text-xs font-medium flex items-center gap-1.5 transition-all shadow-xs active:scale-95 disabled:opacity-75"
-              title="Descargar imagen en alta resolución"
+              className="px-3.5 py-1.5 rounded-xl bg-[#c25e38] hover:bg-[#a84d2b] disabled:opacity-50 text-white text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
             >
-              <span className="material-symbols-outlined text-[15px]">
+              <span className="material-symbols-outlined text-[16px]">
                 {downloadStatus === 'done' ? 'check' : 'download'}
               </span>
               <span>
                 {downloadStatus === 'downloading'
                   ? 'Descargando...'
                   : downloadStatus === 'done'
-                    ? 'Descargado ✓'
-                    : 'Descargar Render'}
+                  ? '¡Descargado!'
+                  : 'Descargar 4K'}
               </span>
             </button>
           )}
-          {/* Selector de pestañas de visualización */}
-          <div className="flex items-center gap-1 bg-stone-200/60 p-1 rounded-lg text-xs">
-            {renderedResult && (
-              <>
-                <button
-                  onClick={() => setActiveTab('rendered')}
-                  className={`px-3 py-1 rounded font-medium transition-all flex items-center gap-1 ${activeTab === 'rendered' ? 'bg-white shadow text-stone-900 font-bold' : 'text-stone-600 hover:text-stone-900'
-                    }`}
-                  title="Vista principal del render"
-                >
-                  <span className="material-symbols-outlined text-[14px]">
-                    {is2DMode ? 'space_dashboard' : 'view_in_ar'}
-                  </span>
-                  <span>{is2DMode ? 'Plano 2D' : 'Plano 3D'}</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('split')}
-                  className={`px-3 py-1 rounded font-medium transition-all flex items-center gap-1 ${activeTab === 'split' ? 'bg-white shadow text-stone-900 font-bold' : 'text-stone-600 hover:text-stone-900'
-                    }`}
-                >
-                  <span className="material-symbols-outlined text-[14px]">compare</span>
-                  <span>Comparativa</span>
-                </button>
-              </>
-            )}
-            {sourceImage && (
-              <button
-                onClick={() => setActiveTab('source')}
-                className={`px-3 py-1 rounded font-medium transition-all flex items-center gap-1 ${activeTab === 'source' || (!renderedResult && activeTab !== 'rendered')
-                    ? 'bg-white shadow text-stone-900 font-bold'
-                    : 'text-stone-600 hover:text-stone-900'
-                  }`}
-              >
-                <span className="material-symbols-outlined text-[14px]">description</span>
-                <span>Original</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-      {/* Aviso de Modo Marcado */}
-      {isPinningMode && (
-        <div className="px-4 py-1.5 bg-amber-50 border-b border-amber-200 text-amber-900 text-xs flex items-center justify-between animate-fadeIn">
-          <div className="flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[16px] text-amber-600">pin_drop</span>
-            <span className="font-semibold">Modo Marcado Activo:</span>
-            <span>Haz clic en la habitación deseada dentro del plano para posicionar la estancia.</span>
-          </div>
-          <span className="text-[10px] font-mono bg-white px-2 py-0.5 rounded border border-amber-200">
-            Puntero activo
-          </span>
-        </div>
-      )}
-      {/* Área del Canvas con Modos de Visualización */}
-      <div
-        ref={imageContainerRef}
-        onClick={handleContainerClick}
-        className={`relative flex-1 min-h-[540px] lg:min-h-[660px] bg-[#121110] flex items-center justify-center overflow-hidden group select-none ${isPinningMode ? 'cursor-crosshair' : 'cursor-default'
-          }`}
-      >
-        {/* Generando Overlay */}
-        {isGenerating && (
-          <div className="absolute inset-0 z-40 bg-stone-950/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center text-white">
-            <div className="relative w-20 h-20 mb-5">
-              <div className="absolute inset-0 rounded-2xl border-2 border-orange-500/30 animate-ping" />
-              <div className="w-full h-full rounded-2xl bg-gradient-to-tr from-[#c25e38] to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
-                <span className="material-symbols-outlined text-[36px] text-white animate-spin">autorenew</span>
-              </div>
-            </div>
-            <h4 className="font-serif italic text-2xl lg:text-3xl text-stone-100 mb-1">
-              {is2DMode ? 'Creando plano 2D comercial amueblado...' : 'Elevando tabiques y amueblando en 3D...'}
-            </h4>
-            <p className="text-stone-400 text-xs max-w-sm">
-              Interpretando distribución arquitectónica, estancias identificadas y materiales seleccionados.
-            </p>
-          </div>
-        )}
-        {/* IMAGEN DE FONDO (Render 3D o Plano Original) */}
-        {activeTab !== 'split' && currentViewingImage && (
-          <div className="relative w-full h-full flex items-center justify-center p-3">
-            <img
-              src={currentViewingImage}
-              alt="Plano Arquitectónico"
-              className="w-full h-full object-contain max-h-[820px] rounded-lg shadow-2xl transition-all"
-            />
-            {/* PINES Y ETIQUETAS DE ESTANCIAS SUPERPUESTAS */}
-            {showMarkersOverlay && roomMarkers.map((marker, index) => {
-              const cat = ROOM_CATEGORIES.find(c => c.id === marker.category) || ROOM_CATEGORIES[0];
-              const isSelected = activeMarkerId === marker.id;
-              return (
-                <div
-                  key={marker.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onMarkerClick) onMarkerClick(marker.id);
-                  }}
-                  style={{
-                    left: `${marker.x}%`,
-                    top: `${marker.y}%`,
-                  }}
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 z-30 cursor-pointer group/pin transition-transform hover:scale-110 ${isSelected ? 'scale-110 z-40' : ''
-                    }`}
-                  title={`${marker.name} (${cat.label})`}
-                >
-                  <div className="relative flex flex-col items-center">
-                    {/* Badge / Pin */}
-                    <div
-                      className={`px-2 py-0.5 rounded-full text-white font-bold text-[11px] shadow-lg flex items-center gap-1 border-2 transition-all ${isSelected
-                          ? 'border-white ring-4 ring-[#c25e38]/50 ring-offset-1'
-                          : 'border-white/80'
-                        }`}
-                      style={{ backgroundColor: cat.color }}
-                    >
-                      <span className="material-symbols-outlined text-[13px]">{cat.icon}</span>
-                      <span className="truncate max-w-[90px]">{marker.name}</span>
-                    </div>
-                    {/* Flecha inferior del pin */}
-                    <div
-                      className="w-2 h-2 rotate-45 -mt-1 border-r-2 border-b-2 border-white/80"
-                      style={{ backgroundColor: cat.color }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {/* MODO SPLIT SLIDER */}
-        {activeTab === 'split' && renderDataUrl && sourceDataUrl && (
-          <div className="relative w-full h-full flex items-center justify-center bg-stone-950">
-            <img
-              src={renderDataUrl}
-              alt={is2DMode ? "Plano 2D Comercial Amueblado" : "Render 3D Dollhouse"}
-              className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-            />
-            <div
-              className="absolute inset-0 overflow-hidden pointer-events-none"
-              style={{ width: `${sliderPosition}%` }}
-            >
-              <img
-                src={sourceDataUrl}
-                alt="Plano 2D original"
-                className="absolute inset-0 w-full h-full object-contain bg-white"
-                style={{ width: '100vw', maxWidth: 'none' }}
-              />
-            </div>
-            <div
-              className="absolute top-0 bottom-0 z-20 w-1 bg-white cursor-ew-resize shadow-[0_0_10px_rgba(0,0,0,0.5)]"
-              style={{ left: `${sliderPosition}%` }}
-            >
-              <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-white text-stone-900 shadow-lg border border-stone-200 flex items-center justify-center">
-                <span className="material-symbols-outlined text-[18px]">drag_handle</span>
-              </div>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={sliderPosition}
-              onChange={(e) => setSliderPosition(Number(e.target.value))}
-              className="absolute inset-0 opacity-0 cursor-ew-resize z-20 w-full h-full"
-            />
-            <div className="absolute bottom-4 left-4 z-10 px-3 py-1 rounded bg-black/70 backdrop-blur-sm text-white text-[11px] font-mono tracking-wider uppercase">
-              Plano Original
-            </div>
-            <div className="absolute bottom-4 right-4 z-10 px-3 py-1 rounded bg-[#c25e38]/90 backdrop-blur-sm text-white text-[11px] font-mono tracking-wider uppercase">
-              {is2DMode ? 'Plano 2D Amueblado' : 'Dollhouse 3D'}
-            </div>
-          </div>
-        )}
-      </div>
-      {/* Barra de estado inferior */}
-      <div className="p-3 bg-stone-50 border-t border-stone-200 flex items-center justify-between text-xs text-stone-500">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-[16px] text-stone-400">info</span>
-          <span>
-            {sourceImage?.name ? `Archivo: ${sourceImage.name}` : 'Plano cargado en memoria de trabajo'}
-          </span>
-          {roomMarkers.length > 0 && (
-            <span className="hidden sm:inline-block text-[11px] font-semibold text-orange-700 bg-orange-100 px-2 py-0.2 rounded-full">
-              {roomMarkers.length} estancias etiquetadas
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {onUploadLocalFile && (
-            <button
-              onClick={onUploadLocalFile}
-              className="text-stone-600 hover:text-stone-900 font-medium flex items-center gap-1 transition-colors"
-            >
-              <span className="material-symbols-outlined text-[16px]">upload_file</span>
-              Subir Archivo
-            </button>
-          )}
-          <span className="text-stone-300">|</span>
-          <button
-            onClick={onSelectFromGallery}
-            className="text-stone-600 hover:text-stone-900 font-medium flex items-center gap-1 transition-colors"
-          >
-            <span className="material-symbols-outlined text-[16px]">refresh</span>
-            Galería
-          </button>
-          <span className="text-stone-300">|</span>
+
+          {/* Cambiar plano o borrar */}
           <button
             onClick={onClearPlan}
-            className="text-red-600 hover:text-red-700 font-medium flex items-center gap-1 transition-colors"
+            className="p-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-400 hover:text-stone-200 border border-stone-800 transition cursor-pointer"
+            title="Cambiar plano o limpiar"
           >
-            <span className="material-symbols-outlined text-[16px]">delete</span>
-            Limpiar
+            <span className="material-symbols-outlined text-[18px]">change_circle</span>
+          </button>
+
+          {/* Fullscreen toggle */}
+          <button
+            onClick={toggleFullscreen}
+            className="p-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-400 hover:text-stone-200 border border-stone-800 transition cursor-pointer"
+            title="Pantalla completa"
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              {isFullscreen ? 'fullscreen_exit' : 'fullscreen'}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* 2. Área Central del Canvas */}
+      <div
+        className={`relative flex-1 flex items-center justify-center p-4 overflow-hidden select-none ${
+          isPinningMode ? 'cursor-crosshair' : 'cursor-default'
+        }`}
+        style={{
+          background: 'radial-gradient(circle at center, #1c1917 0%, #0c0a09 100%)'
+        }}
+      >
+        {/* Banner informativo cuando el modo de colocación de pines está activo */}
+        {isPinningMode && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 bg-amber-400/90 backdrop-blur-md text-stone-950 px-4 py-2 rounded-full text-xs font-bold shadow-xl border border-amber-300 flex items-center gap-2 animate-bounce">
+            <span className="material-symbols-outlined text-[18px]">touch_app</span>
+            <span>Haz clic en cualquier punto del plano para ubicar o desplazar la estancia</span>
+          </div>
+        )}
+
+        {/* Loading Overlay al generar */}
+        {isGenerating && (
+          <div className="absolute inset-0 z-40 bg-stone-950/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-fadeIn">
+            <div className="relative mb-6">
+              <div className="w-16 h-16 rounded-2xl border-4 border-[#c25e38]/30 border-t-[#c25e38] animate-spin flex items-center justify-center" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="material-symbols-outlined text-white text-[24px]">view_in_ar</span>
+              </div>
+            </div>
+            <h4 className="font-serif italic text-2xl text-white font-normal mb-2">
+              Generando Maqueta Arquitectónica 3D
+            </h4>
+            <p className="text-stone-400 text-xs max-w-md leading-relaxed mb-4">
+              La IA está interpretando tus tabiques, levantando muros a 1.2m, aplicando pavimentos seleccionados y configurando iluminación fotorrealista.
+            </p>
+            <div className="w-64 h-1.5 bg-stone-800 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-[#c25e38] to-amber-400 rounded-full animate-pulse w-3/4" />
+            </div>
+          </div>
+        )}
+
+        {/* CONTENEDOR DE IMAGEN (Con soporte de zoom) */}
+        <div
+          ref={imageContainerRef}
+          onClick={handleContainerClick}
+          className="relative max-w-full max-h-full flex items-center justify-center transition-transform duration-150 ease-out"
+          style={{ transform: `scale(${zoomLevel})` }}
+        >
+          {/* MODO 1: COMPARADOR SPLIT SLIDER */}
+          {activeTab === 'split' && sourceDataUrl && renderDataUrl ? (
+            <div className="relative max-h-[72vh] max-w-full rounded-2xl overflow-hidden shadow-2xl border border-stone-700">
+              {/* Imagen 3D de fondo */}
+              <img
+                src={renderDataUrl}
+                alt="Render 3D"
+                className="max-h-[72vh] w-auto max-w-full object-contain block select-none pointer-events-none"
+              />
+
+              {/* Imagen 2D recortada superpuesta */}
+              <div
+                className="absolute inset-0 overflow-hidden pointer-events-none"
+                style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
+              >
+                <img
+                  src={sourceDataUrl}
+                  alt="Plano 2D Original"
+                  className="max-h-[72vh] w-auto max-w-full object-contain block"
+                />
+              </div>
+
+              {/* Input deslizador invisible para control de arrastre */}
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={sliderPosition}
+                onChange={(e) => setSliderPosition(Number(e.target.value))}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-20"
+              />
+
+              {/* Línea divisoria vertical con Glassmorphism */}
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-white pointer-events-none z-10 shadow-2xl"
+                style={{ left: `${sliderPosition}%` }}
+              >
+                <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-white text-stone-900 text-xs font-bold flex items-center justify-center shadow-xl border border-stone-300">
+                  <span className="material-symbols-outlined text-[18px]">unfold_more</span>
+                </div>
+              </div>
+
+              {/* Etiquetas flotantes en el comparador */}
+              <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-stone-950/80 backdrop-blur-md text-white text-[11px] font-semibold border border-stone-800 pointer-events-none z-10">
+                Plano Original 2D
+              </div>
+              <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-[#c25e38]/90 backdrop-blur-md text-white text-[11px] font-semibold border border-[#c25e38] pointer-events-none z-10 shadow-lg">
+                Render 3D Fotorrealista
+              </div>
+            </div>
+          ) : activeTab === 'rendered' && renderDataUrl ? (
+            /* MODO 2: RENDER 3D FINAL */
+            <div className="relative max-h-[72vh] rounded-2xl overflow-hidden shadow-2xl border border-stone-800">
+              <img
+                src={renderDataUrl}
+                alt="Render 3D Arquitectónico"
+                className="max-h-[72vh] w-auto max-w-full object-contain block rounded-2xl"
+              />
+              <div className="absolute bottom-3 right-3 px-3 py-1 rounded-full bg-stone-950/80 backdrop-blur-md text-stone-300 text-[10px] font-semibold border border-stone-800 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span>Render 4K Ultra HD</span>
+              </div>
+            </div>
+          ) : (
+            /* MODO 3: PLANO 2D BASE (Con Pines Interactivos) */
+            sourceDataUrl && (
+              <div className="relative max-h-[72vh] rounded-2xl overflow-hidden shadow-2xl border border-stone-800">
+                <img
+                  src={sourceDataUrl}
+                  alt="Plano Base 2D"
+                  className="max-h-[72vh] w-auto max-w-full object-contain block rounded-2xl"
+                />
+
+                {/* OVERLAY DE PINES DE ESTANCIAS */}
+                {showMarkersOverlay &&
+                  roomMarkers.map((marker, idx) => {
+                    const cat = ROOM_CATEGORIES.find((c) => c.id === marker.category);
+                    const isSelected = activeMarkerId === marker.id;
+                    const isEditing = editingMarkerId === marker.id;
+
+                    return (
+                      <div
+                        key={marker.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onMarkerClick) onMarkerClick(marker.id);
+                          setEditingMarkerId(isEditing ? null : marker.id);
+                        }}
+                        style={{
+                          left: `${marker.x}%`,
+                          top: `${marker.y}%`
+                        }}
+                        className="absolute -translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer group"
+                      >
+                        {/* Pin Visual */}
+                        <div
+                          className={`relative flex items-center gap-1.5 px-2.5 py-1 rounded-full shadow-xl transition-all duration-200 ${
+                            isSelected
+                              ? 'scale-110 ring-4 ring-white shadow-2xl'
+                              : 'hover:scale-105'
+                          }`}
+                          style={{
+                            backgroundColor: cat?.color || '#c25e38',
+                            color: '#ffffff'
+                          }}
+                        >
+                          <span className="text-[10px] font-bold font-mono">{idx + 1}</span>
+                          <span className="text-[11px] font-semibold whitespace-nowrap">
+                            {marker.name}
+                          </span>
+                        </div>
+
+                        {/* Popover / Quick Edit al hacer click en el pin */}
+                        {isEditing && onUpdateMarker && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute left-1/2 bottom-full mb-2 -translate-x-1/2 w-64 bg-white text-stone-900 rounded-2xl shadow-2xl border border-stone-200 p-3 z-30 animate-fadeIn"
+                          >
+                            <div className="flex items-center justify-between pb-1.5 border-b border-stone-100 mb-2">
+                              <span className="text-xs font-bold text-stone-800 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[15px] text-[#c25e38]">edit_location</span>
+                                <span>Estancia #{idx + 1}</span>
+                              </span>
+                              {onDeleteMarker && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onDeleteMarker(marker.id);
+                                    setEditingMarkerId(null);
+                                  }}
+                                  className="text-stone-400 hover:text-red-600 text-xs"
+                                  title="Eliminar estancia"
+                                >
+                                  Borrar
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="space-y-2 text-xs">
+                              <div>
+                                <label className="text-[10px] font-medium text-stone-500 block mb-0.5">Nombre:</label>
+                                <input
+                                  type="text"
+                                  value={marker.name}
+                                  onChange={(e) => onUpdateMarker(marker.id, { name: e.target.value })}
+                                  className="w-full bg-stone-50 border border-stone-200 rounded-lg px-2 py-1 text-xs text-stone-800"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-medium text-stone-500 block mb-0.5">Tipo de estancia:</label>
+                                <select
+                                  value={marker.category}
+                                  onChange={(e) =>
+                                    onUpdateMarker(marker.id, { category: e.target.value as RoomCategory })
+                                  }
+                                  className="w-full bg-stone-50 border border-stone-200 rounded-lg px-2 py-1 text-xs text-stone-800"
+                                >
+                                  {ROOM_CATEGORIES.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-medium text-stone-500 block mb-0.5">Observaciones de mobiliario:</label>
+                                <input
+                                  type="text"
+                                  placeholder="Ej: Sofá chaiselongue, cama 160..."
+                                  value={marker.notes || ''}
+                                  onChange={(e) => onUpdateMarker(marker.id, { notes: e.target.value })}
+                                  className="w-full bg-stone-50 border border-stone-200 rounded-lg px-2 py-1 text-xs text-stone-800"
+                                />
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => setEditingMarkerId(null)}
+                              className="mt-2.5 w-full py-1 bg-[#c25e38] hover:bg-[#a84d2b] text-white rounded-lg text-xs font-semibold text-center cursor-pointer transition shadow-xs"
+                            >
+                              Guardar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )
+          )}
+        </div>
+
+        {/* Barra flotante de zoom en la esquina inferior */}
+        <div className="absolute bottom-4 left-4 z-20 flex items-center gap-1 bg-stone-950/80 backdrop-blur-md border border-stone-800 rounded-xl p-1 text-white shadow-xl">
+          <button
+            onClick={handleZoomOut}
+            className="p-1.5 rounded-lg hover:bg-stone-800 text-stone-400 hover:text-white transition cursor-pointer"
+            title="Alejar"
+          >
+            <span className="material-symbols-outlined text-[16px]">zoom_out</span>
+          </button>
+          <button
+            onClick={handleZoomReset}
+            className="px-2 py-1 text-[11px] font-mono font-bold text-stone-300 hover:text-white rounded-lg hover:bg-stone-800 transition cursor-pointer"
+            title="Restablecer tamaño (100%)"
+          >
+            {Math.round(zoomLevel * 100)}%
+          </button>
+          <button
+            onClick={handleZoomIn}
+            className="p-1.5 rounded-lg hover:bg-stone-800 text-stone-400 hover:text-white transition cursor-pointer"
+            title="Acercar"
+          >
+            <span className="material-symbols-outlined text-[16px]">zoom_in</span>
           </button>
         </div>
       </div>
     </div>
   );
 }
+
+export default PlanCanvasPreview;
