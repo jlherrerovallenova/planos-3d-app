@@ -38,7 +38,7 @@ export function IntroModal({ isOpen, onClose }: IntroModalProps) {
             <div>
               <p className="font-semibold text-stone-900">Sube el plano arquitectónico</p>
               <p className="text-stone-500 text-xs mt-0.5">
-                Carga el plano 2D en JPG/PNG desde tu galería o genera una muestra guiada para probar el flujo.
+                Carga el plano 2D en PDF, JPG o PNG desde tu equipo o genera una muestra guiada para probar el flujo.
               </p>
             </div>
           </div>

@@ -41,6 +41,14 @@ interface PlanCanvasPreviewProps {
   currentVersion?: number;
   canUndo?: boolean;
   onUndoToPreviousVersion?: () => void;
+  // Soporte PDF
+  isConvertingPdf?: boolean;
+  pdfPagesInfo?: {
+    currentPage: number;
+    numPages: number;
+  } | null;
+  onPdfPageChange?: (page: number) => void;
+  onDropFile?: (file: File) => void;
 }
 
 export function PlanCanvasPreview({
@@ -71,7 +79,11 @@ export function PlanCanvasPreview({
   onApplyCorrection,
   currentVersion = 1,
   canUndo = false,
-  onUndoToPreviousVersion
+  onUndoToPreviousVersion,
+  isConvertingPdf = false,
+  pdfPagesInfo = null,
+  onPdfPageChange,
+  onDropFile
 }: PlanCanvasPreviewProps) {
   const [activeTab, setActiveTab] = useState<'ficha' | 'rendered' | 'split' | 'source'>('rendered');
   const [commandPrefillText, setCommandPrefillText] = useState<string | null>(null);
@@ -236,10 +248,37 @@ export function PlanCanvasPreview({
   const handleZoomOut = () => setZoomLevel((prev) => Math.max(0.75, prev - 0.25));
   const handleZoomReset = () => setZoomLevel(1);
 
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.files && e.dataTransfer.files[0] && onDropFile) {
+      onDropFile(e.dataTransfer.files[0]);
+    }
+  };
+
   // EMPTY STATE: Cuando no hay plano cargado
   if (!sourceImage && !renderedResult) {
     return (
-      <div className="w-full h-full min-h-[540px] bg-white rounded-3xl border border-stone-200/90 shadow-sm flex flex-col justify-between p-6 lg:p-8 overflow-hidden relative">
+      <div
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        className="w-full h-full min-h-[540px] bg-white rounded-3xl border border-stone-200/90 shadow-sm flex flex-col justify-between p-6 lg:p-8 overflow-hidden relative"
+      >
+        {/* Overlay si se está convirtiendo un PDF */}
+        {isConvertingPdf && (
+          <div className="absolute inset-0 bg-stone-900/80 backdrop-blur-xs flex flex-col items-center justify-center z-50 text-white">
+            <div className="w-12 h-12 border-4 border-[#c25e38] border-t-transparent rounded-full animate-spin mb-3" />
+            <p className="text-base font-semibold">Procesando plano PDF en alta resolución...</p>
+            <p className="text-xs text-stone-300 mt-1">Renderizando vectores y líneas arquitectónicas</p>
+          </div>
+        )}
+
         {/* Glow de fondo arquitectónico */}
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-orange-100/40 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-stone-100/60 rounded-full blur-3xl pointer-events-none" />
@@ -263,7 +302,7 @@ export function PlanCanvasPreview({
             Comienza con tu plano 2D
           </h3>
           <p className="text-stone-500 text-sm max-w-md leading-relaxed mb-6">
-            Arrastra el plano comercial, anteproyecto o croquis de la vivienda. La IA levantará la maqueta 3D amueblada respetando todos tus tabiques.
+            Arrastra el plano comercial, anteproyecto o croquis de la vivienda en <strong>PDF, JPG o PNG</strong>. La IA levantará la maqueta 3D amueblada respetando todos tus tabiques.
           </p>
 
           {/* Botones de acción principales */}
@@ -274,7 +313,7 @@ export function PlanCanvasPreview({
                 className="px-6 py-3.5 rounded-xl bg-[#c25e38] hover:bg-[#a84d2b] text-white text-sm font-semibold transition-all shadow-md shadow-[#c25e38]/25 flex items-center gap-2 hover:scale-[1.02] active:scale-95 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[20px]">upload_file</span>
-                <span>Subir plano (JPG / PNG)</span>
+                <span>Subir plano (PDF / JPG / PNG)</span>
               </button>
             )}
 
@@ -410,6 +449,43 @@ export function PlanCanvasPreview({
             <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
               <span className="font-medium animate-pulse">Renderizando maqueta 3D con IA...</span>
+            </div>
+          )}
+
+          {/* Selector de páginas si el plano proviene de un PDF multipágina */}
+          {pdfPagesInfo && pdfPagesInfo.numPages > 1 && onPdfPageChange && (
+            <div className="flex items-center gap-1.5 bg-stone-900 border border-stone-800 px-2.5 py-1 rounded-xl text-xs text-stone-200">
+              <span className="material-symbols-outlined text-[16px] text-red-400">picture_as_pdf</span>
+              <span className="font-semibold text-stone-300">Pág:</span>
+              <button
+                type="button"
+                onClick={() => onPdfPageChange(pdfPagesInfo.currentPage - 1)}
+                disabled={pdfPagesInfo.currentPage <= 1 || isConvertingPdf}
+                className="p-1 hover:bg-stone-800 rounded disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="Página anterior del PDF"
+              >
+                <span className="material-symbols-outlined text-[15px]">chevron_left</span>
+              </button>
+              <span className="px-1.5 font-mono font-bold text-white bg-stone-800 rounded">
+                {pdfPagesInfo.currentPage} / {pdfPagesInfo.numPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => onPdfPageChange(pdfPagesInfo.currentPage + 1)}
+                disabled={pdfPagesInfo.currentPage >= pdfPagesInfo.numPages || isConvertingPdf}
+                className="p-1 hover:bg-stone-800 rounded disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="Página siguiente del PDF"
+              >
+                <span className="material-symbols-outlined text-[15px]">chevron_right</span>
+              </button>
+            </div>
+          )}
+
+          {/* Badge de conversión PDF */}
+          {isConvertingPdf && (
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-red-300 text-xs">
+              <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
+              <span className="font-medium animate-pulse">Cargando página PDF...</span>
             </div>
           )}
         </div>

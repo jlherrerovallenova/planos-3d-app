@@ -22,6 +22,7 @@ import { safeDownloadFile, cleanBase64Data } from './services/downloadHelper';
 import { analyzeBlueprintRooms } from './services/planAnalyzer';
 import { sortRoomMarkers } from './services/roomSorter';
 import { eraseTextAtCoordinate } from './services/planTextEraser';
+import { convertPdfToImage } from './services/pdfConverter';
 
 export function App() {
   // 1. Título y Configuración de renderizado
@@ -61,6 +62,14 @@ export function App() {
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Soporte para archivos PDF y paginación
+  const [isConvertingPdf, setIsConvertingPdf] = useState<boolean>(false);
+  const [pdfFileInfo, setPdfFileInfo] = useState<{
+    file: File;
+    numPages: number;
+    currentPage: number;
+  } | null>(null);
 
   // Prompt en tiempo real
   const currentPrompt = useMemo(() => {
@@ -163,10 +172,37 @@ export function App() {
     }
   };
 
-  // Manejo de carga de archivos local
-  const handleLocalFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || !e.target.files[0]) return;
-    const file = e.target.files[0];
+  // Procesar archivo cargado (tanto de selector como de drag & drop)
+  const processUploadedFile = async (file: File) => {
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+    if (isPdf) {
+      try {
+        setIsConvertingPdf(true);
+        setGenerationError(null);
+        const res = await convertPdfToImage(file, 1);
+        setPdfFileInfo({
+          file,
+          numPages: res.numPages,
+          currentPage: 1
+        });
+        setSourceImage({
+          base64: res.base64,
+          mimeType: 'image/png',
+          name: file.name.replace(/\.pdf$/i, '') + (res.numPages > 1 ? ' (Pág. 1)' : '')
+        });
+        setRenderedResult(null);
+        triggerPlanAnalysis(res.base64, 'image/png');
+      } catch (err: any) {
+        console.error('Error al procesar el archivo PDF:', err);
+        setGenerationError('No se pudo procesar el archivo PDF. Asegúrate de que no esté protegido con contraseña.');
+      } finally {
+        setIsConvertingPdf(false);
+      }
+      return;
+    }
+
+    setPdfFileInfo(null);
     const reader = new FileReader();
 
     reader.onload = async (event) => {
@@ -204,6 +240,35 @@ export function App() {
     };
 
     reader.readAsDataURL(file);
+  };
+
+  // Cambio de página en documentos PDF multipágina
+  const handlePdfPageChange = async (targetPage: number) => {
+    if (!pdfFileInfo) return;
+    try {
+      setIsConvertingPdf(true);
+      setGenerationError(null);
+      const res = await convertPdfToImage(pdfFileInfo.file, targetPage);
+      setPdfFileInfo((prev) => (prev ? { ...prev, currentPage: targetPage } : null));
+      setSourceImage({
+        base64: res.base64,
+        mimeType: 'image/png',
+        name: `${pdfFileInfo.file.name.replace(/\.pdf$/i, '')} (Pág. ${targetPage})`
+      });
+      setRenderedResult(null);
+      triggerPlanAnalysis(res.base64, 'image/png');
+    } catch (err: any) {
+      console.error('Error al cambiar de página en PDF:', err);
+      setGenerationError('Error al renderizar la página seleccionada del PDF.');
+    } finally {
+      setIsConvertingPdf(false);
+    }
+  };
+
+  // Manejo de carga de archivos local
+  const handleLocalFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    processUploadedFile(e.target.files[0]);
     e.target.value = '';
   };
 
@@ -737,7 +802,7 @@ export function App() {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/png,image/jpeg,image/webp"
+        accept="image/png,image/jpeg,image/webp,application/pdf,.pdf"
         onChange={handleLocalFileSelect}
         className="hidden"
       />
@@ -949,6 +1014,10 @@ export function App() {
               currentVersion={currentVersionNumber}
               canUndo={history.length > 1}
               onUndoToPreviousVersion={handleUndo}
+              isConvertingPdf={isConvertingPdf}
+              pdfPagesInfo={pdfFileInfo ? { currentPage: pdfFileInfo.currentPage, numPages: pdfFileInfo.numPages } : null}
+              onPdfPageChange={handlePdfPageChange}
+              onDropFile={processUploadedFile}
             />
           </div>
         </section>
