@@ -14,6 +14,7 @@ interface PdfExportModalProps {
   markers: RoomMarker[];
   markerBadgeColor?: string;
   promotionLogo?: string | null;
+  agencyLogo?: string | null;
 }
 
 export function PdfExportModal({
@@ -23,7 +24,8 @@ export function PdfExportModal({
   projectTitle,
   markers,
   markerBadgeColor,
-  promotionLogo
+  promotionLogo,
+  agencyLogo
 }: PdfExportModalProps) {
   const [selectedFormat, setSelectedFormat] = useState<'brochure_a4' | 'plan_a4' | 'plan_a3' | 'brochure_png'>('brochure_a4');
   const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -46,6 +48,7 @@ export function PdfExportModal({
           markers,
           markerBadgeColor,
           promotionLogo,
+          agencyLogo,
           filename: `ficha_vectorial_${safeTitle.toLowerCase().replace(/[^\w]/g, '_')}.pdf`
         });
       } else if (selectedFormat === 'plan_a4') {
@@ -56,6 +59,7 @@ export function PdfExportModal({
           markers,
           markerBadgeColor,
           promotionLogo,
+          agencyLogo,
           filename: `plano_completo_a4_${safeTitle.toLowerCase().replace(/[^\w]/g, '_')}.pdf`
         });
       } else if (selectedFormat === 'plan_a3') {
@@ -66,6 +70,7 @@ export function PdfExportModal({
           markers,
           markerBadgeColor,
           promotionLogo,
+          agencyLogo,
           filename: `plano_gran_formato_a3_${safeTitle.toLowerCase().replace(/[^\w]/g, '_')}.pdf`
         });
       } else if (selectedFormat === 'brochure_png') {
@@ -75,6 +80,7 @@ export function PdfExportModal({
           markers,
           markerBadgeColor,
           promotionLogo,
+          agencyLogo,
           filename: `ficha_comercial_hd_${safeTitle.toLowerCase().replace(/[^\w]/g, '_')}.png`
         });
       }
@@ -116,21 +122,34 @@ export function PdfExportModal({
 
         {/* Opciones */}
         <div className="p-6 space-y-4">
-          {/* Logo Corporativo Incluido en el PDF */}
-          <div className="flex items-center justify-between p-3 bg-stone-50 rounded-2xl border border-stone-200/90 shadow-2xs">
+          {/* Logos Corporativos Incluidos en el PDF */}
+          <div className="flex items-center justify-between p-3 bg-stone-50 rounded-2xl border border-stone-200/90 shadow-2xs flex-wrap gap-2">
             <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
               <div>
-                <p className="text-xs font-bold text-stone-800">Logo Corporativo Incluido en el PDF</p>
-                <p className="text-[10px] text-stone-500">Membrete oficial: Lubens Arroyo</p>
+                <p className="text-xs font-bold text-stone-800">Membrete Oficial en Ficha y PDF</p>
+                <p className="text-[10px] text-stone-500">Comercializa: Terravall • Promueve: Lubens Arroyo</p>
               </div>
             </div>
-            <div className="bg-white px-2.5 py-1 rounded-xl border border-stone-200 flex items-center justify-center">
-              <img
-                src={promotionLogo || '/logo_promocion.png'}
-                alt="Logo Lubens Arroyo"
-                className="h-6 w-auto max-w-[130px] object-contain"
-              />
+            <div className="flex items-center gap-2">
+              {/* Tarjeta COMERCIALIZA con fondo blanco */}
+              <div className="bg-white px-2 py-0.5 rounded-xl border border-stone-300 flex flex-col items-center justify-center">
+                <span className="text-[7.5px] font-black text-[#991B1B] leading-none mb-0.5">COMERCIALIZA</span>
+                <img
+                  src={agencyLogo || '/logo_terravall.png'}
+                  alt="Comercializa Terravall"
+                  className="h-5 w-auto max-w-[95px] object-contain"
+                />
+              </div>
+
+              {/* Logo Promoción Lubens */}
+              <div className="bg-white px-2.5 py-1 rounded-xl border border-stone-200 flex items-center justify-center">
+                <img
+                  src={promotionLogo || '/logo_promocion.png'}
+                  alt="Logo Lubens Arroyo"
+                  className="h-6 w-auto max-w-[110px] object-contain"
+                />
+              </div>
             </div>
           </div>
 

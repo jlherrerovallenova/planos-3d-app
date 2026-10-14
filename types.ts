@@ -1,4 +1,13 @@
 export type CameraAngle = 'isometric_45' | 'cenital_90' | 'plan_2d_furnished' | 'isometric_cutaway';
+export type IsometricOrientation =
+  | 'south_west' // SO (0° / 225°) Frontal Izquierda - Vista por defecto
+  | 'south_east' // SE (90° / 135°) Frontal Derecha
+  | 'north_east' // NE (180° / 45°) Posterior Derecha
+  | 'north_west' // NO (270° / 315°) Posterior Izquierda
+  | 'south'      // S (Frontal directa)
+  | 'east'       // E (Lateral derecha)
+  | 'north'      // N (Posterior directa)
+  | 'west';      // O (Lateral izquierda)
 export type InteriorStyle =
   | 'nordic_scandi'
   | 'contemporary_minimal'
@@ -109,6 +118,8 @@ export interface RoomMarker {
 export interface RenderConfig {
   // 1. General
   cameraAngle: CameraAngle;
+  isometricOrientation?: IsometricOrientation; // Orientación cardinal/esquina para Corte Isométrico (ej. 'south_west', 'south_east', etc.)
+  isometricRotationAngle?: number;            // Grados de rotación isométricos (0°, 90°, 180°, 270° o ángulo libre 0-360°)
   colorPalette: ColorPaletteScheme;
   interiorStyle: InteriorStyle;
   lighting: 'daylight_warm' | 'golden_hour' | 'ambient_studio' | 'night_architectural';
@@ -132,6 +143,7 @@ export interface RenderConfig {
   roomMarkers: RoomMarker[];
   markerBadgeColor?: string;             // Color de fondo libre para los puntos identificadores (por defecto #0F2C59)
   promotionLogo?: string;                // Logo de la promoción para las fichas comerciales (base64 o URL)
+  commercialAgencyLogo?: string;         // Logo de la comercializadora con etiqueta COMERCIALIZA (base64 o URL)
   // Ajustes auxiliares
   extraDetails: string;
   strictBlueprintFidelity: boolean;

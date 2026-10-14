@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { CameraAngle, RoomMarker, RoomCategory } from '../types';
-import { ROOM_CATEGORIES, SAMPLE_PLANS } from '../constants';
+import { CameraAngle, RoomMarker, RoomCategory, IsometricOrientation } from '../types';
+import { ROOM_CATEGORIES, SAMPLE_PLANS, ISOMETRIC_ORIENTATIONS } from '../constants';
 import { SurfaceScheduleTable } from './SurfaceScheduleTable';
 import { PdfExportModal } from './PdfExportModal';
 import { sortRoomMarkers } from '../services/roomSorter';
+import { DEFAULT_AGENCY_LOGO } from '../services/defaultAgencyLogo';
 import {
   exportCommercialBrochureImage,
   exportCommercialBrochurePDF,
@@ -55,6 +56,13 @@ interface PlanCanvasPreviewProps {
   // Logo de la promoción para fichas comerciales
   promotionLogo?: string | null;
   onChangePromotionLogo?: (logo: string | null) => void;
+  // Logo de la comercializadora con fondo blanco y COMERCIALIZA
+  commercialAgencyLogo?: string | null;
+  onChangeCommercialAgencyLogo?: (logo: string | null) => void;
+  // Orientación y rotación isométrica (360°)
+  isometricOrientation?: IsometricOrientation;
+  isometricRotationAngle?: number;
+  onChangeIsometricOrientation?: (orientation: IsometricOrientation, angle: number) => void;
   // Aislamiento / recorte automático de plano
   onIsolatePlan?: () => void;
   isPlanIsolated?: boolean;
@@ -84,6 +92,11 @@ export function PlanCanvasPreview({
   onChangeMarkerBadgeColor,
   promotionLogo,
   onChangePromotionLogo,
+  commercialAgencyLogo,
+  onChangeCommercialAgencyLogo,
+  isometricOrientation,
+  isometricRotationAngle,
+  onChangeIsometricOrientation,
   onIsolatePlan,
   isPlanIsolated = false,
   onMarkerClick,
@@ -125,6 +138,35 @@ export function PlanCanvasPreview({
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
+
+  // Estados de rotación interactiva 360° para el plano y corte isométrico
+  const [canvasRotation, setCanvasRotation] = useState<number>(isometricRotationAngle || 0);
+  const [showRotationControls, setShowRotationControls] = useState<boolean>(false);
+
+  // Sincronizar rotación con prop externa si cambia
+  useEffect(() => {
+    if (typeof isometricRotationAngle === 'number') {
+      setCanvasRotation(isometricRotationAngle);
+    }
+  }, [isometricRotationAngle]);
+
+  const handleRotate = (delta: number) => {
+    const next = (canvasRotation + delta + 360) % 360;
+    setCanvasRotation(next);
+    if (onChangeIsometricOrientation) {
+      const mapped = ISOMETRIC_ORIENTATIONS.find((o) => Math.abs(o.angle - next) < 25) || ISOMETRIC_ORIENTATIONS[0];
+      onChangeIsometricOrientation(mapped.id, next);
+    }
+  };
+
+  const handleSetRotation = (angle: number) => {
+    const normalized = ((angle % 360) + 360) % 360;
+    setCanvasRotation(normalized);
+    if (onChangeIsometricOrientation) {
+      const mapped = ISOMETRIC_ORIENTATIONS.find((o) => Math.abs(o.angle - normalized) < 25) || ISOMETRIC_ORIENTATIONS[0];
+      onChangeIsometricOrientation(mapped.id, normalized);
+    }
+  };
 
   // Refs de contenedores específicos de imagen
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -220,6 +262,7 @@ export function PlanCanvasPreview({
       markers: sortedMarkers,
       markerBadgeColor: badgeBg,
       promotionLogo: promotionLogo || undefined,
+      agencyLogo: commercialAgencyLogo || undefined,
       filename: `ficha_comercial_${projectTitle.toLowerCase().replace(/[^\w]/g, '_')}.png`
     });
     setIsExportingFicha(false);
@@ -703,6 +746,137 @@ export function PlanCanvasPreview({
             </button>
           )}
 
+          {/* Control de Rotación Multi-Direccional del Plano (360°) */}
+          {(sourceImage || renderedResult) && (
+            <div className="relative flex items-center bg-stone-900/90 rounded-xl border border-stone-800 p-0.5">
+              <button
+                type="button"
+                onClick={() => handleRotate(-90)}
+                className="p-1 rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition cursor-pointer"
+                title="Rotar plano 90° a la izquierda (antihorario)"
+              >
+                <span className="material-symbols-outlined text-[16px]">rotate_left</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowRotationControls(!showRotationControls)}
+                className={`px-2 py-0.5 rounded-lg text-xs font-mono font-bold transition flex items-center gap-1 cursor-pointer ${
+                  canvasRotation !== 0
+                    ? 'bg-[#c25e38] text-white shadow-xs'
+                    : 'text-stone-300 hover:text-white hover:bg-stone-800'
+                }`}
+                title="Giro del plano. Haz clic para opciones de rotación en todas las direcciones"
+              >
+                <span>{canvasRotation}°</span>
+                <span className="material-symbols-outlined text-[12px]">
+                  {showRotationControls ? 'expand_less' : 'expand_more'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleRotate(90)}
+                className="p-1 rounded-lg text-stone-300 hover:text-white hover:bg-stone-800 transition cursor-pointer"
+                title="Rotar plano 90° a la derecha (horario)"
+              >
+                <span className="material-symbols-outlined text-[16px]">rotate_right</span>
+              </button>
+
+              {canvasRotation !== 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleSetRotation(0)}
+                  className="p-1 text-stone-400 hover:text-rose-400 hover:bg-stone-800 rounded-lg transition"
+                  title="Restablecer giro a 0°"
+                >
+                  <span className="material-symbols-outlined text-[14px]">restart_alt</span>
+                </button>
+              )}
+
+              {/* Popover flotante de rotación multi-direccional */}
+              {showRotationControls && (
+                <div className="absolute top-full mt-2 left-0 sm:right-0 sm:left-auto z-50 bg-stone-900 text-white rounded-2xl p-3 shadow-2xl border border-stone-700 w-64 space-y-2.5 animate-fadeIn">
+                  <div className="flex items-center justify-between border-b border-stone-800 pb-2">
+                    <span className="text-xs font-bold flex items-center gap-1.5 text-stone-200">
+                      <span className="material-symbols-outlined text-[15px] text-[#c25e38]">explore</span>
+                      <span>Girar Plano (360°)</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowRotationControls(false)}
+                      className="text-stone-400 hover:text-white p-0.5"
+                    >
+                      <span className="material-symbols-outlined text-[15px]">close</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-1">
+                    {[
+                      { label: 'SO 0°', angle: 0 },
+                      { label: 'SE 90°', angle: 90 },
+                      { label: 'NE 180°', angle: 180 },
+                      { label: 'NO 270°', angle: 270 }
+                    ].map((btn) => (
+                      <button
+                        key={btn.angle}
+                        type="button"
+                        onClick={() => handleSetRotation(btn.angle)}
+                        className={`px-1.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
+                          canvasRotation === btn.angle
+                            ? 'bg-[#c25e38] text-white border-[#c25e38]'
+                            : 'bg-stone-800 border-stone-700 text-stone-300 hover:bg-stone-700'
+                        }`}
+                      >
+                        {btn.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center justify-between gap-1 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => handleRotate(-45)}
+                      className="flex-1 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-[10px] font-bold border border-stone-700 cursor-pointer"
+                    >
+                      ↺ -45°
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRotate(45)}
+                      className="flex-1 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-[10px] font-bold border border-stone-700 cursor-pointer"
+                    >
+                      ↻ +45°
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetRotation(0)}
+                      className="flex-1 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-400 hover:text-white text-[10px] font-bold border border-stone-700 cursor-pointer"
+                    >
+                      0° Reset
+                    </button>
+                  </div>
+
+                  <div className="space-y-1 pt-1 border-t border-stone-800">
+                    <div className="flex justify-between text-[10px] text-stone-400 font-mono">
+                      <span>Ángulo libre:</span>
+                      <span className="text-[#c25e38] font-bold">{canvasRotation}°</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="359"
+                      step="5"
+                      value={canvasRotation}
+                      onChange={(e) => handleSetRotation(Number(e.target.value))}
+                      className="w-full accent-[#c25e38] cursor-pointer"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Botón Descargar Render Directo (PNG) */}
           {renderedResult && onDownloadRender && activeTab !== 'ficha' && (
             <button
@@ -827,16 +1001,32 @@ export function PlanCanvasPreview({
             <div className="w-full max-w-7xl mx-auto bg-white text-stone-900 rounded-2xl shadow-2xl border border-stone-200/90 p-5 sm:p-7 flex flex-col justify-between max-h-[86vh] overflow-y-auto animate-fadeIn select-text">
               {/* Encabezado Comercial */}
               <div className="border-b border-stone-200 pb-3 mb-4 flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3.5 flex-wrap">
+                  {/* Tarjeta COMERCIALIZA con fondo blanco */}
+                  {(commercialAgencyLogo || DEFAULT_AGENCY_LOGO) && (
+                    <div className="bg-white px-2.5 py-1 rounded-xl border border-stone-300 shadow-2xs flex flex-col items-center justify-center shrink-0">
+                      <span className="text-[7.5px] font-black text-[#991B1B] uppercase tracking-wider leading-none mb-0.5">
+                        COMERCIALIZA
+                      </span>
+                      <img
+                        src={commercialAgencyLogo || DEFAULT_AGENCY_LOGO}
+                        alt="Comercializa Terravall"
+                        className="h-6 sm:h-7 w-auto max-w-[120px] object-contain"
+                      />
+                    </div>
+                  )}
+
+                  {/* Logo de la Promoción Lubens */}
                   {promotionLogo && (
                     <div className="bg-white p-1.5 rounded-xl border border-stone-200/90 shadow-2xs flex items-center justify-center shrink-0">
                       <img
                         src={promotionLogo}
                         alt="Logo de la Promoción"
-                        className="h-9 sm:h-11 w-auto max-w-[190px] object-contain"
+                        className="h-8 sm:h-10 w-auto max-w-[170px] object-contain"
                       />
                     </div>
                   )}
+
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: badgeBg }} />
@@ -850,10 +1040,37 @@ export function PlanCanvasPreview({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="px-2.5 py-1 rounded-md bg-stone-100 text-stone-600 text-[11px] font-bold border border-stone-200 font-mono">
                     REF: VT-01
                   </span>
+
+                  {onChangeCommercialAgencyLogo && (
+                    <label
+                      className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow-xs cursor-pointer"
+                      title="Cambiar logo comercializadora"
+                    >
+                      <span className="material-symbols-outlined text-[15px] text-[#991B1B]">storefront</span>
+                      <span>Comercializa</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (evt) => {
+                              if (typeof evt.target?.result === 'string') {
+                                onChangeCommercialAgencyLogo(evt.target.result);
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  )}
 
                   {onChangePromotionLogo && (
                     <label
@@ -861,7 +1078,7 @@ export function PlanCanvasPreview({
                       title="Cambiar o subir logo de la promoción"
                     >
                       <span className="material-symbols-outlined text-[15px]">add_photo_alternate</span>
-                      <span>Logo</span>
+                      <span>Promoción</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -913,6 +1130,11 @@ export function PlanCanvasPreview({
                       <div
                         ref={fichaPlanRef}
                         onClick={(e) => handleImageClick(e, fichaPlanRef.current)}
+                        style={{
+                          transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : undefined,
+                          transformOrigin: 'center center',
+                          transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                        }}
                         className={`relative inline-block max-h-[66vh] max-w-full select-none ${
                           isEraserMode ? 'cursor-crosshair ring-2 ring-rose-500 rounded-lg' : ''
                         }`}
@@ -953,7 +1175,9 @@ export function PlanCanvasPreview({
                                   : `Estancia #${idx + 1} (Arrastra para recolocar)`
                               }
                             >
-                              <span>{idx + 1}</span>
+                              <span style={{ transform: canvasRotation !== 0 ? `rotate(${-canvasRotation}deg)` : undefined }}>
+                                {idx + 1}
+                              </span>
                             </div>
                           );
                         })}
@@ -1048,18 +1272,27 @@ export function PlanCanvasPreview({
                 </div>
               </div>
 
-              {/* Pie de Ficha con Cláusula Legal */}
-              <div className="mt-4 pt-3 border-t border-stone-200 flex items-center justify-between text-[10px] text-stone-400">
+              {/* Pie de Ficha con Cláusula Legal y Entidades */}
+              <div className="mt-4 pt-3 border-t border-stone-200 flex items-center justify-between text-[10px] text-stone-500 flex-wrap gap-2">
                 <span>
                   Documento con carácter comercial y orientativo. Las superficies corresponden a superficie útil interior estimada.
                 </span>
-                <span className="font-medium text-stone-500 hidden sm:inline">
-                  Estudio de Arquitectura
-                </span>
+                <div className="flex items-center gap-2 font-medium">
+                  <span className="text-[#991B1B] font-bold">COMERCIALIZA: TERRAVALL</span>
+                  <span className="text-stone-300">•</span>
+                  <span className="text-stone-700 font-bold">PROMUEVE: LUBENS ARROYO</span>
+                </div>
               </div>
             </div>
           ) : activeTab === 'split' && sourceDataUrl && renderDataUrl ? (
-            <div className="relative max-h-[82vh] max-w-full rounded-2xl overflow-hidden shadow-2xl border border-stone-700">
+            <div
+              style={{
+                transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : undefined,
+                transformOrigin: 'center center',
+                transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+              }}
+              className="relative max-h-[82vh] max-w-full rounded-2xl overflow-hidden shadow-2xl border border-stone-700"
+            >
               {/* Imagen 3D de fondo */}
               <img
                 src={renderDataUrl}
@@ -1112,6 +1345,11 @@ export function PlanCanvasPreview({
             <div
               ref={renderPlanRef}
               onClick={(e) => handleImageClick(e, renderPlanRef.current)}
+              style={{
+                transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : undefined,
+                transformOrigin: 'center center',
+                transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+              }}
               className={`relative max-h-[82vh] inline-block rounded-2xl overflow-hidden shadow-2xl border border-stone-800 select-none ${
                 isEraserMode ? 'cursor-crosshair ring-2 ring-rose-500' : ''
               }`}
@@ -1160,7 +1398,9 @@ export function PlanCanvasPreview({
                           : `Estancia #${idx + 1} (Arrastra para recolocar)`
                       }
                     >
-                      <span>{idx + 1}</span>
+                      <span style={{ transform: canvasRotation !== 0 ? `rotate(${-canvasRotation}deg)` : undefined }}>
+                        {idx + 1}
+                      </span>
                     </div>
                   );
                 })}
@@ -1175,6 +1415,11 @@ export function PlanCanvasPreview({
             <div
               ref={basePlanRef}
               onClick={(e) => handleImageClick(e, basePlanRef.current)}
+              style={{
+                transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : undefined,
+                transformOrigin: 'center center',
+                transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+              }}
               className={`relative max-h-[82vh] inline-block rounded-2xl overflow-hidden shadow-2xl border border-stone-800 select-none ${
                 isEraserMode ? 'cursor-crosshair ring-2 ring-rose-500' : ''
               }`}
@@ -1234,7 +1479,9 @@ export function PlanCanvasPreview({
                               : 'hover:scale-115'
                           }`}
                         >
-                          <span>{idx + 1}</span>
+                          <span style={{ transform: canvasRotation !== 0 ? `rotate(${-canvasRotation}deg)` : undefined }}>
+                            {idx + 1}
+                          </span>
                         </div>
 
                         {/* Popover / Quick Edit al hacer click en el pin */}
@@ -1401,6 +1648,7 @@ export function PlanCanvasPreview({
           markers={sortedMarkers}
           markerBadgeColor={badgeBg}
           promotionLogo={promotionLogo}
+          agencyLogo={commercialAgencyLogo}
         />
       </div>
     </div>

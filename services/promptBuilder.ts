@@ -124,6 +124,30 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
     angleDesc = 'Top-down 90-degree 3D architectural floor plan view with raised cut walls';
   } else if (config.cameraAngle === 'isometric_cutaway') {
     angleDesc = 'Sectional 3D cutaway architectural perspective';
+  } else if (config.cameraAngle === 'isometric_45') {
+    const orientation = config.isometricOrientation || 'south_west';
+    const rot = typeof config.isometricRotationAngle === 'number' ? config.isometricRotationAngle : 0;
+
+    let directionStr = 'viewed from the South-West corner (standard front-left axonometric vantage point)';
+    if (orientation === 'south_east' || rot === 90) {
+      directionStr = 'viewed from the South-East corner (front-right axonometric vantage point looking across rooms toward back-left)';
+    } else if (orientation === 'north_east' || rot === 180) {
+      directionStr = 'viewed from the North-East corner (rear-right axonometric vantage point looking across rooms toward front-left)';
+    } else if (orientation === 'north_west' || rot === 270) {
+      directionStr = 'viewed from the North-West corner (rear-left axonometric vantage point looking across rooms toward front-right)';
+    } else if (orientation === 'south') {
+      directionStr = 'viewed from direct South front elevation angle';
+    } else if (orientation === 'east') {
+      directionStr = 'viewed from direct East side elevation angle';
+    } else if (orientation === 'north') {
+      directionStr = 'viewed from direct North rear elevation angle';
+    } else if (orientation === 'west') {
+      directionStr = 'viewed from direct West side elevation angle';
+    } else if (rot !== 0) {
+      directionStr = `axonometric viewpoint rotated ${rot} degrees clockwise around vertical axis`;
+    }
+
+    angleDesc = `3D isometric cutaway dollhouse maquette view (45-degree axonometric angle, ${directionStr})`;
   }
   return [
     `Transform this blueprint into an ultra-realistic ${angleDesc}.`,

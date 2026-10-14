@@ -13,9 +13,11 @@ import {
   DoorFinish,
   WallColorType,
   RoomCategory,
-  PresetConfig
+  PresetConfig,
+  IsometricOrientation
 } from './types';
 import { DEFAULT_PROMOTION_LOGO } from './services/defaultPromotionLogo';
+import { DEFAULT_AGENCY_LOGO } from './services/defaultAgencyLogo';
 // Categorías de Estancias para el Identificador
 export const ROOM_CATEGORIES: {
   id: RoomCategory;
@@ -150,6 +152,84 @@ export const CAMERA_ANGLES: { id: CameraAngle; label: string; icon: string; desc
     desc: 'Corte oblicuo arquitectónico con visión interior y exterior.'
   }
 ];
+
+// 1.1b Orientación y Ángulo de Visión para Corte Isométrico (360°)
+export interface IsometricOrientationOption {
+  id: IsometricOrientation;
+  label: string;
+  cardinal: string;
+  angle: number; // 0°, 90°, 180°, 270°, etc.
+  desc: string;
+  icon: string;
+}
+
+export const ISOMETRIC_ORIENTATIONS: IsometricOrientationOption[] = [
+  {
+    id: 'south_west',
+    label: 'Suroeste (Frontal Izquierda)',
+    cardinal: 'SO',
+    angle: 0,
+    desc: 'Esquina frontal-izquierda (perspectiva clásica y más amplia de maqueta).',
+    icon: 'south_west'
+  },
+  {
+    id: 'south_east',
+    label: 'Sureste (Frontal Derecha)',
+    cardinal: 'SE',
+    angle: 90,
+    desc: 'Esquina frontal-derecha con muros cortados mostrando el interior lateral.',
+    icon: 'south_east'
+  },
+  {
+    id: 'north_east',
+    label: 'Noreste (Posterior Derecha)',
+    cardinal: 'NE',
+    angle: 180,
+    desc: 'Esquina posterior-derecha viendo la vivienda desde atrás hacia el frente.',
+    icon: 'north_east'
+  },
+  {
+    id: 'north_west',
+    label: 'Noroeste (Posterior Izquierda)',
+    cardinal: 'NO',
+    angle: 270,
+    desc: 'Esquina posterior-izquierda con perspectiva cruzada invertida.',
+    icon: 'north_west'
+  },
+  {
+    id: 'south',
+    label: 'Sur (Frontal Directo)',
+    cardinal: 'S',
+    angle: 45,
+    desc: 'Perspectiva isométrica frontal centrada.',
+    icon: 'south'
+  },
+  {
+    id: 'east',
+    label: 'Este (Lateral Derecho)',
+    cardinal: 'E',
+    angle: 135,
+    desc: 'Perspectiva lateral derecha con volumen.',
+    icon: 'east'
+  },
+  {
+    id: 'north',
+    label: 'Norte (Posterior Directo)',
+    cardinal: 'N',
+    angle: 225,
+    desc: 'Perspectiva posterior directa de la vivienda.',
+    icon: 'north'
+  },
+  {
+    id: 'west',
+    label: 'Oeste (Lateral Izquierdo)',
+    cardinal: 'O',
+    angle: 315,
+    desc: 'Perspectiva lateral izquierda con volumen.',
+    icon: 'west'
+  }
+];
+
 // 1.2 Gama Cromática General (Paredes & Textiles)
 export const COLOR_PALETTE_SCHEMES: {
   id: ColorPaletteScheme;
@@ -748,6 +828,8 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
     isDefault: true,
     config: {
       cameraAngle: 'plan_2d_furnished',
+      isometricOrientation: 'south_west',
+      isometricRotationAngle: 0,
       colorPalette: 'neutral_balanced',
       interiorStyle: 'contemporary_minimal',
       lighting: 'ambient_studio',
@@ -766,6 +848,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       roomMarkers: [],
       markerBadgeColor: '#0F2C59',
       promotionLogo: DEFAULT_PROMOTION_LOGO,
+      commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
       extraDetails: '',
       strictBlueprintFidelity: true
     }
@@ -777,6 +860,8 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
     isDefault: true,
     config: {
       cameraAngle: 'isometric_45',
+      isometricOrientation: 'south_west',
+      isometricRotationAngle: 0,
       colorPalette: 'light_soft_pastel',
       interiorStyle: 'nordic_scandi',
       lighting: 'daylight_warm',
@@ -795,6 +880,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       roomMarkers: [],
       markerBadgeColor: '#0F2C59',
       promotionLogo: DEFAULT_PROMOTION_LOGO,
+      commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
       extraDetails: '',
       strictBlueprintFidelity: true
     }
@@ -806,6 +892,8 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
     isDefault: true,
     config: {
       cameraAngle: 'isometric_45',
+      isometricOrientation: 'south_west',
+      isometricRotationAngle: 0,
       colorPalette: 'warm_sand_cream',
       interiorStyle: 'mediterranean_warm',
       lighting: 'golden_hour',
@@ -824,6 +912,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       roomMarkers: [],
       markerBadgeColor: '#0F2C59',
       promotionLogo: DEFAULT_PROMOTION_LOGO,
+      commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
       extraDetails: 'Vigas vistas y lino natural',
       strictBlueprintFidelity: true
     }
@@ -835,6 +924,8 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
     isDefault: true,
     config: {
       cameraAngle: 'cenital_90',
+      isometricOrientation: 'south_west',
+      isometricRotationAngle: 0,
       colorPalette: 'neutral_balanced',
       interiorStyle: 'contemporary_minimal',
       lighting: 'ambient_studio',
@@ -853,6 +944,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       roomMarkers: [],
       markerBadgeColor: '#0F2C59',
       promotionLogo: DEFAULT_PROMOTION_LOGO,
+      commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
       extraDetails: 'Líneas limpias y mobiliario bajo',
       strictBlueprintFidelity: true
     }
@@ -864,6 +956,8 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
     isDefault: true,
     config: {
       cameraAngle: 'plan_2d_furnished',
+      isometricOrientation: 'south_west',
+      isometricRotationAngle: 0,
       colorPalette: 'light_soft_pastel',
       interiorStyle: 'nordic_scandi',
       lighting: 'ambient_studio',
@@ -882,6 +976,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       roomMarkers: [],
       markerBadgeColor: '#0F2C59',
       promotionLogo: DEFAULT_PROMOTION_LOGO,
+      commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
       extraDetails: '',
       strictBlueprintFidelity: true
     }

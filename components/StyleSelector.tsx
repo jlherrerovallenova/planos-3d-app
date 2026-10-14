@@ -18,9 +18,11 @@ import {
   DOOR_FINISH_OPTIONS,
   WALL_COLOR_OPTIONS,
   KITCHEN_COUNTERTOP_OPTIONS,
-  MARKER_COLOR_PRESETS
+  MARKER_COLOR_PRESETS,
+  ISOMETRIC_ORIENTATIONS
 } from '../constants';
 import { DEFAULT_PROMOTION_LOGO } from '../services/defaultPromotionLogo';
+import { DEFAULT_AGENCY_LOGO } from '../services/defaultAgencyLogo';
 
 interface StyleSelectorProps {
   config: RenderConfig;
@@ -381,6 +383,82 @@ export function StyleSelector({
                 )}
               </div>
             </div>
+
+            {/* Logo de la Comercializadora con fondo blanco y rótulo COMERCIALIZA */}
+            <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200/90 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[16px] text-[#991B1B]">storefront</span>
+                  <span>Logo Comercializadora (COMERCIALIZA)</span>
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-mono font-bold">
+                  TERRAVALL
+                </span>
+              </div>
+
+              {/* Vista previa en caja blanca oficial COMERCIALIZA */}
+              <div className="bg-white border border-stone-300 rounded-xl p-2.5 flex flex-col items-center justify-center min-h-[64px] shadow-2xs">
+                <span className="text-[9px] font-black text-[#991B1B] tracking-wider uppercase mb-1">
+                  COMERCIALIZA
+                </span>
+                {config.commercialAgencyLogo ? (
+                  <img
+                    src={config.commercialAgencyLogo}
+                    alt="Logo de la Comercializadora"
+                    className="max-h-9 w-auto max-w-full object-contain"
+                  />
+                ) : (
+                  <span className="text-xs text-stone-400 italic">Sin logo comercializadora</span>
+                )}
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex items-center gap-2">
+                <label className="flex-1 px-3 py-1.5 bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer">
+                  <span className="material-symbols-outlined text-[15px] text-[#991B1B]">upload</span>
+                  <span>Subir otro logo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                          if (typeof evt.target?.result === 'string') {
+                            updateField('commercialAgencyLogo', evt.target.result);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+
+                {config.commercialAgencyLogo !== DEFAULT_AGENCY_LOGO && (
+                  <button
+                    type="button"
+                    onClick={() => updateField('commercialAgencyLogo', DEFAULT_AGENCY_LOGO)}
+                    className="px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 rounded-xl text-xs font-medium transition cursor-pointer"
+                    title="Restablecer logo oficial Terravall"
+                  >
+                    Restablecer
+                  </button>
+                )}
+
+                {config.commercialAgencyLogo && (
+                  <button
+                    type="button"
+                    onClick={() => updateField('commercialAgencyLogo', undefined)}
+                    className="p-1.5 text-stone-400 hover:text-red-600 rounded-xl transition cursor-pointer"
+                    title="Quitar logo"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -441,6 +519,170 @@ export function StyleSelector({
                 })}
               </div>
             </div>
+
+            {/* Control de Rotación y Orientación Isométrica 360° */}
+            {(config.cameraAngle === 'isometric_45' || config.cameraAngle === 'isometric_cutaway') && (
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-orange-50/80 via-white to-amber-50/60 border border-orange-200/90 shadow-2xs space-y-3.5 animate-fadeIn">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[17px] text-[#c25e38]">explore</span>
+                    <span>Orientación y Giro Isométrico 360°</span>
+                  </span>
+                  <div className="flex items-center gap-1 bg-white px-2.5 py-0.5 rounded-full border border-orange-200 text-stone-800 font-mono text-[11px] font-bold shadow-2xs">
+                    <span className="text-[#c25e38]">📐</span>
+                    <span>{typeof config.isometricRotationAngle === 'number' ? config.isometricRotationAngle : 0}°</span>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-stone-600 leading-relaxed">
+                  Gira la perspectiva de la maqueta 3D en todas las direcciones para observar la vivienda desde sus diferentes esquinas y fachadas exteriores.
+                </p>
+
+                {/* 4 Esquinas Principales (SO, SE, NE, NO) */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">
+                    Puntos de Vista Cardinales / 4 Esquinas
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    {ISOMETRIC_ORIENTATIONS.slice(0, 4).map((orient) => {
+                      const isCurrent = (config.isometricOrientation || 'south_west') === orient.id;
+                      return (
+                        <button
+                          key={orient.id}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => {
+                            updateField('isometricOrientation', orient.id);
+                            updateField('isometricRotationAngle', orient.angle);
+                          }}
+                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                            isCurrent
+                              ? 'border-[#c25e38] bg-white shadow-xs ring-2 ring-[#c25e38]/30 font-bold'
+                              : 'border-stone-200 bg-white/80 hover:bg-white hover:border-stone-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-stone-100 text-stone-700 font-bold">
+                              {orient.cardinal}
+                            </span>
+                            <span className="material-symbols-outlined text-[16px] text-[#c25e38]">
+                              {orient.icon}
+                            </span>
+                          </div>
+                          <span className={`text-[11px] leading-tight ${isCurrent ? 'text-[#c25e38]' : 'text-stone-800'}`}>
+                            {orient.label.split('(')[0]}
+                          </span>
+                          <span className="text-[9px] text-stone-400 mt-0.5">
+                            {orient.angle}°
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Rosa de los Vientos / 4 Vistas Directas de Fachada (S, E, N, O) */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">
+                    Vistas Frontales y Laterales de Fachada
+                  </span>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {ISOMETRIC_ORIENTATIONS.slice(4, 8).map((orient) => {
+                      const isCurrent = config.isometricOrientation === orient.id;
+                      return (
+                        <button
+                          key={orient.id}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => {
+                            updateField('isometricOrientation', orient.id);
+                            updateField('isometricRotationAngle', orient.angle);
+                          }}
+                          className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                            isCurrent
+                              ? 'border-[#c25e38] bg-white shadow-xs ring-1 ring-[#c25e38] font-bold text-[#c25e38]'
+                              : 'border-stone-200 bg-white/70 hover:bg-white text-stone-700'
+                          }`}
+                        >
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="material-symbols-outlined text-[14px]">{orient.icon}</span>
+                            <span className="text-[11px] font-bold">{orient.cardinal}</span>
+                          </div>
+                          <span className="text-[9px] text-stone-400 block mt-0.5">{orient.angle}°</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Dial de rotación continua 0° - 360° */}
+                <div className="space-y-1.5 pt-1.5 border-t border-stone-200/70">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-semibold text-stone-700 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[15px] text-[#c25e38]">rotate_right</span>
+                      <span>Giro libre 360°</span>
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const current = config.isometricRotationAngle || 0;
+                          const next = (current - 45 + 360) % 360;
+                          updateField('isometricRotationAngle', next);
+                        }}
+                        className="px-2 py-0.5 rounded bg-white hover:bg-stone-100 border border-stone-200 text-stone-700 text-[10px] font-bold cursor-pointer transition active:scale-95"
+                        title="Girar 45° antihorario"
+                      >
+                        ↺ -45°
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const current = config.isometricRotationAngle || 0;
+                          const next = (current + 45) % 360;
+                          updateField('isometricRotationAngle', next);
+                        }}
+                        className="px-2 py-0.5 rounded bg-white hover:bg-stone-100 border border-stone-200 text-stone-700 text-[10px] font-bold cursor-pointer transition active:scale-95"
+                        title="Girar 45° horario"
+                      >
+                        ↻ +45°
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          updateField('isometricOrientation', 'south_west');
+                          updateField('isometricRotationAngle', 0);
+                        }}
+                        className="px-2 py-0.5 rounded bg-white hover:bg-stone-100 border border-stone-200 text-stone-500 hover:text-stone-800 text-[10px] cursor-pointer"
+                        title="Restablecer ángulo frontal estándar"
+                      >
+                        0° Reset
+                      </button>
+                    </div>
+                  </div>
+
+                  <input
+                    type="range"
+                    min="0"
+                    max="359"
+                    step="5"
+                    value={config.isometricRotationAngle || 0}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      updateField('isometricRotationAngle', val);
+                    }}
+                    className="w-full accent-[#c25e38] cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[9px] text-stone-400 font-mono">
+                    <span>0° (SO)</span>
+                    <span>90° (SE)</span>
+                    <span>180° (NE)</span>
+                    <span>270° (NO)</span>
+                    <span>360°</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Iluminación */}
             <div className="space-y-2 pt-2 border-t border-stone-200/80">

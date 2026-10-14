@@ -15,6 +15,7 @@ import {
   parseTargetedRoomFromText
 } from './services/promptBuilder';
 import { DEFAULT_PROMOTION_LOGO } from './services/defaultPromotionLogo';
+import { DEFAULT_AGENCY_LOGO } from './services/defaultAgencyLogo';
 import { PlanCanvasPreview } from './components/PlanCanvasPreview';
 import { StyleSelector } from './components/StyleSelector';
 import { IntroModal } from './components/IntroModal';
@@ -1107,6 +1108,11 @@ export function App() {
               onChangeMarkerBadgeColor={(color) => setConfig((prev) => ({ ...prev, markerBadgeColor: color }))}
               promotionLogo={config.promotionLogo || DEFAULT_PROMOTION_LOGO}
               onChangePromotionLogo={(logo) => setConfig((prev) => ({ ...prev, promotionLogo: logo || undefined }))}
+              commercialAgencyLogo={config.commercialAgencyLogo || DEFAULT_AGENCY_LOGO}
+              onChangeCommercialAgencyLogo={(logo) => setConfig((prev) => ({ ...prev, commercialAgencyLogo: logo || undefined }))}
+              isometricOrientation={config.isometricOrientation}
+              isometricRotationAngle={config.isometricRotationAngle}
+              onChangeIsometricOrientation={(orientation, angle) => setConfig((prev) => ({ ...prev, isometricOrientation: orientation, isometricRotationAngle: angle }))}
               onIsolatePlan={handleToggleIsolatePlan}
               isPlanIsolated={isPlanIsolated}
               projectTitle={projectTitle}

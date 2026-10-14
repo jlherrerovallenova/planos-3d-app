@@ -51,6 +51,7 @@ export function ProjectExportModal({
       markers: config.roomMarkers || [],
       markerBadgeColor: config.markerBadgeColor,
       promotionLogo: config.promotionLogo,
+      agencyLogo: config.commercialAgencyLogo,
       filename: `ficha_vectorial_${projectTitle.toLowerCase().replace(/[^\w]/g, '_')}.pdf`
     });
     setIsExportingFicha(false);
@@ -65,6 +66,7 @@ export function ProjectExportModal({
       markers: config.roomMarkers || [],
       markerBadgeColor: config.markerBadgeColor,
       promotionLogo: config.promotionLogo,
+      agencyLogo: config.commercialAgencyLogo,
       filename: `ficha_comercial_${projectTitle.toLowerCase().replace(/[^\w]/g, '_')}.png`
     });
     setIsExportingFicha(false);

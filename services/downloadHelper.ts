@@ -6,6 +6,7 @@
 import { jsPDF } from 'jspdf';
 import { sortRoomMarkers } from './roomSorter';
 import { DEFAULT_PROMOTION_LOGO } from './defaultPromotionLogo';
+import { DEFAULT_AGENCY_LOGO } from './defaultAgencyLogo';
 
 export function sanitizeFilename(filename: string): string {
   // Mantener solo caracteres alfanuméricos, guiones y puntos
@@ -123,6 +124,7 @@ export async function generateBrochureCanvas({
   markers,
   markerBadgeColor = '#0F2C59',
   promotionLogo = DEFAULT_PROMOTION_LOGO,
+  agencyLogo = DEFAULT_AGENCY_LOGO,
   width = 2480,
   height = 1754
 }: {
@@ -131,6 +133,7 @@ export async function generateBrochureCanvas({
   markers: Array<{ id: string; name: string; areaSqMeters?: number }>;
   markerBadgeColor?: string;
   promotionLogo?: string | null;
+  agencyLogo?: string | null;
   width?: number;
   height?: number;
 }): Promise<HTMLCanvasElement | null> {
@@ -169,8 +172,10 @@ export async function generateBrochureCanvas({
         ctx.font = `600 ${Math.round(15 * scale)}px sans-serif`;
         ctx.fillText('FICHA COMERCIAL • PLANO AMUEBLADO Y CUADRO DE SUPERFICIES ÚTILES', headerMarginX, 104 * scale);
 
-        // Si hay logo de la promoción, dibujarlo en la esquina superior derecha del encabezado
-        if (promotionLogo) {
+        // Si hay logo de la promoción (LUBENS ARROYO), dibujarlo en la esquina superior derecha
+        let promoLogoW = 0;
+        const effectivePromo = promotionLogo || DEFAULT_PROMOTION_LOGO;
+        if (effectivePromo) {
           try {
             await new Promise<void>((resolveLogo) => {
               const logoImg = new Image();
@@ -178,23 +183,80 @@ export async function generateBrochureCanvas({
               logoImg.onload = () => {
                 const logoAspect = logoImg.width / logoImg.height;
                 const maxLogoH = 68 * scale;
-                const maxLogoW = 320 * scale;
+                const maxLogoW = 300 * scale;
                 let drawLogoH = maxLogoH;
                 let drawLogoW = drawLogoH * logoAspect;
                 if (drawLogoW > maxLogoW) {
                   drawLogoW = maxLogoW;
                   drawLogoH = drawLogoW / logoAspect;
                 }
+                promoLogoW = drawLogoW;
                 const logoX = width - headerMarginX - drawLogoW;
                 const logoY = 26 * scale + (maxLogoH - drawLogoH) / 2;
                 ctx.drawImage(logoImg, logoX, logoY, drawLogoW, drawLogoH);
                 resolveLogo();
               };
               logoImg.onerror = () => resolveLogo();
-              logoImg.src = promotionLogo;
+              logoImg.src = effectivePromo;
             });
           } catch (e) {
             console.warn('Error dibujando logo de promoción en canvas:', e);
+          }
+        }
+
+        // Si hay logo de comercializadora (Terravall), dibujarlo en una caja con fondo blanco que ponga: COMERCIALIZA
+        const effectiveAgency = agencyLogo || DEFAULT_AGENCY_LOGO;
+        if (effectiveAgency) {
+          try {
+            await new Promise<void>((resolveAgency) => {
+              const agencyImg = new Image();
+              agencyImg.crossOrigin = 'anonymous';
+              agencyImg.onload = () => {
+                const cardH = 80 * scale;
+                const cardW = 270 * scale;
+                const cardX = width - headerMarginX - (promoLogoW > 0 ? promoLogoW + 24 * scale : 0) - cardW;
+                const cardY = 22 * scale;
+
+                // Fondo blanco con borde sutil
+                ctx.fillStyle = '#FFFFFF';
+                ctx.strokeStyle = '#CBD5E1';
+                ctx.lineWidth = 1.5 * scale;
+                ctx.beginPath();
+                if (typeof ctx.roundRect === 'function') {
+                  ctx.roundRect(cardX, cardY, cardW, cardH, 8 * scale);
+                } else {
+                  ctx.rect(cardX, cardY, cardW, cardH);
+                }
+                ctx.fill();
+                ctx.stroke();
+
+                // Rótulo COMERCIALIZA
+                ctx.fillStyle = '#991B1B';
+                ctx.font = `bold ${Math.round(12 * scale)}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.fillText('COMERCIALIZA', cardX + cardW / 2, cardY + 20 * scale);
+
+                // Logo Terravall
+                const maxImgH = 46 * scale;
+                const maxImgW = 230 * scale;
+                const imgAspect = agencyImg.width / agencyImg.height;
+                let drawImgW = maxImgH * imgAspect;
+                let drawImgH = maxImgH;
+                if (drawImgW > maxImgW) {
+                  drawImgW = maxImgW;
+                  drawImgH = drawImgW / imgAspect;
+                }
+                const imgX = cardX + (cardW - drawImgW) / 2;
+                const imgY = cardY + 24 * scale + (maxImgH - drawImgH) / 2;
+                ctx.drawImage(agencyImg, imgX, imgY, drawImgW, drawImgH);
+                ctx.textAlign = 'left';
+                resolveAgency();
+              };
+              agencyImg.onerror = () => resolveAgency();
+              agencyImg.src = effectiveAgency;
+            });
+          } catch (e) {
+            console.warn('Error dibujando logo comercializadora:', e);
           }
         }
 
@@ -384,6 +446,7 @@ export async function exportCommercialBrochureImage({
   markers,
   markerBadgeColor,
   promotionLogo = DEFAULT_PROMOTION_LOGO,
+  agencyLogo = DEFAULT_AGENCY_LOGO,
   filename = 'ficha_comercial_arquitectura.png'
 }: {
   imageSrc: string;
@@ -391,6 +454,7 @@ export async function exportCommercialBrochureImage({
   markers: Array<{ id: string; name: string; areaSqMeters?: number }>;
   markerBadgeColor?: string;
   promotionLogo?: string | null;
+  agencyLogo?: string | null;
   filename?: string;
 }): Promise<boolean> {
   const canvas = await generateBrochureCanvas({
@@ -399,6 +463,7 @@ export async function exportCommercialBrochureImage({
     markers,
     markerBadgeColor,
     promotionLogo,
+    agencyLogo,
     width: 2480,
     height: 1754
   });
@@ -420,6 +485,7 @@ export async function exportCommercialBrochurePDF({
   markers,
   markerBadgeColor = '#0F2C59',
   promotionLogo = DEFAULT_PROMOTION_LOGO,
+  agencyLogo = DEFAULT_AGENCY_LOGO,
   filename = 'ficha_comercial_plano.pdf'
 }: {
   imageSrc: string;
@@ -427,6 +493,7 @@ export async function exportCommercialBrochurePDF({
   markers: Array<{ id: string; name: string; areaSqMeters?: number }>;
   markerBadgeColor?: string;
   promotionLogo?: string | null;
+  agencyLogo?: string | null;
   filename?: string;
 }): Promise<boolean> {
   return new Promise((resolve) => {
@@ -466,12 +533,14 @@ export async function exportCommercialBrochurePDF({
         doc.setTextColor(100, 116, 139); // #64748B
         doc.text('FICHA COMERCIAL ARQUITECTÓNICA • PLANO AMUEBLADO Y CUADRO DE SUPERFICIES ÚTILES', margin, margin + 9.5);
 
-        // Logo de la promoción a la derecha del encabezado
+        // 1. Logo de la promoción (LUBENS ARROYO) a la derecha
+        let promoLogoW = 0;
+        let promoLogoX = pageWidth - margin;
         const effectiveLogo = promotionLogo || DEFAULT_PROMOTION_LOGO;
         if (effectiveLogo) {
           try {
-            const logoMaxH = 10; // mm
-            const logoMaxW = 42; // mm (relación de aspecto ~3.8:1)
+            const logoMaxH = 9.5; // mm
+            const logoMaxW = 38; // mm (relación de aspecto ~3.8:1)
             const logoAspect = 881 / 232;
             let drawLogoW = logoMaxH * logoAspect;
             let drawLogoH = logoMaxH;
@@ -479,26 +548,63 @@ export async function exportCommercialBrochurePDF({
               drawLogoW = logoMaxW;
               drawLogoH = drawLogoW / logoAspect;
             }
-            const logoX = pageWidth - margin - drawLogoW;
+            promoLogoW = drawLogoW;
+            promoLogoX = pageWidth - margin - drawLogoW;
             const logoY = margin + (11 - drawLogoH) / 2;
             const isPngLogo = effectiveLogo.startsWith('data:image/png') || !effectiveLogo.startsWith('data:image/jpeg');
-            doc.addImage(effectiveLogo, isPngLogo ? 'PNG' : 'JPEG', logoX, logoY, drawLogoW, drawLogoH, undefined, 'SLOW');
-
-            // Referencia comercial a la izquierda del logo
-            doc.setFont('courier', 'bold');
-            doc.setFontSize(8.5);
-            doc.setTextColor(100, 116, 139);
-            doc.text('REF: VT-01', logoX - 4, margin + 6, { align: 'right' });
+            doc.addImage(effectiveLogo, isPngLogo ? 'PNG' : 'JPEG', promoLogoX, logoY, drawLogoW, drawLogoH, undefined, 'SLOW');
           } catch (logoErr) {
             console.warn('Error insertando logo en PDF:', logoErr);
           }
-        } else {
-          // Referencia comercial a la derecha si no hay logo
-          doc.setFont('courier', 'bold');
-          doc.setFontSize(9);
-          doc.setTextColor(100, 116, 139);
-          doc.text('REF: VT-01', pageWidth - margin, margin + 4.5, { align: 'right' });
         }
+
+        // 2. Logo comercializadora con fondo blanco que pone: COMERCIALIZA
+        const effectiveAgency = agencyLogo || DEFAULT_AGENCY_LOGO;
+        let agencyBoxX = promoLogoX;
+        if (effectiveAgency) {
+          try {
+            const boxW = 38; // mm
+            const boxH = 11; // mm
+            agencyBoxX = (promoLogoW > 0 ? promoLogoX : (pageWidth - margin)) - boxW - 3;
+            const boxY = margin + 0.3;
+
+            // Caja con fondo blanco puro y borde fino
+            doc.setFillColor(255, 255, 255);
+            doc.setDrawColor(203, 213, 225); // #CBD5E1
+            doc.setLineWidth(0.3);
+            doc.roundedRect(agencyBoxX, boxY, boxW, boxH, 1.2, 1.2, 'FD');
+
+            // Rótulo "COMERCIALIZA"
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(5.2);
+            doc.setTextColor(153, 27, 27); // #991B1B rojo/burdeos Terravall
+            doc.text('COMERCIALIZA', agencyBoxX + boxW / 2, boxY + 2.6, { align: 'center' });
+
+            // Logo Terravall (aspecto 3.76:1)
+            const maxImgH = 6.4;
+            const maxImgW = 32;
+            const imgAspect = 376 / 100;
+            let drawAgencyW = maxImgH * imgAspect;
+            let drawAgencyH = maxImgH;
+            if (drawAgencyW > maxImgW) {
+              drawAgencyW = maxImgW;
+              drawAgencyH = drawAgencyW / imgAspect;
+            }
+            const imgX = agencyBoxX + (boxW - drawAgencyW) / 2;
+            const imgY = boxY + 3.2;
+            const isPng = effectiveAgency.startsWith('data:image/png') || !effectiveAgency.startsWith('data:image/jpeg');
+            doc.addImage(effectiveAgency, isPng ? 'PNG' : 'JPEG', imgX, imgY, drawAgencyW, drawAgencyH, undefined, 'SLOW');
+          } catch (agencyErr) {
+            console.warn('Error insertando logo de comercializadora:', agencyErr);
+          }
+        }
+
+        // Referencia comercial a la izquierda de los logos
+        doc.setFont('courier', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(100, 116, 139);
+        const refX = (effectiveAgency ? agencyBoxX : promoLogoX) - 4;
+        doc.text('REF: VT-01', refX, margin + 5.8, { align: 'right' });
 
         // Línea divisoria superior
         doc.setDrawColor(226, 232, 240); // #E2E8F0
@@ -681,6 +787,7 @@ export async function exportPlanOnlyPDF({
   markers = [],
   markerBadgeColor = '#0F2C59',
   promotionLogo = DEFAULT_PROMOTION_LOGO,
+  agencyLogo = DEFAULT_AGENCY_LOGO,
   filename = 'plano_alta_resolucion.pdf'
 }: {
   imageSrc: string;
@@ -689,6 +796,7 @@ export async function exportPlanOnlyPDF({
   markers?: Array<{ id: string; name: string; x?: number; y?: number; areaSqMeters?: number }>;
   markerBadgeColor?: string;
   promotionLogo?: string | null;
+  agencyLogo?: string | null;
   filename?: string;
 }): Promise<boolean> {
   return new Promise((resolve) => {
@@ -732,12 +840,14 @@ export async function exportPlanOnlyPDF({
         doc.setTextColor(100, 116, 139);
         doc.text(`DOCUMENTO TÉCNICO ARQUITECTÓNICO • ESCALA COMPLETA • FORMATO ${format.toUpperCase()}`, margin, margin + 8.5);
 
-        // Si hay logo de la promoción, dibujarlo en la esquina superior derecha
+        // 1. Logo de la promoción (LUBENS ARROYO)
+        let promoLogoW = 0;
+        let promoLogoX = pageWidth - margin;
         const effectiveLogo = promotionLogo || DEFAULT_PROMOTION_LOGO;
         if (effectiveLogo) {
           try {
-            const logoMaxH = isA3 ? 10 : 8;
-            const logoMaxW = isA3 ? 42 : 34;
+            const logoMaxH = isA3 ? 9.5 : 7.5;
+            const logoMaxW = isA3 ? 40 : 32;
             const logoAspect = 881 / 232;
             let drawLogoW = logoMaxH * logoAspect;
             let drawLogoH = logoMaxH;
@@ -745,12 +855,53 @@ export async function exportPlanOnlyPDF({
               drawLogoW = logoMaxW;
               drawLogoH = drawLogoW / logoAspect;
             }
-            const logoX = pageWidth - margin - drawLogoW;
-            const logoY = margin + (11 - drawLogoH) / 2;
+            promoLogoW = drawLogoW;
+            promoLogoX = pageWidth - margin - drawLogoW;
+            const logoY = margin + (headerH - drawLogoH) / 2;
             const isPngLogo = effectiveLogo.startsWith('data:image/png') || !effectiveLogo.startsWith('data:image/jpeg');
-            doc.addImage(effectiveLogo, isPngLogo ? 'PNG' : 'JPEG', logoX, logoY, drawLogoW, drawLogoH, undefined, 'SLOW');
+            doc.addImage(effectiveLogo, isPngLogo ? 'PNG' : 'JPEG', promoLogoX, logoY, drawLogoW, drawLogoH, undefined, 'SLOW');
           } catch (logoErr) {
             console.warn('Error insertando logo en PDF de plano:', logoErr);
+          }
+        }
+
+        // 2. Logo comercializadora con fondo blanco que pone: COMERCIALIZA
+        const effectiveAgency = agencyLogo || DEFAULT_AGENCY_LOGO;
+        if (effectiveAgency) {
+          try {
+            const boxW = isA3 ? 36 : 30;
+            const boxH = isA3 ? 10.5 : 8.5;
+            const agencyBoxX = (promoLogoW > 0 ? promoLogoX : (pageWidth - margin)) - boxW - (isA3 ? 4 : 3);
+            const boxY = margin + (headerH - boxH) / 2;
+
+            // Caja blanca con borde fino
+            doc.setFillColor(255, 255, 255);
+            doc.setDrawColor(203, 213, 225);
+            doc.setLineWidth(0.3);
+            doc.roundedRect(agencyBoxX, boxY, boxW, boxH, 1, 1, 'FD');
+
+            // Rótulo COMERCIALIZA
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(isA3 ? 5 : 4.5);
+            doc.setTextColor(153, 27, 27);
+            doc.text('COMERCIALIZA', agencyBoxX + boxW / 2, boxY + (isA3 ? 2.5 : 2.1), { align: 'center' });
+
+            // Logo Terravall
+            const maxImgH = isA3 ? 5.8 : 4.8;
+            const maxImgW = isA3 ? 30 : 25;
+            const imgAspect = 376 / 100;
+            let drawAgencyW = maxImgH * imgAspect;
+            let drawAgencyH = maxImgH;
+            if (drawAgencyW > maxImgW) {
+              drawAgencyW = maxImgW;
+              drawAgencyH = drawAgencyW / imgAspect;
+            }
+            const imgX = agencyBoxX + (boxW - drawAgencyW) / 2;
+            const imgY = boxY + (isA3 ? 3.1 : 2.6);
+            const isPng = effectiveAgency.startsWith('data:image/png') || !effectiveAgency.startsWith('data:image/jpeg');
+            doc.addImage(effectiveAgency, isPng ? 'PNG' : 'JPEG', imgX, imgY, drawAgencyW, drawAgencyH, undefined, 'SLOW');
+          } catch (agencyErr) {
+            console.warn('Error insertando logo comercializadora:', agencyErr);
           }
         }
 
