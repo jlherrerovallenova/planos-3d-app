@@ -77,7 +77,7 @@ export function PlanCanvasPreview({
   isGenerating,
   cameraAngle,
   roomMarkers = [],
-  projectTitle = 'Proyecto Residencial Los Álamos',
+  projectTitle = 'Proyecto residencial de 140 viviendas',
   activeMarkerId = null,
   isPinningMode = false,
   markerBadgeColor = '#0F2C59',

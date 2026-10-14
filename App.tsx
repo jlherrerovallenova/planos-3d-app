@@ -32,7 +32,7 @@ import {
 
 export function App() {
   // 1. Título y Configuración de renderizado
-  const [projectTitle, setProjectTitle] = useState<string>('Proyecto Residencial Los Álamos');
+  const [projectTitle, setProjectTitle] = useState<string>('Proyecto residencial de 140 viviendas');
   const [presets, setPresets] = useState<PresetConfig[]>(DEFAULT_PRESETS);
   const [activePresetId, setActivePresetId] = useState<string | null>(DEFAULT_PRESETS[0].id);
   const [config, setConfig] = useState<RenderConfig>(DEFAULT_PRESETS[0].config);

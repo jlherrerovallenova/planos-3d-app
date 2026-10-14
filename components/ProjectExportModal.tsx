@@ -22,7 +22,7 @@ export function ProjectExportModal({
   onClose,
   config,
   currentPrompt,
-  projectTitle = 'Proyecto Residencial Los Álamos',
+  projectTitle = 'Proyecto residencial de 140 viviendas',
   renderedResult,
   history
 }: ProjectExportModalProps) {
