@@ -32,6 +32,9 @@ interface PlanCanvasPreviewProps {
   downloadStatus?: 'idle' | 'downloading' | 'done';
   onDetectWithAI?: () => void;
   isDetectingWithAI?: boolean;
+  onCleanPlanTexts?: () => void;
+  isCleaningPlanText?: boolean;
+  onEraseTextAtPoint?: (xPercent: number, yPercent: number) => void;
 }
 
 export function PlanCanvasPreview({
@@ -55,10 +58,14 @@ export function PlanCanvasPreview({
   onDownloadRender,
   downloadStatus = 'idle',
   onDetectWithAI,
-  isDetectingWithAI = false
+  isDetectingWithAI = false,
+  onCleanPlanTexts,
+  isCleaningPlanText = false,
+  onEraseTextAtPoint
 }: PlanCanvasPreviewProps) {
   const [activeTab, setActiveTab] = useState<'ficha' | 'rendered' | 'split' | 'source'>('rendered');
   const [sliderPosition, setSliderPosition] = useState<number>(50);
+  const [isEraserMode, setIsEraserMode] = useState<boolean>(false);
   const [showMarkersOverlay, setShowMarkersOverlay] = useState<boolean>(true);
   const [showScheduleOverlay, setShowScheduleOverlay] = useState<boolean>(true);
   const [isExportingFicha, setIsExportingFicha] = useState<boolean>(false);
@@ -175,6 +182,25 @@ export function PlanCanvasPreview({
   // Imprimir Ficha
   const handlePrintFicha = () => {
     window.print();
+  };
+
+  // Manejo de clicks en el plano para modo borrador o modo marcador
+  const handleImageClick = (e: React.MouseEvent<HTMLDivElement>, refElem: HTMLElement | null) => {
+    if (!refElem) return;
+    if (isEraserMode && onEraseTextAtPoint) {
+      e.stopPropagation();
+      const rect = refElem.getBoundingClientRect();
+      const xPercent = Math.max(1, Math.min(99, ((e.clientX - rect.left) / rect.width) * 100));
+      const yPercent = Math.max(1, Math.min(99, ((e.clientY - rect.top) / rect.height) * 100));
+      onEraseTextAtPoint(xPercent, yPercent);
+      return;
+    }
+    if (isPinningMode && onCanvasClickToPositionMarker) {
+      const rect = refElem.getBoundingClientRect();
+      const xPercent = Math.max(2, Math.min(98, Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 10));
+      const yPercent = Math.max(2, Math.min(98, Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 10));
+      onCanvasClickToPositionMarker(xPercent, yPercent);
+    }
   };
 
   // Manejo de clicks en el canvas (cerrar popovers si están abiertos)
@@ -379,6 +405,45 @@ export function PlanCanvasPreview({
 
         {/* Acciones del Canvas a la derecha */}
         <div className="flex items-center gap-2">
+          {/* Botón Limpiar Todos los Textos con IA */}
+          {onCleanPlanTexts && (sourceImage || renderedResult) && (
+            <button
+              type="button"
+              onClick={onCleanPlanTexts}
+              disabled={isCleaningPlanText}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border shadow-xs cursor-pointer bg-gradient-to-r from-amber-600/30 to-orange-600/30 border-amber-500/50 text-amber-200 hover:text-white hover:bg-amber-600/40 disabled:opacity-50"
+              title="Eliminar automáticamente todos los nombres de estancias y números del plano con IA"
+            >
+              <span className={`material-symbols-outlined text-[16px] ${isCleaningPlanText ? 'animate-spin' : ''}`}>
+                {isCleaningPlanText ? 'autorenew' : 'auto_fix_high'}
+              </span>
+              <span>{isCleaningPlanText ? 'Limpiando...' : 'Limpiar Textos'}</span>
+            </button>
+          )}
+
+          {/* Botón Borrador Manual de Texto */}
+          {onEraseTextAtPoint && (sourceImage || renderedResult) && (
+            <button
+              type="button"
+              onClick={() => setIsEraserMode(!isEraserMode)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border shadow-xs cursor-pointer ${
+                isEraserMode
+                  ? 'bg-rose-600 text-white border-rose-500 shadow-rose-600/30 font-bold animate-pulse'
+                  : 'bg-stone-800/80 border-stone-700 text-stone-300 hover:text-white hover:bg-stone-700'
+              }`}
+              title={
+                isEraserMode
+                  ? 'Borrador activado. Haz clic sobre cualquier texto en el plano para borrarlo con el suelo'
+                  : 'Borrador manual: haz clic sobre cualquier texto o nombre para borrarlo con el color del suelo'
+              }
+            >
+              <span className="material-symbols-outlined text-[16px]">
+                {isEraserMode ? 'ink_eraser' : 'brush'}
+              </span>
+              <span>{isEraserMode ? 'Borrador ACTIVO' : 'Borrador'}</span>
+            </button>
+          )}
+
           {/* Botón Fijar / Desbloquear Puntos */}
           {roomMarkers.length > 0 && (
             <button
@@ -535,14 +600,33 @@ export function PlanCanvasPreview({
       {/* 2. Área Central del Canvas */}
       <div
         className={`relative flex-1 flex items-center justify-center p-4 overflow-hidden select-none ${
-          isPinningMode ? 'cursor-crosshair' : 'cursor-default'
+          isEraserMode
+            ? 'cursor-crosshair'
+            : isPinningMode
+            ? 'cursor-crosshair'
+            : 'cursor-default'
         }`}
         style={{
           background: 'radial-gradient(circle at center, #1c1917 0%, #0c0a09 100%)'
         }}
       >
+        {/* Banner informativo cuando el modo borrador está activo */}
+        {isEraserMode && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 bg-rose-600/95 backdrop-blur-md text-white px-4 py-2 rounded-full text-xs font-bold shadow-xl border border-rose-400 flex items-center gap-2 animate-bounce">
+            <span className="material-symbols-outlined text-[18px]">ink_eraser</span>
+            <span>Haz clic directamente sobre cualquier texto o nombre en el plano para borrarlo con el color del suelo</span>
+            <button
+              type="button"
+              onClick={() => setIsEraserMode(false)}
+              className="ml-2 px-2 py-0.5 rounded bg-black/25 hover:bg-black/40 text-white font-bold text-xs"
+            >
+              Cerrar
+            </button>
+          </div>
+        )}
+
         {/* Banner informativo cuando el modo de colocación de pines está activo */}
-        {isPinningMode && (
+        {isPinningMode && !isEraserMode && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 bg-amber-400/90 backdrop-blur-md text-stone-950 px-4 py-2 rounded-full text-xs font-bold shadow-xl border border-amber-300 flex items-center gap-2 animate-bounce">
             <span className="material-symbols-outlined text-[18px]">touch_app</span>
             <span>Haz clic en cualquier punto del plano para ubicar o desplazar la estancia</span>
@@ -627,7 +711,13 @@ export function PlanCanvasPreview({
                 <div className="lg:col-span-7 flex flex-col items-center justify-center bg-stone-50 rounded-xl p-3 border border-stone-200/80 min-h-[340px] max-h-[56vh]">
                   {renderDataUrl || sourceDataUrl ? (
                     <>
-                      <div ref={fichaPlanRef} className="relative inline-block max-h-[48vh] max-w-full select-none">
+                      <div
+                        ref={fichaPlanRef}
+                        onClick={(e) => handleImageClick(e, fichaPlanRef.current)}
+                        className={`relative inline-block max-h-[48vh] max-w-full select-none ${
+                          isEraserMode ? 'cursor-crosshair ring-2 ring-rose-500 rounded-lg' : ''
+                        }`}
+                      >
                         <img
                           src={renderDataUrl || sourceDataUrl!}
                           alt="Plano Ficha Comercial"
@@ -720,7 +810,7 @@ export function PlanCanvasPreview({
                 {/* Columna Derecha: Cuadro de Superficies Útiles (en esa misma posición exacta de la captura) */}
                 <div className="lg:col-span-5 flex flex-col justify-center items-center lg:items-end w-full max-w-sm">
                   {onDetectWithAI && (
-                    <div className="w-full mb-3 flex items-center justify-between">
+                    <div className="w-full mb-3 flex flex-col gap-2">
                       <button
                         type="button"
                         onClick={onDetectWithAI}
@@ -731,9 +821,26 @@ export function PlanCanvasPreview({
                           {isDetectingWithAI ? 'autorenew' : 'auto_awesome'}
                         </span>
                         <span>
-                          {isDetectingWithAI ? 'Analizando plano con IA...' : 'Extraer estancias y m² con IA'}
+                          {isDetectingWithAI ? 'Analizando plano y limpiando textos...' : 'Extraer estancias y limpiar textos con IA'}
                         </span>
                       </button>
+
+                      {onCleanPlanTexts && (
+                        <button
+                          type="button"
+                          onClick={onCleanPlanTexts}
+                          disabled={isCleaningPlanText || (!sourceDataUrl && !renderDataUrl)}
+                          className="w-full px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-700 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
+                          title="Borrar todos los textos y superficies rotulados en el plano para dejar únicamente los círculos con números"
+                        >
+                          <span className={`material-symbols-outlined text-[15px] ${isCleaningPlanText ? 'animate-spin' : ''}`}>
+                            {isCleaningPlanText ? 'autorenew' : 'auto_fix_high'}
+                          </span>
+                          <span>
+                            {isCleaningPlanText ? 'Borrando textos...' : 'Limpiar nombres y m² del plano'}
+                          </span>
+                        </button>
+                      )}
                     </div>
                   )}
                   <SurfaceScheduleTable markers={sortedMarkers} />
@@ -803,7 +910,10 @@ export function PlanCanvasPreview({
             /* MODO 2: RENDER 3D FINAL */
             <div
               ref={renderPlanRef}
-              className="relative max-h-[72vh] inline-block rounded-2xl overflow-hidden shadow-2xl border border-stone-800 select-none"
+              onClick={(e) => handleImageClick(e, renderPlanRef.current)}
+              className={`relative max-h-[72vh] inline-block rounded-2xl overflow-hidden shadow-2xl border border-stone-800 select-none ${
+                isEraserMode ? 'cursor-crosshair ring-2 ring-rose-500' : ''
+              }`}
             >
               <img
                 src={renderDataUrl}
@@ -861,7 +971,10 @@ export function PlanCanvasPreview({
             /* MODO 3: PLANO 2D BASE (Con Pines Interactivos) */
             <div
               ref={basePlanRef}
-              className="relative max-h-[72vh] inline-block rounded-2xl overflow-hidden shadow-2xl border border-stone-800 select-none"
+              onClick={(e) => handleImageClick(e, basePlanRef.current)}
+              className={`relative max-h-[72vh] inline-block rounded-2xl overflow-hidden shadow-2xl border border-stone-800 select-none ${
+                isEraserMode ? 'cursor-crosshair ring-2 ring-rose-500' : ''
+              }`}
             >
                 <img
                   src={sourceDataUrl}

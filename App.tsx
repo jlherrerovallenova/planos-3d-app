@@ -17,6 +17,7 @@ import { ProjectExportModal } from './components/ProjectExportModal';
 import { safeDownloadFile, cleanBase64Data } from './services/downloadHelper';
 import { analyzeBlueprintRooms } from './services/planAnalyzer';
 import { sortRoomMarkers } from './services/roomSorter';
+import { eraseTextAtCoordinate } from './services/planTextEraser';
 
 export function App() {
   // 1. Título y Configuración de renderizado
@@ -61,12 +62,18 @@ export function App() {
     return buildArchitecturalPrompt(config);
   }, [config]);
 
+  // Limpieza de textos y nombres en plano
+  const [isCleaningPlanText, setIsCleaningPlanText] = useState<boolean>(false);
+
   // Análisis automático de estancias y superficies útiles con Gemini Vision
   const triggerPlanAnalysis = async (imgBase64: string, mime: string) => {
     setIsAnalyzingPlan(true);
     setGenerationError(null);
     try {
       const result = await analyzeBlueprintRooms(imgBase64, mime);
+      if (result.cleanedImageBase64) {
+        setSourceImage((prev) => (prev ? { ...prev, base64: result.cleanedImageBase64! } : prev));
+      }
       if (result.rooms && result.rooms.length > 0) {
         const sorted = sortRoomMarkers(result.rooms);
         setConfig((prev) => ({
@@ -74,7 +81,7 @@ export function App() {
           roomMarkers: sorted
         }));
         setGenerationSuccessMessage(
-          `¡Plano analizado con IA! Se han detectado ${result.rooms.length} estancias ordenadas comercialmente (${result.totalUsefulArea ? result.totalUsefulArea + ' m²' : ''}).`
+          `¡Plano analizado y textos de estancias eliminados! Se han detectado ${result.rooms.length} estancias ordenadas comercialmente. En el plano solo se muestran los números identificadores.`
         );
       }
     } catch (err: any) {
@@ -94,6 +101,9 @@ export function App() {
     setGenerationSuccessMessage(null);
     try {
       const result = await analyzeBlueprintRooms(sourceImage.base64, sourceImage.mimeType);
+      if (result.cleanedImageBase64) {
+        setSourceImage((prev) => (prev ? { ...prev, base64: result.cleanedImageBase64! } : prev));
+      }
       if (result.rooms && result.rooms.length > 0) {
         const sorted = sortRoomMarkers(result.rooms);
         setConfig((prev) => ({
@@ -101,7 +111,7 @@ export function App() {
           roomMarkers: sorted
         }));
         setGenerationSuccessMessage(
-          `¡Extracción completada! Se detectaron ${result.rooms.length} estancias ordenadas comercialmente (${result.totalUsefulArea ? result.totalUsefulArea + ' m²' : ''}).`
+          `¡Plano limpio y analizado! Se detectaron ${result.rooms.length} estancias ordenadas comercialmente y se eliminaron los nombres y superficies del plano (${result.totalUsefulArea ? result.totalUsefulArea + ' m²' : ''}).`
         );
       } else {
         setGenerationError('No se encontraron estancias rotuladas en el plano.');
@@ -110,6 +120,41 @@ export function App() {
       setGenerationError(`Error al analizar el plano: ${err?.message || err}`);
     } finally {
       setIsAnalyzingPlan(false);
+    }
+  };
+
+  const handleCleanPlanTexts = async () => {
+    if (!sourceImage) return;
+    setIsCleaningPlanText(true);
+    setGenerationError(null);
+    try {
+      const result = await analyzeBlueprintRooms(sourceImage.base64, sourceImage.mimeType);
+      if (result.cleanedImageBase64) {
+        setSourceImage((prev) => (prev ? { ...prev, base64: result.cleanedImageBase64! } : prev));
+      }
+      if (result.rooms && result.rooms.length > 0) {
+        setConfig((prev) => ({
+          ...prev,
+          roomMarkers: sortRoomMarkers(result.rooms)
+        }));
+      }
+      setGenerationSuccessMessage('¡Todos los textos y superficies han sido eliminados del plano! Solo quedan los números identificadores.');
+    } catch (err: any) {
+      setGenerationError(`Error al limpiar textos del plano: ${err?.message || err}`);
+    } finally {
+      setIsCleaningPlanText(false);
+    }
+  };
+
+  const handleEraseTextAtPoint = async (xPercent: number, yPercent: number) => {
+    if (!sourceImage) return;
+    try {
+      const dataUrl = `data:${sourceImage.mimeType};base64,${sourceImage.base64}`;
+      const cleanedDataUrl = await eraseTextAtCoordinate(dataUrl, xPercent, yPercent, 4);
+      const { cleanBase64 } = cleanBase64Data(cleanedDataUrl);
+      setSourceImage((prev) => (prev ? { ...prev, base64: cleanBase64 } : prev));
+    } catch (err) {
+      console.warn('Error borrando texto en punto:', err);
     }
   };
 
@@ -666,6 +711,9 @@ export function App() {
               downloadStatus={downloadStatus}
               onDetectWithAI={handleDetectRooms}
               isDetectingWithAI={isAnalyzingPlan}
+              onCleanPlanTexts={handleCleanPlanTexts}
+              isCleaningPlanText={isCleaningPlanText}
+              onEraseTextAtPoint={handleEraseTextAtPoint}
             />
           </div>
         </section>

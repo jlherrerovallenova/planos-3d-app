@@ -1,12 +1,15 @@
 import { RoomMarker, RoomCategory } from '../types';
 import { cleanBase64Data } from './downloadHelper';
 import { sortRoomMarkers } from './roomSorter';
+import { cleanPlanTextsFromBoxes, TextBoxDetection } from './planTextEraser';
 
 export interface PlanAnalysisResult {
   rooms: RoomMarker[];
   totalUsefulArea?: number;
   terraceArea?: number;
   constructedArea?: number;
+  textBoxes?: TextBoxDetection[];
+  cleanedImageBase64?: string;
   rawResponse?: string;
 }
 
@@ -20,6 +23,7 @@ export async function analyzeBlueprintRooms(
   }
 
   const { cleanBase64 } = cleanBase64Data(base64Data);
+  const dataUrl = `data:${mimeType || 'image/png'};base64,${cleanBase64}`;
 
   const prompt = `Actúa como arquitecto técnico y delineante experto.
 Analiza detenidamente esta imagen de un plano arquitectónico o plano de ventas comercial.
@@ -47,6 +51,8 @@ INSTRUCCIONES CLAVE:
    8º Pasillo / Distribuidor
    9º Terraza (o Terraza 1, Terraza 2 si hay varias)
    Si no hay 3 dormitorios, el Baño pasa a la posición 4 y así sucesivamente de forma natural.
+6. DETECCIÓN DE TEXTOS PARA ELIMINACIÓN:
+   Detecta las cajas de delimitación [ymin, xmin, ymax, xmax] en escala 0-1000 de TODOS los textos rotulados dentro de las habitaciones (nombres de estancias como 'Salón', 'Dormitorio', 'Baño', 'Aseo', 'Vestíbulo', 'Pasillo', 'Distribuidor', 'Terraza' y números de superficie m2 como '30.74', '10.43', '4.14', etc.). Devuélvelos en el array 'textBoxes'.
 
 Devuelve estrictamente un objeto JSON con el siguiente esquema:
 {
@@ -57,6 +63,12 @@ Devuelve estrictamente un objeto JSON con el siguiente esquema:
       "category": "recibidor_distribuidor",
       "x": 20,
       "y": 78
+    }
+  ],
+  "textBoxes": [
+    {
+      "text": "Vestíbulo",
+      "box2d": [591, 62, 608, 103]
     }
   ],
   "totalUsefulArea": 83.95,
@@ -113,11 +125,27 @@ Devuelve estrictamente un objeto JSON con el siguiente esquema:
     notes: r.notes || ''
   }));
 
+  // Limpiar y borrar todos los textos del plano automáticamente con el color del suelo
+  let cleanedBase64Result: string | undefined = undefined;
+  const detectedBoxes: TextBoxDetection[] = Array.isArray(parsed.textBoxes) ? parsed.textBoxes : [];
+
+  if (detectedBoxes.length > 0) {
+    try {
+      const cleanedDataUrl = await cleanPlanTextsFromBoxes(dataUrl, detectedBoxes);
+      const cleaned = cleanBase64Data(cleanedDataUrl);
+      cleanedBase64Result = cleaned.cleanBase64;
+    } catch (cleanErr) {
+      console.warn('Advertencia al limpiar textos del plano:', cleanErr);
+    }
+  }
+
   return {
     rooms: sortRoomMarkers(formattedRooms),
     totalUsefulArea: parsed.totalUsefulArea,
     terraceArea: parsed.terraceArea,
     constructedArea: parsed.constructedArea,
+    textBoxes: detectedBoxes,
+    cleanedImageBase64: cleanedBase64Result,
     rawResponse: textContent
   };
 }
