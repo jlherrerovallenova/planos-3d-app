@@ -147,13 +147,15 @@ export async function generateBrochureCanvas({
         ctx.lineTo(width - headerMarginX, 122 * scale);
         ctx.stroke();
 
-        // 3. Plano Render en el área izquierda
+        // 3. Plano Render en el área izquierda (Fondo blanco puro, manteniendo el borde arquitectónico)
         const planAreaX = 60 * scale;
         const planAreaY = 145 * scale;
         const planAreaW = 1260 * scale;
         const planAreaH = (height - 145 * scale - 70 * scale);
 
-        ctx.fillStyle = '#F8FAFC';
+        ctx.fillStyle = '#FFFFFF';
+        ctx.strokeStyle = '#CBD5E1';
+        ctx.lineWidth = 1.5 * scale;
         ctx.beginPath();
         if (typeof ctx.roundRect === 'function') {
           ctx.roundRect(planAreaX, planAreaY, planAreaW, planAreaH, 16 * scale);
@@ -161,6 +163,7 @@ export async function generateBrochureCanvas({
           ctx.rect(planAreaX, planAreaY, planAreaW, planAreaH);
         }
         ctx.fill();
+        ctx.stroke();
 
         const imgAspect = img.width / img.height;
         const padding = 35 * scale;
@@ -408,10 +411,10 @@ export async function exportCommercialBrochurePDF({
         const tableX = pageWidth - margin - tableWidth;
         const planWidth = tableX - margin - 6;
 
-        // Recuadro contenedor arquitectónico para el plano
-        doc.setFillColor(248, 250, 252); // #F8FAFC
-        doc.setDrawColor(226, 232, 240);
-        doc.setLineWidth(0.3);
+        // Recuadro contenedor arquitectónico para el plano (Fondo blanco puro, manteniendo el borde)
+        doc.setFillColor(255, 255, 255); // Fondo blanco puro
+        doc.setDrawColor(203, 213, 225); // Borde arquitectónico (#CBD5E1)
+        doc.setLineWidth(0.4);
         doc.roundedRect(margin, contentY, planWidth, contentHeight, 3, 3, 'FD');
 
         // Inserción directa de la imagen original en alta definición (sin rasterizado intermedio)

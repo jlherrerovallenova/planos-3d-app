@@ -707,8 +707,8 @@ export function PlanCanvasPreview({
 
               {/* Cuerpo de la Ficha: Plano a la Izquierda y Cuadro de Superficies a la Derecha */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center flex-1 my-auto">
-                {/* Columna Izquierda / Central: Plano Renderizado o Base */}
-                <div className="lg:col-span-7 flex flex-col items-center justify-center bg-stone-50 rounded-xl p-3 border border-stone-200/80 min-h-[340px] max-h-[56vh]">
+                {/* Columna Izquierda / Central: Plano Renderizado o Base (Fondo blanco manteniendo el borde) */}
+                <div className="lg:col-span-7 flex flex-col items-center justify-center bg-white rounded-xl p-3 border border-stone-300 shadow-2xs min-h-[340px] max-h-[56vh]">
                   {renderDataUrl || sourceDataUrl ? (
                     <>
                       <div
