@@ -139,4 +139,6 @@ export interface RenderHistoryItem {
   prompt: string;
   config: RenderConfig;
   timestamp: number;
+  versionNumber?: number;
+  appliedInstruction?: string;
 }

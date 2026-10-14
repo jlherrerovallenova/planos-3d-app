@@ -1,4 +1,4 @@
-import { RenderConfig } from '../types';
+import { RenderConfig, RoomMarker } from '../types';
 import {
   COLOR_PALETTE_SCHEMES,
   INTERIOR_STYLES,
@@ -122,9 +122,121 @@ STRICT RULE: ZERO text, ZERO English subtitles, ZERO room names, ZERO square met
     `Color palette: ${selectedPalette.promptKeyword}.`,
     `Lighting: warm soft natural daylight streaming through exterior windows with gentle ambient occlusion.`,
     cleanedExtraDetails ? `Client details: ${cleanedExtraDetails}.` : '',
-    strictNoTablesDirective,
-    strictNoTextInRoomsDirective,
-    strictFramingAndOccupancyDirective,
     `Unreal Engine 5 archviz render quality, crisp geometry, clean photorealistic textures, zero text and zero surface numbers inside rooms.`
   ].filter(Boolean).join(' ');
+}
+
+/**
+ * Analiza un comando en lenguaje natural (ej. "el suelo de la estancia 8 es de parquet")
+ * e identifica automáticamente si hace referencia a una estancia concreta por número o nombre.
+ */
+export function parseTargetedRoomFromText(
+  text: string,
+  markers: RoomMarker[]
+): {
+  matchedMarker: RoomMarker | null;
+  roomIndex: number | null;
+  cleanNotes: string;
+} {
+  const normalized = text.toLowerCase().trim();
+
+  // 1. Buscar número de estancia: "estancia 8", "estancia #8", "habitacion 3", "#8", etc.
+  const numMatch =
+    normalized.match(/(?:estancia|habitaci[oó]n|cuarto|espacio|zona|dormitorio)\s*(?:n[ºo°]?\s*)?#?(\d+)/i) ||
+    normalized.match(/#(\d+)/);
+
+  if (numMatch) {
+    const targetIdx = parseInt(numMatch[1], 10) - 1; // 1-indexado a 0-indexado
+    if (targetIdx >= 0 && targetIdx < markers.length) {
+      return {
+        matchedMarker: markers[targetIdx],
+        roomIndex: targetIdx,
+        cleanNotes: text.replace(/(?:en\s+la\s+|el\s+)?(?:estancia|habitaci[oó]n|espacio)\s*#?\d+\s*(?:es|de|:)?/gi, '').trim()
+      };
+    }
+  }
+
+  // 2. Buscar por nombre exacto de estancia registrado en el plano
+  for (let i = 0; i < markers.length; i++) {
+    const markerName = markers[i].name.toLowerCase();
+    if (markerName && normalized.includes(markerName)) {
+      return {
+        matchedMarker: markers[i],
+        roomIndex: i,
+        cleanNotes: text
+      };
+    }
+  }
+
+  // 3. Buscar por palabras clave de categorías habituales
+  const categoryKeywords: { [key: string]: string[] } = {
+    salon_comedor: ['salón', 'salon', 'comedor'],
+    cocina: ['cocina'],
+    dormitorio_principal: ['dormitorio principal', 'suite'],
+    dormitorio_secundario: ['dormitorio', 'habitación', 'habitacion'],
+    bano_principal: ['baño', 'bano', 'baño principal'],
+    aseo_cortesia: ['aseo', 'toilet'],
+    terraza_balcon: ['terraza', 'balcón', 'balcon']
+  };
+
+  for (let i = 0; i < markers.length; i++) {
+    const cat = markers[i].category;
+    const keywords = categoryKeywords[cat] || [];
+    if (keywords.some((k) => normalized.includes(k))) {
+      return {
+        matchedMarker: markers[i],
+        roomIndex: i,
+        cleanNotes: text
+      };
+    }
+  }
+
+  return {
+    matchedMarker: null,
+    roomIndex: null,
+    cleanNotes: text
+  };
+}
+
+/**
+ * Construye un prompt especializado para corrección puntual / refinamiento Image-to-Image.
+ * Le indica a Gemini que debe PRESERVAR el 100% del render actual salvo la orden específica.
+ */
+export function buildTargetedCorrectionPrompt(
+  config: RenderConfig,
+  correctionInstruction: string,
+  matchedMarker?: RoomMarker | null,
+  roomIndex?: number | null
+): string {
+  let roomContext = '';
+  if (matchedMarker && typeof roomIndex === 'number') {
+    const hPos =
+      matchedMarker.x < 35
+        ? 'left / west section'
+        : matchedMarker.x > 65
+        ? 'right / east section'
+        : 'central area';
+    const vPos =
+      matchedMarker.y < 35
+        ? 'upper / north part'
+        : matchedMarker.y > 65
+        ? 'lower / south part'
+        : 'middle area';
+    roomContext = `CRITICAL FOCUS: The targeted area is Space #${roomIndex + 1} ("${matchedMarker.name}") located at the ${hPos}, ${vPos} of the layout.`;
+  }
+
+  return [
+    `IMAGE-TO-IMAGE TARGETED ARCHITECTURAL RETOUCH AND CORRECTION:`,
+    `You are modifying the reference 3D architectural render image.`,
+    `ABSOLUTE PRESERVATION MANDATE: Strictly preserve 100% of the existing camera angle, lighting, 1.2m cutaway wall heights, and the flooring, partitions, and furniture in ALL OTHER ROOMS of the house. Do NOT alter or re-imagine any rooms or areas that are not mentioned.`,
+    `SPECIFIC TARGETED CORRECTION TO EXECUTE:`,
+    `"${correctionInstruction}"`,
+    roomContext,
+    `Seamlessly integrate this change into the interior style (${config.interiorStyle || 'contemporary'}) with high realism.`,
+    `ABSOLUTE PROHIBITION OF TEXT: DO NOT render, write, or print ANY text, room names, English subtitles, or area numbers inside the rooms or on the floor surfaces. Keep floors 100% clean of text.`,
+    `CAMERA & CANVAS OCCUPANCY: Maintain the exact same close-up architectural framing where the floor plan occupies at least 75% to 85% of the frame.`,
+    `Photorealistic archviz quality, crisp geometry, clean textures, Unreal Engine 5 rendering fidelity.`
+  ]
+    .filter(Boolean)
+    .join(' ');
 }

@@ -9,6 +9,7 @@ import {
   exportCommercialBrochurePDF,
   exportPlanOnlyPDF
 } from '../services/downloadHelper';
+import { CorrectionCommandBar } from './CorrectionCommandBar';
 
 interface PlanCanvasPreviewProps {
   sourceImage: { base64: string; mimeType: string; name?: string } | null;
@@ -35,6 +36,11 @@ interface PlanCanvasPreviewProps {
   onCleanPlanTexts?: () => void;
   isCleaningPlanText?: boolean;
   onEraseTextAtPoint?: (xPercent: number, yPercent: number) => void;
+  // Corrección puntual y versiones
+  onApplyCorrection?: (instruction: string) => Promise<void>;
+  currentVersion?: number;
+  canUndo?: boolean;
+  onUndoToPreviousVersion?: () => void;
 }
 
 export function PlanCanvasPreview({
@@ -61,9 +67,14 @@ export function PlanCanvasPreview({
   isDetectingWithAI = false,
   onCleanPlanTexts,
   isCleaningPlanText = false,
-  onEraseTextAtPoint
+  onEraseTextAtPoint,
+  onApplyCorrection,
+  currentVersion = 1,
+  canUndo = false,
+  onUndoToPreviousVersion
 }: PlanCanvasPreviewProps) {
   const [activeTab, setActiveTab] = useState<'ficha' | 'rendered' | 'split' | 'source'>('rendered');
+  const [commandPrefillText, setCommandPrefillText] = useState<string | null>(null);
   const [sliderPosition, setSliderPosition] = useState<number>(50);
   const [isEraserMode, setIsEraserMode] = useState<boolean>(false);
   const [showMarkersOverlay, setShowMarkersOverlay] = useState<boolean>(true);
@@ -1103,6 +1114,20 @@ export function PlanCanvasPreview({
                             >
                               Guardar
                             </button>
+
+                            {onApplyCorrection && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCommandPrefillText(`Estancia #${idx + 1} (${marker.name}): `);
+                                  setEditingMarkerId(null);
+                                }}
+                                className="mt-1.5 w-full py-1 bg-stone-900 hover:bg-stone-800 text-amber-300 border border-stone-700 rounded-lg text-xs font-bold text-center cursor-pointer transition flex items-center justify-center gap-1 shadow-xs"
+                              >
+                                <span className="material-symbols-outlined text-[13px]">auto_fix_high</span>
+                                <span>Pedir corrección IA para estancia #{idx + 1}</span>
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1153,6 +1178,22 @@ export function PlanCanvasPreview({
               <span className="material-symbols-outlined text-[16px]">zoom_in</span>
             </button>
           </div>
+        )}
+
+        {/* Terminal de Comandos para Corrección Rápida de Errores con IA */}
+        {onApplyCorrection && (sourceImage || renderedResult) && (
+          <CorrectionCommandBar
+            roomMarkers={sortedMarkers}
+            activeMarkerId={activeMarkerId}
+            onApplyCorrection={onApplyCorrection}
+            isGenerating={isGenerating}
+            hasRender={!!renderedResult}
+            currentVersion={currentVersion}
+            canUndo={canUndo}
+            onUndoToPreviousVersion={onUndoToPreviousVersion}
+            externalPrefillText={commandPrefillText}
+            onClearPrefill={() => setCommandPrefillText(null)}
+          />
         )}
 
         {/* Modal de Exportación en Alta Definición PDF / Formatos */}

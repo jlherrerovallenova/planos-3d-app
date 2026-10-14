@@ -9,7 +9,11 @@ import {
   DEFAULT_PRESETS,
   SAMPLE_PLANS
 } from './constants';
-import { buildArchitecturalPrompt } from './services/promptBuilder';
+import {
+  buildArchitecturalPrompt,
+  buildTargetedCorrectionPrompt,
+  parseTargetedRoomFromText
+} from './services/promptBuilder';
 import { PlanCanvasPreview } from './components/PlanCanvasPreview';
 import { StyleSelector } from './components/StyleSelector';
 import { IntroModal } from './components/IntroModal';
@@ -52,6 +56,7 @@ export function App() {
 
   // 5. Historial y Modales
   const [history, setHistory] = useState<RenderHistoryItem[]>([]);
+  const [currentVersionNumber, setCurrentVersionNumber] = useState<number>(1);
   const [isIntroOpen, setIsIntroOpen] = useState<boolean>(false);
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
 
@@ -381,8 +386,11 @@ export function App() {
             mimeType: result.mimeType,
             prompt: currentPrompt,
             config: { ...config },
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            versionNumber: 1,
+            appliedInstruction: 'Render inicial'
           };
+          setCurrentVersionNumber(1);
           setHistory((prev) => [historyItem, ...prev]);
           setGenerationSuccessMessage('¡Render 3D generado con éxito!');
           setIsGenerating(false);
@@ -467,8 +475,11 @@ export function App() {
           mimeType: generatedImage.mimeType,
           prompt: currentPrompt,
           config: { ...config },
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          versionNumber: 1,
+          appliedInstruction: 'Render inicial'
         };
+        setCurrentVersionNumber(1);
         setHistory((prev) => [historyItem, ...prev]);
         setGenerationSuccessMessage('¡Maqueta 3D renderizada con éxito!');
         setIsGenerating(false);
@@ -484,6 +495,226 @@ export function App() {
       setGenerationError(err?.message || 'Error durante la generación de la imagen.');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // 4.1 Corrección puntual con IA (Image-to-Image sobre el render actual preservando el resto)
+  const handleApplyTargetedCorrection = async (instruction: string) => {
+    if (!instruction.trim()) return;
+
+    if (!sourceImage && !renderedResult) {
+      setGenerationError('Carga un plano o genera un render inicial antes de aplicar correcciones.');
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenerationError(null);
+    setGenerationSuccessMessage(null);
+
+    // 1. Detección automática de estancia para sincronizar metadatos
+    const detection = parseTargetedRoomFromText(instruction, config.roomMarkers || []);
+    let updatedMarkers = config.roomMarkers || [];
+    if (detection.matchedMarker && typeof detection.roomIndex === 'number') {
+      const targetMarker = detection.matchedMarker;
+      updatedMarkers = updatedMarkers.map((m) =>
+        m.id === targetMarker.id
+          ? {
+              ...m,
+              notes: m.notes ? `${m.notes}, ${detection.cleanNotes}` : detection.cleanNotes
+            }
+          : m
+      );
+      setConfig((prev) => ({
+        ...prev,
+        roomMarkers: updatedMarkers
+      }));
+    }
+
+    const targetedPrompt = buildTargetedCorrectionPrompt(
+      config,
+      instruction,
+      detection.matchedMarker,
+      detection.roomIndex
+    );
+
+    const nextVersion = (history.length > 0 ? (history[0].versionNumber || history.length) : 1) + 1;
+
+    try {
+      // 2. Si Flow SDK está disponible
+      const flowSdk = (window as any).Flow;
+      if (flowSdk && typeof flowSdk.generate?.image === 'function') {
+        const refIds = sourceImage?.mediaId ? [sourceImage.mediaId] : [];
+        let genRes: any = null;
+        try {
+          genRes = await flowSdk.generate.image({
+            prompt: targetedPrompt,
+            referenceImageMediaIds: refIds,
+            aspectRatio: config.aspectRatio,
+            modelDisplayName: '🍌 Nano Banana Pro'
+          });
+        } catch (modelErr) {
+          genRes = await flowSdk.generate.image({
+            prompt: targetedPrompt,
+            referenceImageMediaIds: refIds,
+            aspectRatio: config.aspectRatio,
+            modelDisplayName: '🍌 Nano Banana 2.1'
+          });
+        }
+
+        if (genRes && genRes.base64) {
+          const { cleanBase64, mimeType } = cleanBase64Data(genRes.base64);
+          const result = { base64: cleanBase64, mimeType: genRes.mimeType || mimeType };
+          setRenderedResult(result);
+          setCurrentVersionNumber(nextVersion);
+
+          const historyItem: RenderHistoryItem = {
+            id: `render_${Date.now()}`,
+            mediaId: genRes.mediaId || '',
+            base64: cleanBase64,
+            mimeType: result.mimeType,
+            prompt: targetedPrompt,
+            config: { ...config, roomMarkers: updatedMarkers },
+            timestamp: Date.now(),
+            versionNumber: nextVersion,
+            appliedInstruction: instruction
+          };
+          setHistory((prev) => [historyItem, ...prev]);
+          setGenerationSuccessMessage(`¡Corrección aplicada con éxito! (Versión v${nextVersion} guardada)`);
+          setIsGenerating(false);
+          return;
+        }
+      }
+
+      // 3. Llamada directa a Gemini API con Image-to-Image (Render actual como base principal)
+      const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error('No se encontró VITE_GEMINI_API_KEY en .env.local.');
+      }
+
+      const candidateModels = [
+        'nano-banana-pro-preview',
+        'gemini-nano-banana-2.1',
+        'gemini-2.5-flash-image',
+        'gemini-3-pro-image-preview'
+      ];
+
+      // Imagen base: priorizar el render actual (Image-to-Image) para preservar contexto
+      const baseImgToRefine = renderedResult || sourceImage;
+      const parts: any[] = [];
+
+      if (baseImgToRefine && baseImgToRefine.base64) {
+        const { cleanBase64, mimeType } = cleanBase64Data(baseImgToRefine.base64);
+        parts.push({
+          inlineData: {
+            mimeType: baseImgToRefine.mimeType || mimeType || 'image/jpeg',
+            data: cleanBase64
+          }
+        });
+      }
+
+      // Adjuntar también el plano base 2D como referencia estructural si existe
+      if (renderedResult && sourceImage && sourceImage.base64) {
+        const { cleanBase64, mimeType } = cleanBase64Data(sourceImage.base64);
+        parts.push({
+          inlineData: {
+            mimeType: sourceImage.mimeType || mimeType || 'image/jpeg',
+            data: cleanBase64
+          }
+        });
+      }
+
+      parts.push({ text: targetedPrompt });
+
+      let generatedImage: { base64: string; mimeType: string } | null = null;
+      let lastErrorMessage = '';
+
+      for (const model of candidateModels) {
+        try {
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts }] })
+          });
+
+          if (!response.ok) {
+            const errText = await response.text();
+            console.warn(`Modelo ${model} no disponible (${response.status}):`, errText);
+            lastErrorMessage = `API error ${response.status}: ${errText}`;
+            continue;
+          }
+
+          const data = await response.json();
+          const imagePart = data.candidates?.[0]?.content?.parts?.find(
+            (p: any) => p.inlineData && p.inlineData.data
+          );
+
+          if (imagePart?.inlineData?.data) {
+            const { cleanBase64, mimeType } = cleanBase64Data(imagePart.inlineData.data);
+            generatedImage = {
+              base64: cleanBase64,
+              mimeType: imagePart.inlineData.mimeType || mimeType || 'image/jpeg'
+            };
+            break;
+          }
+        } catch (modelErr: any) {
+          console.warn(`Error llamando a ${model}:`, modelErr);
+          lastErrorMessage = modelErr?.message || 'Error de conexión con Gemini';
+        }
+      }
+
+      if (generatedImage) {
+        setRenderedResult(generatedImage);
+        setCurrentVersionNumber(nextVersion);
+
+        const historyItem: RenderHistoryItem = {
+          id: `render_${Date.now()}`,
+          mediaId: 'gemini_correction',
+          base64: generatedImage.base64,
+          mimeType: generatedImage.mimeType,
+          prompt: targetedPrompt,
+          config: { ...config, roomMarkers: updatedMarkers },
+          timestamp: Date.now(),
+          versionNumber: nextVersion,
+          appliedInstruction: instruction
+        };
+        setHistory((prev) => [historyItem, ...prev]);
+        setGenerationSuccessMessage(`¡Corrección aplicada con éxito! (Versión v${nextVersion} guardada)`);
+        setIsGenerating(false);
+        return;
+      }
+
+      throw new Error(
+        lastErrorMessage || 'El modelo generativo no devolvió una imagen válida tras la corrección.'
+      );
+    } catch (err: any) {
+      console.error('Error al aplicar corrección puntual:', err);
+      setGenerationError(err?.message || 'Error durante la corrección del render.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Restaurar versión específica del historial
+  const handleRestoreVersion = (item: RenderHistoryItem) => {
+    setRenderedResult({
+      base64: item.base64,
+      mimeType: item.mimeType
+    });
+    if (item.versionNumber) {
+      setCurrentVersionNumber(item.versionNumber);
+    }
+    if (item.config) {
+      setConfig(item.config);
+    }
+    setGenerationSuccessMessage(`Restaurada la versión v${item.versionNumber || 'seleccionada'}`);
+  };
+
+  // Deshacer al render inmediatamente anterior
+  const handleUndo = () => {
+    if (history.length > 1) {
+      const prevItem = history[1]; // el segundo elemento en la lista ordenada es el anterior
+      handleRestoreVersion(prevItem);
     }
   };
 
@@ -714,6 +945,10 @@ export function App() {
               onCleanPlanTexts={handleCleanPlanTexts}
               isCleaningPlanText={isCleaningPlanText}
               onEraseTextAtPoint={handleEraseTextAtPoint}
+              onApplyCorrection={handleApplyTargetedCorrection}
+              currentVersion={currentVersionNumber}
+              canUndo={history.length > 1}
+              onUndoToPreviousVersion={handleUndo}
             />
           </div>
         </section>
@@ -738,6 +973,10 @@ export function App() {
             onDetectWithAI={handleDetectRooms}
             isDetectingWithAI={isAnalyzingPlan}
             hasSourceImage={!!sourceImage}
+            history={history}
+            onApplyCorrection={handleApplyTargetedCorrection}
+            onRestoreVersion={handleRestoreVersion}
+            currentVersion={currentVersionNumber}
           />
         </section>
       </main>

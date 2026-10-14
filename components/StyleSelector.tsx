@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RenderConfig, PresetConfig, RoomMarker, RoomCategory } from '../types';
+import { RenderConfig, PresetConfig, RoomMarker, RoomCategory, RenderHistoryItem } from '../types';
 import { PresetManager } from './PresetManager';
 import { RoomIdentifierPanel } from './RoomIdentifierPanel';
 import { sortRoomMarkers } from '../services/roomSorter';
@@ -38,9 +38,14 @@ interface StyleSelectorProps {
   onDetectWithAI?: () => void;
   isDetectingWithAI?: boolean;
   hasSourceImage?: boolean;
+  // Correcciones puntuales y control de versiones
+  history?: RenderHistoryItem[];
+  onApplyCorrection?: (instruction: string) => Promise<void>;
+  onRestoreVersion?: (item: RenderHistoryItem) => void;
+  currentVersion?: number;
 }
 
-type TabMode = 'presets' | 'camera' | 'rooms' | 'flooring' | 'carpentry';
+type TabMode = 'presets' | 'camera' | 'rooms' | 'flooring' | 'carpentry' | 'corrections';
 
 export function StyleSelector({
   config,
@@ -59,9 +64,14 @@ export function StyleSelector({
   disabled = false,
   onDetectWithAI,
   isDetectingWithAI = false,
-  hasSourceImage = false
+  hasSourceImage = false,
+  history = [],
+  onApplyCorrection,
+  onRestoreVersion,
+  currentVersion = 1
 }: StyleSelectorProps) {
   const [activeTab, setActiveTab] = useState<TabMode>('presets');
+  const [panelCorrectionInput, setPanelCorrectionInput] = useState<string>('');
 
   const updateField = <K extends keyof RenderConfig>(field: K, value: RenderConfig[K]) => {
     onChangeConfig({
@@ -188,6 +198,28 @@ export function StyleSelector({
           >
             <span className="material-symbols-outlined text-[17px] text-stone-500">door_front</span>
             <span>Carpintería & Muros</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('corrections')}
+            className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'corrections'
+                ? 'bg-[#c25e38] text-white shadow-xs font-bold'
+                : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+            }`}
+          >
+            <span className={`material-symbols-outlined text-[17px] ${activeTab === 'corrections' ? 'text-white' : 'text-amber-600'}`}>
+              auto_fix_high
+            </span>
+            <span>Correcciones</span>
+            {history && history.length > 0 && (
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                activeTab === 'corrections' ? 'bg-black/25 text-white' : 'bg-[#c25e38] text-white'
+              }`}>
+                v{history.length}
+              </span>
+            )}
           </button>
         </div>
 
@@ -687,6 +719,152 @@ export function StyleSelector({
                 placeholder="Ej: Isla central con taburetes, mamparas de ducha en perfilería negra..."
                 className="w-full text-xs bg-stone-50 border border-stone-300 rounded-xl p-2.5 text-stone-800 focus:outline-none focus:border-[#c25e38] resize-none"
               />
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* PESTAÑA 5: CORRECCIONES PUNTUALES Y CONTROL DE VERSIONES */}
+        {/* ============================================================== */}
+        {activeTab === 'corrections' && (
+          <div className="space-y-4 animate-fadeIn">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#c25e38]" />
+                <h3 className="text-sm font-bold text-stone-900">Corrección Puntual con IA</h3>
+              </div>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Corrige detalles puntuales de la maqueta actual sin regenerar todo desde cero (suelo, muebles, tabiques o acabados).
+              </p>
+            </div>
+
+            {/* Formulario de envío de corrección */}
+            <div className="bg-stone-50 p-3.5 rounded-2xl border border-stone-200 space-y-2.5">
+              <label className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[16px] text-[#c25e38]">terminal</span>
+                <span>Orden de corrección en lenguaje natural</span>
+              </label>
+              <textarea
+                rows={2}
+                disabled={disabled || isGenerating}
+                value={panelCorrectionInput}
+                onChange={(e) => setPanelCorrectionInput(e.target.value)}
+                placeholder="Ej: El suelo de la estancia 8 es de parquet en espiga, y cambia el mobiliario de la estancia 7..."
+                className="w-full text-xs bg-white border border-stone-300 rounded-xl p-2.5 text-stone-800 focus:outline-none focus:border-[#c25e38] resize-none shadow-2xs"
+              />
+              <button
+                type="button"
+                disabled={disabled || isGenerating || !panelCorrectionInput.trim()}
+                onClick={() => {
+                  if (onApplyCorrection && panelCorrectionInput.trim()) {
+                    onApplyCorrection(panelCorrectionInput.trim());
+                    setPanelCorrectionInput('');
+                  }
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#c25e38] to-amber-600 hover:from-[#a84d2b] hover:to-amber-700 disabled:opacity-40 text-white font-bold text-xs transition shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+              >
+                <span className={`material-symbols-outlined text-[16px] ${isGenerating ? 'animate-spin' : ''}`}>
+                  {isGenerating ? 'autorenew' : 'auto_fix_high'}
+                </span>
+                <span>{isGenerating ? 'Aplicando corrección al render...' : 'Aplicar Corrección Puntual ⚡'}</span>
+              </button>
+            </div>
+
+            {/* Píldoras de Corrección Rápida */}
+            <div>
+              <span className="text-[11px] font-bold text-stone-700 uppercase tracking-wider block mb-2">
+                Ajustes Rápidos Sugeridos
+              </span>
+              <div className="flex flex-wrap gap-1.5 text-xs">
+                {[
+                  'Suelo parquet espiga en habitaciones',
+                  'Suelo microcemento continuo en salón',
+                  'Isla central con taburetes en cocina',
+                  'Cama doble 160cm con cabecero',
+                  'Ducha mineral blanco puro con mampara',
+                  'Paredes en blanco roto cálido'
+                ].map((chip, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setPanelCorrectionInput((prev) => (prev ? `${prev}, ${chip}` : chip))}
+                    className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-700 hover:text-stone-900 text-[11px] font-medium transition cursor-pointer"
+                  >
+                    + {chip}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Historial de Versiones */}
+            <div className="pt-2 border-t border-stone-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold text-stone-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[15px] text-blue-600">history</span>
+                  <span>Historial de Versiones ({history.length})</span>
+                </span>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  v{currentVersion} activa
+                </span>
+              </div>
+
+              {history.length === 0 ? (
+                <div className="p-4 bg-stone-50 rounded-xl border border-stone-200 text-center text-xs text-stone-400 italic">
+                  Aún no se han generado versiones. Genera el render inicial y podrás aplicar correcciones puntuales guardando cada versión.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {history.map((item, idx) => {
+                    const vNum = item.versionNumber || (history.length - idx);
+                    const isCurrent = vNum === currentVersion;
+                    return (
+                      <div
+                        key={item.id || idx}
+                        className={`p-2.5 rounded-xl border transition-all flex items-center gap-3 ${
+                          isCurrent
+                            ? 'bg-amber-50/70 border-amber-300 shadow-2xs'
+                            : 'bg-white hover:bg-stone-50 border-stone-200'
+                        }`}
+                      >
+                        {item.base64 && (
+                          <img
+                            src={`data:${item.mimeType || 'image/jpeg'};base64,${item.base64}`}
+                            alt={`v${vNum}`}
+                            className="w-12 h-12 rounded-lg object-cover border border-stone-300 shrink-0"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-stone-900 font-mono">v{vNum}</span>
+                            {isCurrent && (
+                              <span className="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[9px] font-bold">
+                                Actual
+                              </span>
+                            )}
+                            <span className="text-[10px] text-stone-400 ml-auto">
+                              {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-stone-600 line-clamp-1 mt-0.5">
+                            {item.appliedInstruction || 'Render inicial'}
+                          </p>
+                        </div>
+
+                        {!isCurrent && onRestoreVersion && (
+                          <button
+                            type="button"
+                            onClick={() => onRestoreVersion(item)}
+                            className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 text-[11px] font-bold border border-stone-300 shrink-0 transition cursor-pointer"
+                            title="Volver a esta versión"
+                          >
+                            Restaurar
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
