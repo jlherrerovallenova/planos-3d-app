@@ -653,20 +653,14 @@ export function PlanCanvasPreview({
                                 isDragging
                                   ? 'scale-135 ring-4 ring-blue-400 shadow-2xl cursor-grabbing'
                                   : ''
-                              } group`}
+                              }`}
                               title={
                                 areMarkersLocked
-                                  ? `Punto fijado: ${idx + 1}. ${marker.name} (${marker.areaSqMeters || 0} m²)`
-                                  : `Arrastra para recolocar: ${idx + 1}. ${marker.name} (${marker.areaSqMeters || 0} m²)`
+                                  ? `Estancia #${idx + 1} (Fijada)`
+                                  : `Estancia #${idx + 1} (Arrastra para recolocar)`
                               }
                             >
                               <span>{idx + 1}</span>
-
-                              {/* Tooltip con nombre y m² */}
-                              <div className="absolute left-1/2 bottom-full mb-1.5 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap bg-stone-900/95 backdrop-blur-md text-white text-[10px] font-semibold px-2 py-0.5 rounded-lg shadow-xl border border-stone-700 z-40">
-                                {idx + 1}. {marker.name} {marker.areaSqMeters ? `• ${marker.areaSqMeters.toLocaleString('es-ES', { minimumFractionDigits: 2 })} m²` : ''}
-                                {areMarkersLocked ? ' (Fijado)' : ''}
-                              </div>
                             </div>
                           );
                         })}
@@ -844,20 +838,14 @@ export function PlanCanvasPreview({
                           : isSelected
                           ? 'scale-125 ring-4 ring-blue-400 shadow-2xl'
                           : ''
-                      } group`}
+                      }`}
                       title={
                         areMarkersLocked
-                          ? `Punto fijado: ${idx + 1}. ${marker.name} (${marker.areaSqMeters || 0} m²)`
-                          : `Arrastra para recolocar: ${idx + 1}. ${marker.name} (${marker.areaSqMeters || 0} m²)`
+                          ? `Estancia #${idx + 1} (Fijada)`
+                          : `Estancia #${idx + 1} (Arrastra para recolocar)`
                       }
                     >
                       <span>{idx + 1}</span>
-
-                      {/* Tooltip con nombre y m² */}
-                      <div className="absolute left-1/2 bottom-full mb-1.5 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap bg-stone-900/95 backdrop-blur-md text-white text-[10px] font-semibold px-2 py-0.5 rounded-lg shadow-xl border border-stone-700 z-40">
-                        {idx + 1}. {marker.name} {marker.areaSqMeters ? `• ${marker.areaSqMeters.toLocaleString('es-ES', { minimumFractionDigits: 2 })} m²` : ''}
-                        {areMarkersLocked ? ' (Fijado)' : ''}
-                      </div>
                     </div>
                   );
                 })}
@@ -906,6 +894,11 @@ export function PlanCanvasPreview({
                         } ${
                           isDragging ? 'z-30 cursor-grabbing' : ''
                         }`}
+                        title={
+                          areMarkersLocked
+                            ? `Estancia #${idx + 1} (Fijada)`
+                            : `Estancia #${idx + 1} (Arrastra para recolocar)`
+                        }
                       >
                         {/* Círculo azul con número blanco profesional */}
                         <div
@@ -920,12 +913,6 @@ export function PlanCanvasPreview({
                           }`}
                         >
                           <span>{idx + 1}</span>
-
-                          {/* Tooltip elegante con el nombre y m² al pasar el ratón */}
-                          <div className="absolute left-1/2 bottom-full mb-1.5 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap bg-stone-900/95 backdrop-blur-md text-white text-[10px] font-semibold px-2 py-0.5 rounded-lg shadow-xl border border-stone-700 z-30">
-                            {idx + 1}. {marker.name} {marker.areaSqMeters ? `• ${marker.areaSqMeters.toLocaleString('es-ES', { minimumFractionDigits: 2 })} m²` : ''}
-                            {areMarkersLocked ? ' (Fijado)' : ''}
-                          </div>
                         </div>
 
                         {/* Popover / Quick Edit al hacer click en el pin */}

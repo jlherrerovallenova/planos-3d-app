@@ -32,7 +32,15 @@ export function buildArchitecturalPrompt(config: RenderConfig): string {
     : `${selectedKitchenFloor.label} in kitchen floor`;
   // REGLA CRÍTICA ESTRICTA: El plato de ducha SIEMPRE es blanco puro, NUNCA del material ni color del suelo del baño
   const showerTrayRule = `CRITICAL ARCHITECTURAL DETAIL: In all bathrooms, shower trays MUST ALWAYS BE PURE CHALK WHITE mineral resin or glossy white acrylic (never matching the bathroom floor tile color or material). Every shower tray is distinctly solid clean white with clear contrast against the ${selectedBathGres60.previewColor} floor tiles, framed by a transparent glass screen shower enclosure.`;
-  // CLÁUSULA CRÍTICA: IDENTIFICACIÓN EXPLÍCITA DE ESTANCIAS
+  // DIRECTIVA ESTRICTA: NUNCA DIBUJAR TEXTO, NOMBRES DE ESTANCIA NI SUPERFICIES (m²) DENTRO DE LAS ESTANCIAS
+  const strictNoTextInRoomsDirective = `ABSOLUTE PROHIBITION OF TEXT, LABELS, WORDS, ROOM NAMES, AND SQUARE METERS INSIDE THE PLAN:
+1. DO NOT paint, write, print, or render ANY text, letters, words, room names (such as "DORMITORIO", "SALON", "COCINA", "BAÑO", "ASEO", "TERRAZA", "HALL", "DISTRIBUIDOR", etc.), dimensions, or square meter measurements ("m²", "sqm", numbers) inside any room or anywhere on the floor plan.
+2. Completely clean, erase, and eliminate all blueprint text, annotations, callout labels, and area numbers from the reference blueprint image.
+3. The floor surfaces inside all rooms must be 100% CLEAN of text: ONLY pure architectural flooring materials, walls, and furniture.
+4. Each room is identified strictly by an external number badge, NEVER by printed text or surface numbers in the image.
+STRICT RULE: ZERO text, ZERO room names, ZERO square meter numbers inside the rooms or on the floor.`;
+
+  // CLÁUSULA CRÍTICA: IDENTIFICACIÓN Y MOBILIARIO DE ESTANCIAS (SIN TEXTO)
   let roomsIdentificationClause = '';
   if (config.roomMarkers && config.roomMarkers.length > 0) {
     const roomDescriptions = config.roomMarkers.map((marker, idx) => {
@@ -41,9 +49,9 @@ export function buildArchitecturalPrompt(config: RenderConfig): string {
       const hPos = marker.x < 35 ? 'left / west section' : marker.x > 65 ? 'right / east section' : 'central area';
       const vPos = marker.y < 35 ? 'upper / north part' : marker.y > 65 ? 'lower / south part' : 'middle area';
       const specificNotes = marker.notes ? ` with ${marker.notes}` : '';
-      return `Room ${idx + 1} named "${marker.name}" located at ${hPos}, ${vPos}: strictly furnish and designate as a ${cat?.promptDesc || marker.name}${specificNotes}.`;
+      return `Space #${idx + 1} located at ${hPos}, ${vPos}: strictly furnish and layout as a ${cat?.promptDesc || 'functional room'}${specificNotes}. (CRITICAL: DO NOT write "${marker.name}" or any text or surface area numbers inside this space).`;
     }).join(' ');
-    roomsIdentificationClause = `CRITICAL USER-SPECIFIED ROOM IDENTIFIERS & BOUNDARIES (OVERRIDE DEFAULT DETECTION): ${roomDescriptions} Ensure that each labelled area correctly corresponds to its assigned room purpose without swapping or misidentifying rooms.`;
+    roomsIdentificationClause = `INTERIOR FURNISHING LAYOUT (NO TEXT IN ROOMS): ${roomDescriptions} Ensure each room is furnished according to its layout, but keep all room floors 100% clean and free of room names, text labels, or area measurements.`;
   }
   const is2D = config.cameraAngle === 'plan_2d_furnished';
 
@@ -61,6 +69,7 @@ export function buildArchitecturalPrompt(config: RenderConfig): string {
     return [
       `Clean top-down 2D colored architectural floor plan rendered strictly from the reference blueprint layout.`,
       `Zero perspective distortion, completely flat 2D graphic catalog floor plan with furniture symbols placed in top view.`,
+      strictNoTextInRoomsDirective,
       roomsIdentificationClause,
       `Interior style: ${selectedStyle.label}.`,
       `Walls: ${selectedInteriorWall.promptKeyword} on interior walls, ${selectedExteriorWall.promptKeyword} on perimeter exterior walls.`,
@@ -74,7 +83,8 @@ export function buildArchitecturalPrompt(config: RenderConfig): string {
       `Color scheme: ${selectedPalette.promptKeyword}.`,
       cleanedExtraDetails ? `Extra notes: ${cleanedExtraDetails}.` : '',
       strictNoTablesDirective,
-      `Crisp architectural drawing lines, professional marketing presentation.`
+      strictNoTextInRoomsDirective,
+      `Crisp architectural drawing lines, completely clean floors with zero text and zero surface numbers, professional marketing presentation.`
     ].filter(Boolean).join(' ');
   }
   // Vista 3D Dollhouse
@@ -87,6 +97,7 @@ export function buildArchitecturalPrompt(config: RenderConfig): string {
   return [
     `Transform this blueprint into an ultra-realistic ${angleDesc}.`,
     `Strictly follow the room boundaries and wall positions of the reference blueprint without adding extra rooms.`,
+    strictNoTextInRoomsDirective,
     roomsIdentificationClause,
     `Walls cut cleanly at 1.2m height showing interior rooms, furniture, and daylight.`,
     `Interior walls color: ${selectedInteriorWall.promptKeyword}. Exterior facade walls color: ${selectedExteriorWall.promptKeyword}.`,
@@ -102,6 +113,7 @@ export function buildArchitecturalPrompt(config: RenderConfig): string {
     `Lighting: warm soft natural daylight streaming through exterior windows with gentle ambient occlusion.`,
     cleanedExtraDetails ? `Client details: ${cleanedExtraDetails}.` : '',
     strictNoTablesDirective,
-    `Unreal Engine 5 archviz render quality, crisp geometry, clean photorealistic textures.`
+    strictNoTextInRoomsDirective,
+    `Unreal Engine 5 archviz render quality, crisp geometry, clean photorealistic textures, zero text and zero surface numbers inside rooms.`
   ].filter(Boolean).join(' ');
 }
