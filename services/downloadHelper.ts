@@ -3,6 +3,8 @@
  * Utilidades seguras de descarga para Flow SDK y navegadores estándar.
  */
 
+import { jsPDF } from 'jspdf';
+
 export function sanitizeFilename(filename: string): string {
   // Mantener solo caracteres alfanuméricos, guiones y puntos
   return filename
@@ -91,93 +93,128 @@ export async function downloadJsonConfig(data: any, filename = 'plano-3d-preset.
   });
 }
 
-export async function exportCommercialBrochureImage({
+export async function generateBrochureCanvas({
   imageSrc,
   projectTitle,
   markers,
-  filename = 'ficha_comercial_arquitectura.png'
+  width = 2480,
+  height = 1754
 }: {
   imageSrc: string;
   projectTitle: string;
   markers: Array<{ id: string; name: string; areaSqMeters?: number }>;
-  filename?: string;
-}): Promise<boolean> {
+  width?: number;
+  height?: number;
+}): Promise<HTMLCanvasElement | null> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       try {
         const canvas = document.createElement('canvas');
-        const width = 1920;
-        const height = 1080;
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-          resolve(false);
+          resolve(null);
           return;
         }
+
+        // Proporción de escala respecto al tamaño base (2480 x 1754 es A4 300DPI)
+        const scale = width / 1920;
 
         // 1. Fondo blanco comercial
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, width, height);
 
         // 2. Encabezado comercial
+        const headerMarginX = 60 * scale;
         ctx.fillStyle = '#0F2C59';
-        ctx.font = 'bold 34px sans-serif';
-        ctx.fillText(projectTitle.toUpperCase(), 60, 72);
+        ctx.font = `bold ${Math.round(36 * scale)}px sans-serif`;
+        ctx.fillText(projectTitle.toUpperCase(), headerMarginX, 72 * scale);
 
         ctx.fillStyle = '#64748B';
-        ctx.font = '600 15px sans-serif';
-        ctx.fillText('FICHA COMERCIAL • PLANO AMUEBLADO Y CUADRO DE SUPERFICIES ÚTILES', 60, 102);
+        ctx.font = `600 ${Math.round(15 * scale)}px sans-serif`;
+        ctx.fillText('FICHA COMERCIAL • PLANO AMUEBLADO Y CUADRO DE SUPERFICIES ÚTILES', headerMarginX, 104 * scale);
 
         // Línea divisoria superior
         ctx.strokeStyle = '#E2E8F0';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2 * scale;
         ctx.beginPath();
-        ctx.moveTo(60, 120);
-        ctx.lineTo(width - 60, 120);
+        ctx.moveTo(headerMarginX, 122 * scale);
+        ctx.lineTo(width - headerMarginX, 122 * scale);
         ctx.stroke();
 
         // 3. Plano Render en el área izquierda
-        const planAreaX = 60;
-        const planAreaY = 145;
-        const planAreaW = 1280;
-        const planAreaH = 830;
+        const planAreaX = 60 * scale;
+        const planAreaY = 145 * scale;
+        const planAreaW = 1260 * scale;
+        const planAreaH = (height - 145 * scale - 70 * scale);
 
         ctx.fillStyle = '#F8FAFC';
         ctx.beginPath();
         if (typeof ctx.roundRect === 'function') {
-          ctx.roundRect(planAreaX, planAreaY, planAreaW, planAreaH, 16);
+          ctx.roundRect(planAreaX, planAreaY, planAreaW, planAreaH, 16 * scale);
         } else {
           ctx.rect(planAreaX, planAreaY, planAreaW, planAreaH);
         }
         ctx.fill();
 
         const imgAspect = img.width / img.height;
-        let drawW = planAreaW - 40;
-        let drawH = (planAreaW - 40) / imgAspect;
-        if (drawH > planAreaH - 40) {
-          drawH = planAreaH - 40;
-          drawW = (planAreaH - 40) * imgAspect;
+        const padding = 35 * scale;
+        let drawW = planAreaW - padding * 2;
+        let drawH = drawW / imgAspect;
+        if (drawH > planAreaH - padding * 2) {
+          drawH = planAreaH - padding * 2;
+          drawW = drawH * imgAspect;
         }
         const drawX = planAreaX + (planAreaW - drawW) / 2;
         const drawY = planAreaY + (planAreaH - drawH) / 2;
 
         ctx.drawImage(img, drawX, drawY, drawW, drawH);
 
+        // Señalizar cada estancia en el plano con un círculo azul y número blanco profesional
+        if (markers && markers.length > 0) {
+          const radius = 17 * scale;
+          markers.forEach((m: any, idx: number) => {
+            if (typeof m.x === 'number' && typeof m.y === 'number') {
+              const markerX = drawX + (m.x / 100) * drawW;
+              const markerY = drawY + (m.y / 100) * drawH;
+
+              // Anillo exterior blanco para contraste sobre fondos oscuros o texturas
+              ctx.fillStyle = '#FFFFFF';
+              ctx.beginPath();
+              ctx.arc(markerX, markerY, radius + 2.5 * scale, 0, Math.PI * 2);
+              ctx.fill();
+
+              // Círculo azul marino arquitectónico
+              ctx.fillStyle = '#0F2C59';
+              ctx.beginPath();
+              ctx.arc(markerX, markerY, radius, 0, Math.PI * 2);
+              ctx.fill();
+
+              // Número en blanco centrado
+              ctx.fillStyle = '#FFFFFF';
+              ctx.font = `bold ${Math.round(18 * scale)}px sans-serif`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(String(idx + 1), markerX, markerY + 1 * scale);
+            }
+          });
+        }
+
         // 4. Cuadro de Superficies Útiles en el área derecha
-        const tableX = 1370;
-        const tableY = 145;
-        const tableW = 490;
-        const tableH = 830;
+        const tableX = (width - 540 * scale);
+        const tableY = 145 * scale;
+        const tableW = 480 * scale;
+        const tableH = planAreaH;
 
         ctx.fillStyle = '#FFFFFF';
         ctx.strokeStyle = '#CBD5E1';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 1.5 * scale;
         ctx.beginPath();
         if (typeof ctx.roundRect === 'function') {
-          ctx.roundRect(tableX, tableY, tableW, tableH, 16);
+          ctx.roundRect(tableX, tableY, tableW, tableH, 16 * scale);
         } else {
           ctx.rect(tableX, tableY, tableW, tableH);
         }
@@ -186,15 +223,16 @@ export async function exportCommercialBrochureImage({
 
         // Título exacto en Azul Marino
         ctx.fillStyle = '#0F2C59';
-        ctx.font = '900 20px sans-serif';
-        ctx.fillText('CUADRO DE SUPERFICIES ÚTILES', tableX + 30, tableY + 52);
+        ctx.font = `900 ${Math.round(20 * scale)}px sans-serif`;
+        ctx.fillText('CUADRO DE SUPERFICIES ÚTILES', tableX + 30 * scale, tableY + 52 * scale);
 
         // Franja azul marino continua
         ctx.fillStyle = '#0F2C59';
-        ctx.fillRect(tableX + 30, tableY + 68, tableW - 60, 5);
+        ctx.fillRect(tableX + 30 * scale, tableY + 68 * scale, tableW - 60 * scale, 5 * scale);
 
         // Estancias numeradas
-        let currentY = tableY + 115;
+        let currentY = tableY + 115 * scale;
+        const rowHeight = 44 * scale;
         let totalArea = 0;
 
         markers.forEach((marker, idx) => {
@@ -208,72 +246,318 @@ export async function exportCommercialBrochureImage({
 
           // Número
           ctx.fillStyle = '#0F2C59';
-          ctx.font = '900 16px monospace';
-          ctx.fillText(numStr, tableX + 30, currentY);
+          ctx.font = `900 ${Math.round(15 * scale)}px monospace`;
+          ctx.fillText(numStr, tableX + 30 * scale, currentY);
 
           // Nombre de la estancia
           ctx.fillStyle = '#1B365D';
-          ctx.font = 'bold 15px sans-serif';
-          ctx.fillText(marker.name.toUpperCase(), tableX + 70, currentY);
+          ctx.font = `bold ${Math.round(14 * scale)}px sans-serif`;
+          ctx.fillText(marker.name.toUpperCase(), tableX + 68 * scale, currentY);
 
           // Superficie m²
           ctx.fillStyle = '#0F2C59';
-          ctx.font = '900 16px sans-serif';
+          ctx.font = `900 ${Math.round(15 * scale)}px sans-serif`;
           ctx.textAlign = 'right';
-          ctx.fillText(areaStr, tableX + tableW - 30, currentY);
+          ctx.fillText(areaStr, tableX + tableW - 30 * scale, currentY);
           ctx.textAlign = 'left';
 
           // Línea divisoria tenue
           ctx.strokeStyle = '#F1F5F9';
-          ctx.lineWidth = 1;
+          ctx.lineWidth = 1 * scale;
           ctx.beginPath();
-          ctx.moveTo(tableX + 30, currentY + 14);
-          ctx.lineTo(tableX + tableW - 30, currentY + 14);
+          ctx.moveTo(tableX + 30 * scale, currentY + 14 * scale);
+          ctx.lineTo(tableX + tableW - 30 * scale, currentY + 14 * scale);
           ctx.stroke();
 
-          currentY += 46;
+          currentY += rowHeight;
         });
 
         // Total
         if (markers.length > 0 && totalArea > 0) {
-          const totalY = Math.max(currentY + 25, tableY + tableH - 60);
+          const totalY = Math.max(currentY + 20 * scale, tableY + tableH - 50 * scale);
           ctx.strokeStyle = '#CBD5E1';
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 2 * scale;
           ctx.beginPath();
-          ctx.moveTo(tableX + 30, totalY - 22);
-          ctx.lineTo(tableX + tableW - 30, totalY - 22);
+          ctx.moveTo(tableX + 30 * scale, totalY - 22 * scale);
+          ctx.lineTo(tableX + tableW - 30 * scale, totalY - 22 * scale);
           ctx.stroke();
 
           ctx.fillStyle = '#0F2C59';
-          ctx.font = '900 15px sans-serif';
-          ctx.fillText('SUPERFICIE ÚTIL TOTAL', tableX + 30, totalY);
+          ctx.font = `900 ${Math.round(14 * scale)}px sans-serif`;
+          ctx.fillText('SUPERFICIE ÚTIL TOTAL', tableX + 30 * scale, totalY);
 
-          ctx.font = '900 20px sans-serif';
+          ctx.font = `900 ${Math.round(18 * scale)}px sans-serif`;
           ctx.textAlign = 'right';
           const totalStr =
             totalArea.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' m²';
-          ctx.fillText(totalStr, tableX + tableW - 30, totalY);
+          ctx.fillText(totalStr, tableX + tableW - 30 * scale, totalY);
           ctx.textAlign = 'left';
         }
 
         // 5. Pie de página con aviso legal
         ctx.fillStyle = '#94A3B8';
-        ctx.font = '12px sans-serif';
+        ctx.font = `${Math.round(12 * scale)}px sans-serif`;
         ctx.fillText(
           'Documento con carácter orientativo y comercial. Las superficies son aproximadas y susceptibles de modificación por exigencias técnicas durante la ejecución.',
-          60,
-          1030
+          headerMarginX,
+          height - 25 * scale
         );
 
-        const dataUrl = canvas.toDataURL('image/png');
-        const { cleanBase64 } = cleanBase64Data(dataUrl);
-        safeDownloadFile({
-          base64: cleanBase64,
-          mimeType: 'image/png',
-          filename
-        }).then(resolve);
+        resolve(canvas);
       } catch (e) {
-        console.error('Error generando ficha comercial:', e);
+        console.error('Error generando canvas de ficha:', e);
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = imageSrc;
+  });
+}
+
+export async function exportCommercialBrochureImage({
+  imageSrc,
+  projectTitle,
+  markers,
+  filename = 'ficha_comercial_arquitectura.png'
+}: {
+  imageSrc: string;
+  projectTitle: string;
+  markers: Array<{ id: string; name: string; areaSqMeters?: number }>;
+  filename?: string;
+}): Promise<boolean> {
+  const canvas = await generateBrochureCanvas({
+    imageSrc,
+    projectTitle,
+    markers,
+    width: 2480,
+    height: 1754
+  });
+
+  if (!canvas) return false;
+
+  const dataUrl = canvas.toDataURL('image/png');
+  const { cleanBase64 } = cleanBase64Data(dataUrl);
+  return safeDownloadFile({
+    base64: cleanBase64,
+    mimeType: 'image/png',
+    filename
+  });
+}
+
+export async function exportCommercialBrochurePDF({
+  imageSrc,
+  projectTitle,
+  markers,
+  filename = 'ficha_comercial_plano.pdf'
+}: {
+  imageSrc: string;
+  projectTitle: string;
+  markers: Array<{ id: string; name: string; areaSqMeters?: number }>;
+  filename?: string;
+}): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        // A4 Landscape: 297mm x 210mm
+        const doc = new jsPDF({
+          orientation: 'landscape',
+          unit: 'mm',
+          format: 'a4',
+          compress: true
+        });
+
+        const pageWidth = 297;
+        const pageHeight = 210;
+        const margin = 12;
+
+        // 1. Fondo blanco puro
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+        // 2. Encabezado corporativo vectorial ultra-nítido
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.setTextColor(15, 44, 89); // #0F2C59
+        const cleanTitle = (projectTitle || 'PROYECTO RESIDENCIAL').toUpperCase();
+        doc.text(cleanTitle, margin, margin + 4.5);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139); // #64748B
+        doc.text('FICHA COMERCIAL ARQUITECTÓNICA • PLANO AMUEBLADO Y CUADRO DE SUPERFICIES ÚTILES', margin, margin + 9.5);
+
+        // Referencia comercial a la derecha
+        doc.setFont('courier', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(100, 116, 139);
+        doc.text('REF: VT-01', pageWidth - margin, margin + 4.5, { align: 'right' });
+
+        // Línea divisoria superior
+        doc.setDrawColor(226, 232, 240); // #E2E8F0
+        doc.setLineWidth(0.4);
+        doc.line(margin, margin + 12, pageWidth - margin, margin + 12);
+
+        // 3. Distribución: Plano (Izquierda) y Cuadro de Superficies (Derecha)
+        const contentY = margin + 16;
+        const contentHeight = pageHeight - contentY - 12; // Dejar 12mm para pie
+        const tableWidth = 75;
+        const tableX = pageWidth - margin - tableWidth;
+        const planWidth = tableX - margin - 6;
+
+        // Recuadro contenedor arquitectónico para el plano
+        doc.setFillColor(248, 250, 252); // #F8FAFC
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(margin, contentY, planWidth, contentHeight, 3, 3, 'FD');
+
+        // Inserción directa de la imagen original en alta definición (sin rasterizado intermedio)
+        const imgNaturalW = img.naturalWidth || img.width || 1920;
+        const imgNaturalH = img.naturalHeight || img.height || 1080;
+        const imgAspect = imgNaturalW / imgNaturalH;
+
+        const planPad = 4;
+        const maxImgW = planWidth - planPad * 2;
+        const maxImgH = contentHeight - planPad * 2;
+
+        let imgW = maxImgW;
+        let imgH = imgW / imgAspect;
+        if (imgH > maxImgH) {
+          imgH = maxImgH;
+          imgW = imgH * imgAspect;
+        }
+
+        const imgX = margin + (planWidth - imgW) / 2;
+        const imgY = contentY + (contentHeight - imgH) / 2;
+
+        // Detectar formato de la imagen para máxima fidelidad
+        const isPng = imageSrc.startsWith('data:image/png') || !imageSrc.startsWith('data:image/jpeg');
+        const imgFormat = isPng ? 'PNG' : 'JPEG';
+
+        // Inserción con remuestreo de máxima calidad ('SLOW' bicúbico en jsPDF)
+        doc.addImage(imageSrc, imgFormat, imgX, imgY, imgW, imgH, undefined, 'SLOW');
+
+        // Señalizar cada estancia en el plano con un círculo azul y número blanco vectorial
+        if (markers && markers.length > 0) {
+          const circleRadius = 3.2; // mm (~6.4mm diámetro)
+          markers.forEach((m: any, idx: number) => {
+            if (typeof m.x === 'number' && typeof m.y === 'number') {
+              const markerX = imgX + (m.x / 100) * imgW;
+              const markerY = imgY + (m.y / 100) * imgH;
+
+              // Anillo exterior blanco
+              doc.setFillColor(255, 255, 255);
+              doc.circle(markerX, markerY, circleRadius + 0.45, 'F');
+
+              // Círculo azul marino profesional
+              doc.setFillColor(15, 44, 89);
+              doc.circle(markerX, markerY, circleRadius, 'F');
+
+              // Número en color blanco
+              doc.setFont('helvetica', 'bold');
+              doc.setFontSize(8);
+              doc.setTextColor(255, 255, 255);
+              doc.text(String(idx + 1), markerX, markerY + 0.9, { align: 'center' });
+            }
+          });
+        }
+
+        // 4. Cuadro de Superficies Útiles (Elementos 100% Vectoriales, Zoom Infinito)
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(203, 213, 225); // #CBD5E1
+        doc.setLineWidth(0.4);
+        doc.roundedRect(tableX, contentY, tableWidth, contentHeight, 3, 3, 'FD');
+
+        // Título del Cuadro
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(15, 44, 89);
+        doc.text('CUADRO DE SUPERFICIES ÚTILES', tableX + 5, contentY + 7.5);
+
+        // Barra decorativa azul marino gruesa
+        doc.setFillColor(15, 44, 89);
+        doc.rect(tableX + 5, contentY + 10, tableWidth - 10, 1.3, 'F');
+
+        // Filas de estancias numeradas
+        let currentY = contentY + 17;
+        const availableRowSpace = contentHeight - 32;
+        const rowSpacing = Math.min(9, Math.max(6.5, availableRowSpace / Math.max(1, markers.length)));
+        let totalArea = 0;
+
+        markers.forEach((m, idx) => {
+          const numStr = String(idx + 1).padStart(2, '0') + '.';
+          const area = m.areaSqMeters || 0;
+          totalArea += area;
+          const areaStr =
+            area > 0
+              ? area.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' m²'
+              : '—';
+
+          // Número de orden
+          doc.setFont('courier', 'bold');
+          doc.setFontSize(8.5);
+          doc.setTextColor(15, 44, 89);
+          doc.text(numStr, tableX + 5, currentY);
+
+          // Nombre de la estancia
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7.5);
+          doc.setTextColor(27, 54, 93);
+          const maxNameW = tableWidth - 30;
+          const cleanName = doc.splitTextToSize(m.name.toUpperCase(), maxNameW)[0];
+          doc.text(cleanName, tableX + 13, currentY);
+
+          // Superficie útil
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(15, 44, 89);
+          doc.text(areaStr, tableX + tableWidth - 5, currentY, { align: 'right' });
+
+          // Línea divisoria tenue
+          doc.setDrawColor(241, 245, 249);
+          doc.setLineWidth(0.2);
+          doc.line(tableX + 5, currentY + 2.2, tableX + tableWidth - 5, currentY + 2.2);
+
+          currentY += rowSpacing;
+        });
+
+        // Total Superficie Útil
+        if (markers.length > 0 && totalArea > 0) {
+          const totalY = contentY + contentHeight - 8;
+          doc.setDrawColor(203, 213, 225);
+          doc.setLineWidth(0.5);
+          doc.line(tableX + 5, totalY - 4.5, tableX + tableWidth - 5, totalY - 4.5);
+
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(15, 44, 89);
+          doc.text('SUPERFICIE ÚTIL TOTAL', tableX + 5, totalY);
+
+          const totalStr =
+            totalArea.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' m²';
+          doc.setFontSize(9.5);
+          doc.text(totalStr, tableX + tableWidth - 5, totalY, { align: 'right' });
+        }
+
+        // 5. Pie de página legal
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.5);
+        doc.setTextColor(148, 163, 184);
+        doc.text(
+          'Documento comercial no vinculante. Las superficies corresponden a superficie útil interior estimada y pueden variar durante la ejecución de obra.',
+          margin,
+          pageHeight - 5.5
+        );
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Dollhouse 3D Studio', pageWidth - margin, pageHeight - 5.5, { align: 'right' });
+
+        const sanitizedName = sanitizeFilename(filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`);
+        doc.save(sanitizedName);
+        resolve(true);
+      } catch (err) {
+        console.error('Error al generar PDF vectorial:', err);
         resolve(false);
       }
     };
@@ -281,4 +565,128 @@ export async function exportCommercialBrochureImage({
     img.src = imageSrc;
   });
 }
+
+export async function exportPlanOnlyPDF({
+  imageSrc,
+  projectTitle = 'Plano',
+  paperFormat = 'a4',
+  markers = [],
+  filename = 'plano_alta_resolucion.pdf'
+}: {
+  imageSrc: string;
+  projectTitle?: string;
+  paperFormat?: 'a4' | 'a3';
+  markers?: Array<{ id: string; name: string; x?: number; y?: number; areaSqMeters?: number }>;
+  filename?: string;
+}): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const isLandscape = (img.naturalWidth || img.width) >= (img.naturalHeight || img.height);
+        const format = paperFormat === 'a3' ? 'a3' : 'a4';
+
+        const doc = new jsPDF({
+          orientation: isLandscape ? 'landscape' : 'portrait',
+          unit: 'mm',
+          format,
+          compress: true
+        });
+
+        // Dimensiones según formato
+        const isA3 = format === 'a3';
+        const pageWidth = isLandscape ? (isA3 ? 420 : 297) : (isA3 ? 297 : 210);
+        const pageHeight = isLandscape ? (isA3 ? 297 : 210) : (isA3 ? 420 : 297);
+        const margin = 10;
+
+        // Fondo blanco
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+        // Encabezado técnico sutil
+        const headerH = 14;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(isA3 ? 16 : 13);
+        doc.setTextColor(15, 44, 89);
+        doc.text((projectTitle || 'PLANO ARQUITECTÓNICO').toUpperCase(), margin, margin + 4);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(isA3 ? 9 : 7.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`DOCUMENTO TÉCNICO ARQUITECTÓNICO • ESCALA COMPLETA • FORMATO ${format.toUpperCase()}`, margin, margin + 8.5);
+
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.4);
+        doc.line(margin, margin + 11, pageWidth - margin, margin + 11);
+
+        // Área disponible para el plano
+        const availableW = pageWidth - margin * 2;
+        const availableH = pageHeight - margin * 2 - headerH - 6;
+
+        const imgNaturalW = img.naturalWidth || img.width || 1920;
+        const imgNaturalH = img.naturalHeight || img.height || 1080;
+        const imgAspect = imgNaturalW / imgNaturalH;
+
+        let drawW = availableW;
+        let drawH = drawW / imgAspect;
+        if (drawH > availableH) {
+          drawH = availableH;
+          drawW = drawH * imgAspect;
+        }
+
+        const drawX = margin + (availableW - drawW) / 2;
+        const drawY = margin + headerH + (availableH - drawH) / 2;
+
+        const isPng = imageSrc.startsWith('data:image/png') || !imageSrc.startsWith('data:image/jpeg');
+        const imgFormat = isPng ? 'PNG' : 'JPEG';
+
+        // Inserción directa en máxima resolución sin pérdida
+        doc.addImage(imageSrc, imgFormat, drawX, drawY, drawW, drawH, undefined, 'SLOW');
+
+        // Señalizar cada estancia en el plano con un círculo azul y número blanco profesional
+        if (markers && markers.length > 0) {
+          const circleRadius = isA3 ? 4.2 : 3.2; // mm
+          markers.forEach((m: any, idx: number) => {
+            if (typeof m.x === 'number' && typeof m.y === 'number') {
+              const markerX = drawX + (m.x / 100) * drawW;
+              const markerY = drawY + (m.y / 100) * drawH;
+
+              // Anillo exterior blanco
+              doc.setFillColor(255, 255, 255);
+              doc.circle(markerX, markerY, circleRadius + 0.45, 'F');
+
+              // Círculo azul marino profesional
+              doc.setFillColor(15, 44, 89);
+              doc.circle(markerX, markerY, circleRadius, 'F');
+
+              // Número en blanco
+              doc.setFont('helvetica', 'bold');
+              doc.setFontSize(isA3 ? 10 : 8);
+              doc.setTextColor(255, 255, 255);
+              doc.text(String(idx + 1), markerX, markerY + (isA3 ? 1.2 : 0.9), { align: 'center' });
+            }
+          });
+        }
+
+        // Pie de plano
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.5);
+        doc.setTextColor(148, 163, 184);
+        doc.text('Plano arquitectónico de alta resolución • Generado con Dollhouse 3D Studio', margin, pageHeight - 4.5);
+
+        const sanitizedName = sanitizeFilename(filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`);
+        doc.save(sanitizedName);
+        resolve(true);
+      } catch (err) {
+        console.error('Error al exportar plano en PDF:', err);
+        resolve(false);
+      }
+    };
+    img.onerror = () => resolve(false);
+    img.src = imageSrc;
+  });
+}
+
+
 

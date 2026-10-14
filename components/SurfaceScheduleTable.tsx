@@ -44,8 +44,15 @@ export function SurfaceScheduleTable({
 
       {/* Lista de Estancias Numeradas */}
       <div className="space-y-1.5 text-[12px]">
-        {markers.map((marker, index) => {
-          const numFormatted = String(index + 1).padStart(2, '0') + '.';
+        {markers.length === 0 ? (
+          <div className="py-4 text-center text-stone-400 text-xs italic">
+            Sin estancias registradas.
+            <br />
+            Pulsa en "Extraer estancias y m² con IA".
+          </div>
+        ) : (
+          markers.map((marker, index) => {
+            const numFormatted = String(index + 1).padStart(2, '0') + '.';
           return (
             <div
               key={marker.id || index}
@@ -75,7 +82,8 @@ export function SurfaceScheduleTable({
               </span>
             </div>
           );
-        })}
+        })
+      )}
       </div>
 
       {/* Total Superficie Útil */}

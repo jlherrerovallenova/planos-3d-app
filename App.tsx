@@ -15,6 +15,7 @@ import { StyleSelector } from './components/StyleSelector';
 import { IntroModal } from './components/IntroModal';
 import { ProjectExportModal } from './components/ProjectExportModal';
 import { safeDownloadFile, cleanBase64Data } from './services/downloadHelper';
+import { analyzeBlueprintRooms } from './services/planAnalyzer';
 
 export function App() {
   // 1. Título y Configuración de renderizado
@@ -39,6 +40,7 @@ export function App() {
   // 3. Marcadores y Pines
   const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
   const [isPinningMode, setIsPinningMode] = useState<boolean>(false);
+  const [isAnalyzingPlan, setIsAnalyzingPlan] = useState<boolean>(false);
 
   // 4. Estados de Generación y Descarga
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -57,6 +59,56 @@ export function App() {
   const currentPrompt = useMemo(() => {
     return buildArchitecturalPrompt(config);
   }, [config]);
+
+  // Análisis automático de estancias y superficies útiles con Gemini Vision
+  const triggerPlanAnalysis = async (imgBase64: string, mime: string) => {
+    setIsAnalyzingPlan(true);
+    setGenerationError(null);
+    try {
+      const result = await analyzeBlueprintRooms(imgBase64, mime);
+      if (result.rooms && result.rooms.length > 0) {
+        setConfig((prev) => ({
+          ...prev,
+          roomMarkers: result.rooms
+        }));
+        setGenerationSuccessMessage(
+          `¡Plano analizado con IA! Se han detectado ${result.rooms.length} estancias con sus superficies útiles reales (${result.totalUsefulArea ? result.totalUsefulArea + ' m²' : ''}).`
+        );
+      }
+    } catch (err: any) {
+      console.warn('Auto-análisis con Gemini:', err);
+    } finally {
+      setIsAnalyzingPlan(false);
+    }
+  };
+
+  const handleDetectRooms = async () => {
+    if (!sourceImage) {
+      setGenerationError('Carga primero una imagen del plano para analizarla.');
+      return;
+    }
+    setIsAnalyzingPlan(true);
+    setGenerationError(null);
+    setGenerationSuccessMessage(null);
+    try {
+      const result = await analyzeBlueprintRooms(sourceImage.base64, sourceImage.mimeType);
+      if (result.rooms && result.rooms.length > 0) {
+        setConfig((prev) => ({
+          ...prev,
+          roomMarkers: result.rooms
+        }));
+        setGenerationSuccessMessage(
+          `¡Extracción completada! Se detectaron ${result.rooms.length} estancias y sus superficies útiles (${result.totalUsefulArea ? result.totalUsefulArea + ' m²' : ''}).`
+        );
+      } else {
+        setGenerationError('No se encontraron estancias rotuladas en el plano.');
+      }
+    } catch (err: any) {
+      setGenerationError(`Error al analizar el plano: ${err?.message || err}`);
+    } finally {
+      setIsAnalyzingPlan(false);
+    }
+  };
 
   // Manejo de carga de archivos local
   const handleLocalFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -94,6 +146,8 @@ export function App() {
       });
       setRenderedResult(null);
       setGenerationError(null);
+      // Extraer estancias y superficies automáticamente con IA
+      triggerPlanAnalysis(cleanBase64, mimeType);
     };
 
     reader.readAsDataURL(file);
@@ -108,14 +162,16 @@ export function App() {
         const item = await flowSdk.media.select({ filter: 'image' });
         if (item && item.base64) {
           const { cleanBase64, mimeType } = cleanBase64Data(item.base64);
+          const finalMime = item.mimeType || mimeType;
           setSourceImage({
             base64: cleanBase64,
-            mimeType: item.mimeType || mimeType,
+            mimeType: finalMime,
             name: item.name || 'Plano desde galería',
             mediaId: item.mediaId
           });
           setRenderedResult(null);
           setGenerationError(null);
+          triggerPlanAnalysis(cleanBase64, finalMime);
           return;
         }
       } catch (err) {
@@ -147,6 +203,7 @@ export function App() {
         });
         setRenderedResult(null);
         setGenerationError(null);
+        triggerPlanAnalysis(cleanBase64, 'image/png');
       }
     };
     img.src = sampleUrl;
@@ -154,6 +211,9 @@ export function App() {
 
   // Manejo de Pines en el Canvas
   const handleCanvasClickToPositionMarker = (x: number, y: number) => {
+    // Si no está activado el modo de pines o los marcadores están fijos, ignorar clics accidentales
+    if (!isPinningMode) return;
+
     if (!config.roomMarkers || config.roomMarkers.length === 0) {
       const newMarker: RoomMarker = {
         id: `room_${Date.now()}`,
@@ -178,15 +238,6 @@ export function App() {
           m.id === activeMarkerId ? { ...m, x, y } : m
         )
       }));
-    } else {
-      const last = config.roomMarkers[config.roomMarkers.length - 1];
-      setConfig((prev) => ({
-        ...prev,
-        roomMarkers: prev.roomMarkers.map((m) =>
-          m.id === last.id ? { ...m, x, y } : m
-        )
-      }));
-      setActiveMarkerId(last.id);
     }
   };
 
@@ -606,6 +657,8 @@ export function App() {
               onLoadSamplePlan={handleLoadSample}
               onDownloadRender={handleDownloadRender}
               downloadStatus={downloadStatus}
+              onDetectWithAI={handleDetectRooms}
+              isDetectingWithAI={isAnalyzingPlan}
             />
           </div>
         </section>
@@ -626,7 +679,10 @@ export function App() {
             onTogglePinningMode={() => setIsPinningMode(!isPinningMode)}
             onGenerateRender={handleGenerate}
             isGenerating={isGenerating}
-            disabled={isGenerating}
+            disabled={isGenerating || isAnalyzingPlan}
+            onDetectWithAI={handleDetectRooms}
+            isDetectingWithAI={isAnalyzingPlan}
+            hasSourceImage={!!sourceImage}
           />
         </section>
       </main>

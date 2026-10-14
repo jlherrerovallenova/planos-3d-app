@@ -34,6 +34,9 @@ interface StyleSelectorProps {
   onGenerateRender?: () => void;
   isGenerating?: boolean;
   disabled?: boolean;
+  onDetectWithAI?: () => void;
+  isDetectingWithAI?: boolean;
+  hasSourceImage?: boolean;
 }
 
 type TabMode = 'presets' | 'camera' | 'rooms' | 'flooring' | 'carpentry';
@@ -52,7 +55,10 @@ export function StyleSelector({
   onTogglePinningMode,
   onGenerateRender,
   isGenerating = false,
-  disabled = false
+  disabled = false,
+  onDetectWithAI,
+  isDetectingWithAI = false,
+  hasSourceImage = false
 }: StyleSelectorProps) {
   const [activeTab, setActiveTab] = useState<TabMode>('presets');
 
@@ -401,6 +407,9 @@ export function StyleSelector({
               isPinningMode={isPinningMode}
               onTogglePinningMode={onTogglePinningMode}
               disabled={disabled}
+              onDetectWithAI={onDetectWithAI}
+              isDetectingWithAI={isDetectingWithAI}
+              hasSourceImage={hasSourceImage}
             />
           </div>
         )}

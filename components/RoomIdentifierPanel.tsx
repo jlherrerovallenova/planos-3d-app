@@ -13,6 +13,9 @@ interface RoomIdentifierPanelProps {
   isPinningMode: boolean;
   onTogglePinningMode: () => void;
   disabled?: boolean;
+  onDetectWithAI?: () => void;
+  isDetectingWithAI?: boolean;
+  hasSourceImage?: boolean;
 }
 
 export function RoomIdentifierPanel({
@@ -25,7 +28,10 @@ export function RoomIdentifierPanel({
   onSelectMarker,
   isPinningMode,
   onTogglePinningMode,
-  disabled
+  disabled,
+  onDetectWithAI,
+  isDetectingWithAI = false,
+  hasSourceImage = false
 }: RoomIdentifierPanelProps) {
   const [customRoomName, setCustomRoomName] = useState<string>('');
   const [customArea, setCustomArea] = useState<string>('');
@@ -60,6 +66,35 @@ export function RoomIdentifierPanel({
 
   return (
     <div className="space-y-3.5 text-stone-800">
+      {/* 0. Botón de Detección Automática con IA (Gemini Vision) */}
+      {onDetectWithAI && (
+        <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0">
+              <span className={`material-symbols-outlined text-[18px] ${isDetectingWithAI ? 'animate-spin' : ''}`}>
+                {isDetectingWithAI ? 'autorenew' : 'auto_awesome'}
+              </span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-blue-950">
+                {isDetectingWithAI ? 'Analizando plano con IA...' : 'Escanear Estancias y m² con IA'}
+              </p>
+              <p className="text-[11px] text-blue-700/80 truncate">
+                {isDetectingWithAI ? 'Leyendo rotulación y m² del plano...' : 'Lee los nombres y superficies exactas del plano'}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={disabled || !hasSourceImage || isDetectingWithAI}
+            onClick={onDetectWithAI}
+            className="shrink-0 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+          >
+            <span>{isDetectingWithAI ? 'Leyendo...' : 'Detectar'}</span>
+          </button>
+        </div>
+      )}
+
       {/* 1. Modo Marcador Banner / Interruptor de precisión */}
       <div
         className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${

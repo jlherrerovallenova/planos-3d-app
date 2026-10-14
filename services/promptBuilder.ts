@@ -46,6 +46,17 @@ export function buildArchitecturalPrompt(config: RenderConfig): string {
     roomsIdentificationClause = `CRITICAL USER-SPECIFIED ROOM IDENTIFIERS & BOUNDARIES (OVERRIDE DEFAULT DETECTION): ${roomDescriptions} Ensure that each labelled area correctly corresponds to its assigned room purpose without swapping or misidentifying rooms.`;
   }
   const is2D = config.cameraAngle === 'plan_2d_furnished';
+
+  // DIRECTIVA ESTRICTA: NUNCA DIBUJAR TABLAS, LISTAS DE MATERIALES NI CUADROS DE TEXTO EN LA IMAGEN
+  const strictNoTablesDirective = `ABSOLUTE PROHIBITION OF GRAPHIC TABLES OR TEXT SCHEDULES: DO NOT render or draw ANY table, chart, list of materials, legend, schedule box, text banner, or spreadsheet in or beside the floor plan. The output image must ONLY contain the pure architectural floor plan and its interior rooms/furniture. Absolutely NO side tables, NO material charts, NO text lists anywhere in the generated image.`;
+
+  const cleanedExtraDetails = config.extraDetails
+    ? config.extraDetails
+        .replace(/cuadro\s*(de)?\s*(superficies?|materiales?)/gi, '')
+        .replace(/tabla\s*(de)?\s*(superficies?|materiales?)/gi, '')
+        .trim()
+    : '';
+
   if (is2D) {
     return [
       `Clean top-down 2D colored architectural floor plan rendered strictly from the reference blueprint layout.`,
@@ -61,7 +72,8 @@ export function buildArchitecturalPrompt(config: RenderConfig): string {
       `Windows: ${selectedWindowType.promptKeyword} in ${selectedWindowFinish.promptKeyword}.`,
       `Doors & wardrobes: ${selectedDoor.promptKeyword}.`,
       `Color scheme: ${selectedPalette.promptKeyword}.`,
-      config.extraDetails ? `Extra notes: ${config.extraDetails}.` : '',
+      cleanedExtraDetails ? `Extra notes: ${cleanedExtraDetails}.` : '',
+      strictNoTablesDirective,
       `Crisp architectural drawing lines, professional marketing presentation.`
     ].filter(Boolean).join(' ');
   }
@@ -88,7 +100,8 @@ export function buildArchitecturalPrompt(config: RenderConfig): string {
     `Doors: ${selectedDoor.promptKeyword}.`,
     `Color palette: ${selectedPalette.promptKeyword}.`,
     `Lighting: warm soft natural daylight streaming through exterior windows with gentle ambient occlusion.`,
-    config.extraDetails ? `Client details: ${config.extraDetails}.` : '',
+    cleanedExtraDetails ? `Client details: ${cleanedExtraDetails}.` : '',
+    strictNoTablesDirective,
     `Unreal Engine 5 archviz render quality, crisp geometry, clean photorealistic textures.`
   ].filter(Boolean).join(' ');
 }
