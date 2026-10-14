@@ -16,6 +16,7 @@ import { IntroModal } from './components/IntroModal';
 import { ProjectExportModal } from './components/ProjectExportModal';
 import { safeDownloadFile, cleanBase64Data } from './services/downloadHelper';
 import { analyzeBlueprintRooms } from './services/planAnalyzer';
+import { sortRoomMarkers } from './services/roomSorter';
 
 export function App() {
   // 1. Título y Configuración de renderizado
@@ -67,12 +68,13 @@ export function App() {
     try {
       const result = await analyzeBlueprintRooms(imgBase64, mime);
       if (result.rooms && result.rooms.length > 0) {
+        const sorted = sortRoomMarkers(result.rooms);
         setConfig((prev) => ({
           ...prev,
-          roomMarkers: result.rooms
+          roomMarkers: sorted
         }));
         setGenerationSuccessMessage(
-          `¡Plano analizado con IA! Se han detectado ${result.rooms.length} estancias con sus superficies útiles reales (${result.totalUsefulArea ? result.totalUsefulArea + ' m²' : ''}).`
+          `¡Plano analizado con IA! Se han detectado ${result.rooms.length} estancias ordenadas comercialmente (${result.totalUsefulArea ? result.totalUsefulArea + ' m²' : ''}).`
         );
       }
     } catch (err: any) {
@@ -93,12 +95,13 @@ export function App() {
     try {
       const result = await analyzeBlueprintRooms(sourceImage.base64, sourceImage.mimeType);
       if (result.rooms && result.rooms.length > 0) {
+        const sorted = sortRoomMarkers(result.rooms);
         setConfig((prev) => ({
           ...prev,
-          roomMarkers: result.rooms
+          roomMarkers: sorted
         }));
         setGenerationSuccessMessage(
-          `¡Extracción completada! Se detectaron ${result.rooms.length} estancias y sus superficies útiles (${result.totalUsefulArea ? result.totalUsefulArea + ' m²' : ''}).`
+          `¡Extracción completada! Se detectaron ${result.rooms.length} estancias ordenadas comercialmente (${result.totalUsefulArea ? result.totalUsefulArea + ' m²' : ''}).`
         );
       } else {
         setGenerationError('No se encontraron estancias rotuladas en el plano.');
@@ -242,10 +245,14 @@ export function App() {
   };
 
   const handleUpdateMarker = (id: string, updates: Partial<RoomMarker>) => {
-    setConfig((prev) => ({
-      ...prev,
-      roomMarkers: prev.roomMarkers.map((m) => (m.id === id ? { ...m, ...updates } : m))
-    }));
+    setConfig((prev) => {
+      const updated = prev.roomMarkers.map((m) => (m.id === id ? { ...m, ...updates } : m));
+      const shouldSort = updates.name !== undefined || updates.category !== undefined;
+      return {
+        ...prev,
+        roomMarkers: shouldSort ? sortRoomMarkers(updated) : updated
+      };
+    });
   };
 
   const handleDeleteMarker = (id: string) => {

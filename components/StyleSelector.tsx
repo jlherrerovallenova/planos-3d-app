@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { RenderConfig, PresetConfig, RoomMarker, RoomCategory } from '../types';
 import { PresetManager } from './PresetManager';
 import { RoomIdentifierPanel } from './RoomIdentifierPanel';
+import { sortRoomMarkers } from '../services/roomSorter';
 import {
   CAMERA_ANGLES,
   COLOR_PALETTE_SCHEMES,
@@ -80,7 +81,7 @@ export function StyleSelector({
       notes: '',
       areaSqMeters: area
     };
-    const updated = [...(config.roomMarkers || []), newMarker];
+    const updated = sortRoomMarkers([...(config.roomMarkers || []), newMarker]);
     updateField('roomMarkers', updated);
     onSelectMarker(newMarker.id);
   };
@@ -89,7 +90,8 @@ export function StyleSelector({
     const updated = (config.roomMarkers || []).map((m) =>
       m.id === id ? { ...m, ...updates } : m
     );
-    updateField('roomMarkers', updated);
+    const shouldSort = updates.name !== undefined || updates.category !== undefined;
+    updateField('roomMarkers', shouldSort ? sortRoomMarkers(updated) : updated);
   };
 
   const handleDeleteMarker = (id: string) => {

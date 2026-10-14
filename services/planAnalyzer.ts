@@ -1,5 +1,6 @@
 import { RoomMarker, RoomCategory } from '../types';
 import { cleanBase64Data } from './downloadHelper';
+import { sortRoomMarkers } from './roomSorter';
 
 export interface PlanAnalysisResult {
   rooms: RoomMarker[];
@@ -29,11 +30,23 @@ INSTRUCCIONES CLAVE:
 2. Fíjate en los resúmenes o totales si aparecen (ejemplo: "S. Util 83.95 m2", "S terraza 10.70 m2", "S.const 109.43 m2").
 3. Si una estancia tiene el nombre rotulado pero no se lee claramente su superficie, y dispones del total de superficie útil ("S. Util"), deduce la superficie de esa estancia restando las demás del total para que la suma sea coherente.
 4. Para cada estancia, proporciona:
-   - "name": Nombre en mayúsculas (ej. "VESTÍBULO", "SALÓN-COMEDOR-COCINA", "DORMITORIO 1", "DORMITORIO 2", "DORMITORIO 3", "DISTRIBUIDOR", "BAÑO", "ASEO", "TERRAZA").
+   - "name": Nombre en mayúsculas (ej. "SALÓN - COMEDOR - COCINA", "DORMITORIO 1", "DORMITORIO 2", "DORMITORIO 3", "BAÑO", "ASEO", "VESTÍBULO", "PASILLO", "TERRAZA").
    - "areaSqMeters": Número flotante con los m² útiles (ej: 4.14).
    - "category": Una de las siguientes categorías válidas: "salon_comedor", "cocina", "dormitorio_principal", "dormitorio_secundario", "bano_principal", "aseo_cortesia", "terraza_balcon", "recibidor_distribuidor", "despacho_estudio", "lavadero".
    - "x": Posición porcentual horizontal (0 a 100) del centro de la estancia en el plano.
    - "y": Posición porcentual vertical (0 a 100) del centro de la estancia en el plano.
+5. ORDEN ESTRICTO OBLIGATORIO EN EL ARRAY "rooms":
+   Ordena las estancias exactamente con esta jerarquía:
+   1º Salón - Comedor - Cocina
+   2º Dormitorio 1 o principal
+   3º Dormitorio 2
+   4º Dormitorio 3
+   5º Baño
+   6º Aseo
+   7º Vestíbulo
+   8º Pasillo / Distribuidor
+   9º Terraza (o Terraza 1, Terraza 2 si hay varias)
+   Si no hay 3 dormitorios, el Baño pasa a la posición 4 y así sucesivamente de forma natural.
 
 Devuelve estrictamente un objeto JSON con el siguiente esquema:
 {
@@ -101,7 +114,7 @@ Devuelve estrictamente un objeto JSON con el siguiente esquema:
   }));
 
   return {
-    rooms: formattedRooms,
+    rooms: sortRoomMarkers(formattedRooms),
     totalUsefulArea: parsed.totalUsefulArea,
     terraceArea: parsed.terraceArea,
     constructedArea: parsed.constructedArea,

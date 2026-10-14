@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { CameraAngle, RoomMarker, RoomCategory } from '../types';
 import { ROOM_CATEGORIES, SAMPLE_PLANS } from '../constants';
 import { SurfaceScheduleTable } from './SurfaceScheduleTable';
 import { PdfExportModal } from './PdfExportModal';
+import { sortRoomMarkers } from '../services/roomSorter';
 import {
   exportCommercialBrochureImage,
   exportCommercialBrochurePDF,
@@ -81,6 +82,7 @@ export function PlanCanvasPreview({
   const isDraggingRef = useRef<boolean>(false);
 
   const is2DMode = cameraAngle === 'plan_2d_furnished';
+  const sortedMarkers = useMemo(() => sortRoomMarkers(roomMarkers || []), [roomMarkers]);
 
   // Iniciar arrastre de un círculo de estancia
   const handleMarkerDragStart = (
@@ -157,7 +159,7 @@ export function PlanCanvasPreview({
     await exportCommercialBrochureImage({
       imageSrc: targetImg,
       projectTitle,
-      markers: roomMarkers,
+      markers: sortedMarkers,
       filename: `ficha_comercial_${projectTitle.toLowerCase().replace(/[^\w]/g, '_')}.png`
     });
     setIsExportingFicha(false);
@@ -633,7 +635,7 @@ export function PlanCanvasPreview({
                         />
 
                         {/* Círculos azules interactivos y arrastrables con número blanco */}
-                        {roomMarkers.map((marker, idx) => {
+                        {sortedMarkers.map((marker, idx) => {
                           const isDragging = draggingMarkerId === marker.id;
                           return (
                             <div
@@ -734,7 +736,7 @@ export function PlanCanvasPreview({
                       </button>
                     </div>
                   )}
-                  <SurfaceScheduleTable markers={roomMarkers} />
+                  <SurfaceScheduleTable markers={sortedMarkers} />
                 </div>
               </div>
 
@@ -811,7 +813,7 @@ export function PlanCanvasPreview({
 
               {/* OVERLAY DE PINES DE ESTANCIAS EN RENDER */}
               {showMarkersOverlay &&
-                roomMarkers.map((marker, idx) => {
+                sortedMarkers.map((marker, idx) => {
                   const isDragging = draggingMarkerId === marker.id;
                   const isSelected = activeMarkerId === marker.id;
 
@@ -869,7 +871,7 @@ export function PlanCanvasPreview({
 
                 {/* OVERLAY DE PINES DE ESTANCIAS */}
                 {showMarkersOverlay &&
-                  roomMarkers.map((marker, idx) => {
+                  sortedMarkers.map((marker, idx) => {
                     const cat = ROOM_CATEGORIES.find((c) => c.id === marker.category);
                     const isSelected = activeMarkerId === marker.id;
                     const isEditing = editingMarkerId === marker.id;
@@ -1046,7 +1048,7 @@ export function PlanCanvasPreview({
           onClose={() => setIsPdfModalOpen(false)}
           imageSrc={renderDataUrl || sourceDataUrl}
           projectTitle={projectTitle}
-          markers={roomMarkers}
+          markers={sortedMarkers}
         />
       </div>
     </div>

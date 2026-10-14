@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { RoomMarker } from '../types';
+import { sortRoomMarkers } from '../services/roomSorter';
 
 interface SurfaceScheduleTableProps {
   markers: RoomMarker[];
@@ -12,8 +13,10 @@ export function SurfaceScheduleTable({
   className = '',
   showTotal = true
 }: SurfaceScheduleTableProps) {
+  const sortedMarkers = useMemo(() => sortRoomMarkers(markers), [markers]);
+
   // Calcular superficie total sumando las áreas existentes
-  const totalArea = markers.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0);
+  const totalArea = sortedMarkers.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0);
 
   // Formateador con coma decimal española (ej. 26,40)
   const formatM2 = (val?: number) => {
@@ -44,14 +47,14 @@ export function SurfaceScheduleTable({
 
       {/* Lista de Estancias Numeradas */}
       <div className="space-y-1.5 text-[12px]">
-        {markers.length === 0 ? (
+        {sortedMarkers.length === 0 ? (
           <div className="py-4 text-center text-stone-400 text-xs italic">
             Sin estancias registradas.
             <br />
             Pulsa en "Extraer estancias y m² con IA".
           </div>
         ) : (
-          markers.map((marker, index) => {
+          sortedMarkers.map((marker, index) => {
             const numFormatted = String(index + 1).padStart(2, '0') + '.';
           return (
             <div

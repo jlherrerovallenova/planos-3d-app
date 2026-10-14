@@ -4,6 +4,7 @@
  */
 
 import { jsPDF } from 'jspdf';
+import { sortRoomMarkers } from './roomSorter';
 
 export function sanitizeFilename(filename: string): string {
   // Mantener solo caracteres alfanuméricos, guiones y puntos
@@ -122,6 +123,7 @@ export async function generateBrochureCanvas({
 
         // Proporción de escala respecto al tamaño base (2480 x 1754 es A4 300DPI)
         const scale = width / 1920;
+        const sortedMarkers = sortRoomMarkers(markers || []);
 
         // 1. Fondo blanco comercial
         ctx.fillStyle = '#FFFFFF';
@@ -174,9 +176,9 @@ export async function generateBrochureCanvas({
         ctx.drawImage(img, drawX, drawY, drawW, drawH);
 
         // Señalizar cada estancia en el plano con un círculo azul y número blanco profesional
-        if (markers && markers.length > 0) {
+        if (sortedMarkers && sortedMarkers.length > 0) {
           const radius = 17 * scale;
-          markers.forEach((m: any, idx: number) => {
+          sortedMarkers.forEach((m: any, idx: number) => {
             if (typeof m.x === 'number' && typeof m.y === 'number') {
               const markerX = drawX + (m.x / 100) * drawW;
               const markerY = drawY + (m.y / 100) * drawH;
@@ -235,7 +237,7 @@ export async function generateBrochureCanvas({
         const rowHeight = 44 * scale;
         let totalArea = 0;
 
-        markers.forEach((marker, idx) => {
+        sortedMarkers.forEach((marker, idx) => {
           const numStr = String(idx + 1).padStart(2, '0') + '.';
           const area = marker.areaSqMeters || 0;
           totalArea += area;
@@ -438,10 +440,12 @@ export async function exportCommercialBrochurePDF({
         // Inserción con remuestreo de máxima calidad ('SLOW' bicúbico en jsPDF)
         doc.addImage(imageSrc, imgFormat, imgX, imgY, imgW, imgH, undefined, 'SLOW');
 
+        const sortedMarkers = sortRoomMarkers(markers || []);
+
         // Señalizar cada estancia en el plano con un círculo azul y número blanco vectorial
-        if (markers && markers.length > 0) {
+        if (sortedMarkers && sortedMarkers.length > 0) {
           const circleRadius = 3.2; // mm (~6.4mm diámetro)
-          markers.forEach((m: any, idx: number) => {
+          sortedMarkers.forEach((m: any, idx: number) => {
             if (typeof m.x === 'number' && typeof m.y === 'number') {
               const markerX = imgX + (m.x / 100) * imgW;
               const markerY = imgY + (m.y / 100) * imgH;
@@ -482,10 +486,10 @@ export async function exportCommercialBrochurePDF({
         // Filas de estancias numeradas
         let currentY = contentY + 17;
         const availableRowSpace = contentHeight - 32;
-        const rowSpacing = Math.min(9, Math.max(6.5, availableRowSpace / Math.max(1, markers.length)));
+        const rowSpacing = Math.min(9, Math.max(6.5, availableRowSpace / Math.max(1, sortedMarkers.length)));
         let totalArea = 0;
 
-        markers.forEach((m, idx) => {
+        sortedMarkers.forEach((m, idx) => {
           const numStr = String(idx + 1).padStart(2, '0') + '.';
           const area = m.areaSqMeters || 0;
           totalArea += area;
@@ -523,7 +527,7 @@ export async function exportCommercialBrochurePDF({
         });
 
         // Total Superficie Útil
-        if (markers.length > 0 && totalArea > 0) {
+        if (sortedMarkers.length > 0 && totalArea > 0) {
           const totalY = contentY + contentHeight - 8;
           doc.setDrawColor(203, 213, 225);
           doc.setLineWidth(0.5);
@@ -644,10 +648,12 @@ export async function exportPlanOnlyPDF({
         // Inserción directa en máxima resolución sin pérdida
         doc.addImage(imageSrc, imgFormat, drawX, drawY, drawW, drawH, undefined, 'SLOW');
 
+        const sortedMarkers = sortRoomMarkers(markers || []);
+
         // Señalizar cada estancia en el plano con un círculo azul y número blanco profesional
-        if (markers && markers.length > 0) {
+        if (sortedMarkers && sortedMarkers.length > 0) {
           const circleRadius = isA3 ? 4.2 : 3.2; // mm
-          markers.forEach((m: any, idx: number) => {
+          sortedMarkers.forEach((m: any, idx: number) => {
             if (typeof m.x === 'number' && typeof m.y === 'number') {
               const markerX = drawX + (m.x / 100) * drawW;
               const markerY = drawY + (m.y / 100) * drawH;
