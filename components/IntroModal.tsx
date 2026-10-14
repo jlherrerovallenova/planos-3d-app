@@ -23,7 +23,7 @@ export function IntroModal({ isOpen, onClose }: IntroModalProps) {
             </button>
           </div>
           <h2 className="font-serif italic text-3xl text-stone-100 font-normal">
-            Dollhouse 3D Studio
+            Estudio de Planos 3D
           </h2>
           <p className="text-stone-300 text-sm mt-1">
             Transforma planos comerciales en 2D en espectaculares maquetas seccionadas 3D para catálogos y dossieres de venta.

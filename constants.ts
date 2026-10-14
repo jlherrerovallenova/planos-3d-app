@@ -41,7 +41,7 @@ export const ROOM_CATEGORIES: {
     },
     {
       id: 'dormitorio_principal',
-      label: 'Dormitorio Principal (Suite)',
+      label: 'Dormitorio Principal',
       icon: 'bed',
       color: '#4F46E5',
       bgLight: '#EEF2FF',
@@ -89,7 +89,7 @@ export const ROOM_CATEGORIES: {
     },
     {
       id: 'despacho_estudio',
-      label: 'Despacho / Estudio / Home Office',
+      label: 'Despacho / Estudio',
       icon: 'laptop_mac',
       color: '#7C3AED',
       bgLight: '#F3E8FF',
@@ -105,7 +105,7 @@ export const ROOM_CATEGORIES: {
     },
     {
       id: 'recibidor_distribuidor',
-      label: 'Recibidor / Hall / Distribuidor',
+      label: 'Recibidor / Distribuidor',
       icon: 'meeting_room',
       color: '#78716C',
       bgLight: '#F5F5F4',
@@ -124,19 +124,19 @@ export const ROOM_CATEGORIES: {
 export const CAMERA_ANGLES: { id: CameraAngle; label: string; icon: string; desc: string; badge?: string }[] = [
   {
     id: 'isometric_45',
-    label: 'Corte Isométrico 45° (Dollhouse)',
+    label: 'Corte Isométrico 45°',
     icon: 'view_in_ar',
     desc: 'Vista tridimensional tipo maqueta cortada con volumen de paredes y muebles.'
   },
   {
     id: 'cenital_90',
-    label: 'Planta Cenital 90° (Top-Down 3D)',
+    label: 'Planta Cenital 90°',
     icon: 'crop_free',
     desc: 'Vista perpendicular cenital con sombras arrojadas y muebles 3D en planta.'
   },
   {
     id: 'plan_2d_furnished',
-    label: 'Plano 2D Comercial Amueblado (Floor Plan)',
+    label: 'Plano 2D Comercial Amueblado',
     icon: 'space_dashboard',
     desc: 'Plano 2D ortográfico delineado de catálogo con texturas y mobiliario en 2D.',
     badge: 'Modo 2D'
@@ -159,7 +159,7 @@ export const COLOR_PALETTE_SCHEMES: {
 }[] = [
     {
       id: 'light_soft_pastel',
-      label: 'Claros y Suaves (Soft Pastels)',
+      label: 'Claros y Suaves',
       badge: 'Recomendado',
       desc: 'Blancos rotos, crudos de lino, tonos crema etéreos, toques sutiles de gris perla y pasteles sedosos.',
       colors: ['#FAF9F6', '#F3EFEA', '#EAE3D9', '#D5DFD8', '#F5EBE6'],
@@ -251,7 +251,7 @@ export const INTERIOR_STYLES: {
       id: 'luxury_hotel',
       label: 'Alta Gama & Hotel Boutique',
       badge: 'Mármoles & Bronce',
-      desc: 'Suelos de mármol calacatta, latón cepillado y atmósfera de suite de lujo.',
+      desc: 'Suelos de mármol calacatta, latón cepillado y atmósfera de gran lujo.',
       palette: ['#F9F9FB', '#DDD7CD', '#98836E', '#1C272C'],
       promptKeyword: 'ultra-luxury boutique residential suite, Calacatta marble slab countertops, brushed brass fixtures, architectural lighting'
     },
@@ -268,13 +268,13 @@ export const INTERIOR_STYLES: {
 export const LIGHTING_PRESETS = [
   { id: 'daylight_warm', label: 'Luz Diurna Natural (11:00h)', icon: 'wb_sunny', desc: 'Sombras nítidas de 30° proyectadas por los tabiques.' },
   { id: 'ambient_studio', label: 'Estudio Arquitectónico Neutro', icon: 'wb_incandescent', desc: 'Difusión de luz homogénea tipo render de catálogo.' },
-  { id: 'golden_hour', label: 'Atardecer Golden Hour (18:30h)', icon: 'flare', desc: 'Tonos miel cálidos y largos haces de luz en terrazas.' },
+  { id: 'golden_hour', label: 'Atardecer Dorado (18:30h)', icon: 'flare', desc: 'Tonos miel cálidos y largos haces de luz en terrazas.' },
   { id: 'night_architectural', label: 'Nocturna con Focos Integrados', icon: 'bedtime', desc: 'Iluminación cálida encendida dentro de cada estancia.' }
 ];
 // 2.1 Pavimento: Salón & Habitaciones
 export const FLOORING_LIVING_OPTIONS: { id: FlooringType; label: string; desc: string }[] = [
   { id: 'light_oak_wood', label: 'Tarima Roble Claro Natural', desc: 'Lamas anchas de madera clara continua.' },
-  { id: 'herringbone_parquet', label: 'Parquet Espiga Francés (Chevron)', desc: 'Elegancia clásica refinada en chevron.' },
+  { id: 'herringbone_parquet', label: 'Parquet Espiga Francés', desc: 'Elegancia clásica refinada en espiga.' },
   { id: 'porcelain_gres_tile', label: 'Gres Porcelánico Gran Formato', desc: 'Baldosas rectificadas contemporáneas tono arena.' },
   { id: 'warm_microcement', label: 'Microcemento Continuo Cálido', desc: 'Acabado contemporáneo continuo sin juntas.' },
   { id: 'travertine_marble', label: 'Mármol Travertino / Piedra Caliza', desc: 'Piedra mineral clara de tacto suave.' },
@@ -282,10 +282,10 @@ export const FLOORING_LIVING_OPTIONS: { id: FlooringType; label: string; desc: s
 ];
 // 2.2 Pavimento: Cocina
 export const KITCHEN_FLOORING_OPTIONS: { id: KitchenFlooringType; label: string; desc: string; isGres?: boolean }[] = [
-  { id: 'gres_porcelanico_cocina', label: 'Gres Cerámico / Porcelánico (Elegir Color)', desc: 'Pavimento de gres con juntas finas rectificadas y color seleccionable.', isGres: true },
+  { id: 'gres_porcelanico_cocina', label: 'Gres Cerámico / Porcelánico', desc: 'Pavimento de gres con juntas finas rectificadas y color seleccionable.', isGres: true },
   { id: 'porcelain_gres_kitchen', label: 'Porcelánico Técnico Arena / Antideslizante', desc: 'Gran formato 120x60cm resistente y luminoso.' },
   { id: 'continuous_microcement', label: 'Microcemento Continuo Impermeable', desc: 'Suelo continuo integrado sin juntas con el mobiliario.' },
-  { id: 'matching_living_oak', label: 'Mismo Roble que el Salón (Open Concept)', desc: 'Continuidad visual total entre salón y cocina abierta.' },
+  { id: 'matching_living_oak', label: 'Mismo Roble que el Salón (Continuo)', desc: 'Continuidad visual total entre salón y cocina abierta.' },
   { id: 'white_marble_slab', label: 'Mármol Blanco Calacatta Pulido', desc: 'Baldosas nobles con sutiles vetas grises.' },
   { id: 'anthracite_slate_kitchen', label: 'Pizarra Grafito / Antracita Mate', desc: 'Contraste moderno con muebles blancos o de madera.' }
 ];
@@ -787,7 +787,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
 export const SAMPLE_PLANS = [
   {
     name: 'Piso 3 Dormitorios + Gran Terraza',
-    desc: 'Distribución completa con suite, 2 dormitorios dobles, 2 baños, salón abierto y terraza exterior amueblable.',
+    desc: 'Distribución completa con dormitorio principal, 2 dormitorios dobles, 2 baños, salón abierto y terraza exterior amueblable.',
     url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
     type: 'Piso Familiar'
   },

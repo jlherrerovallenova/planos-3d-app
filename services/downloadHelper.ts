@@ -558,7 +558,7 @@ export async function exportCommercialBrochurePDF({
         );
 
         doc.setFont('helvetica', 'bold');
-        doc.text('Dollhouse 3D Studio', pageWidth - margin, pageHeight - 5.5, { align: 'right' });
+        doc.text('Estudio de Arquitectura', pageWidth - margin, pageHeight - 5.5, { align: 'right' });
 
         const sanitizedName = sanitizeFilename(filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`);
         doc.save(sanitizedName);
@@ -682,7 +682,7 @@ export async function exportPlanOnlyPDF({
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(6.5);
         doc.setTextColor(148, 163, 184);
-        doc.text('Plano arquitectónico de alta resolución • Generado con Dollhouse 3D Studio', margin, pageHeight - 4.5);
+        doc.text('Plano arquitectónico de alta resolución', margin, pageHeight - 4.5);
 
         const sanitizedName = sanitizeFilename(filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`);
         doc.save(sanitizedName);

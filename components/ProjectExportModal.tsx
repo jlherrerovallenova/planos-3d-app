@@ -37,7 +37,7 @@ export function ProjectExportModal({
   };
 
   const handleDownloadImage = (base64: string, mimeType: string, index?: number) => {
-    const filename = `dollhouse_render_${index !== undefined ? index + 1 : 'final'}.png`;
+    const filename = `render_3d_${index !== undefined ? index + 1 : 'final'}.png`;
     safeDownloadFile({ base64, mimeType, filename });
   };
 
@@ -123,7 +123,7 @@ export function ProjectExportModal({
                     Ficha Comercial de Venta (Plano + Superficies Útiles)
                   </h4>
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
-                    4K Editorial
+                    Alta Resolución
                   </span>
                 </div>
                 <p className="text-[11px] text-stone-500">

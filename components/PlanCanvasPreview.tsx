@@ -362,7 +362,7 @@ export function PlanCanvasPreview({
                   <span className="material-symbols-outlined text-[16px]">
                     {is2DMode ? 'space_dashboard' : 'view_in_ar'}
                   </span>
-                  <span>{is2DMode ? 'Plano 2D Comercial' : 'Render 3D Dollhouse'}</span>
+                  <span>{is2DMode ? 'Plano 2D Comercial' : 'Maqueta 3D'}</span>
                 </button>
 
                 <button
@@ -557,7 +557,7 @@ export function PlanCanvasPreview({
                   ? 'Descargando...'
                   : downloadStatus === 'done'
                   ? '¡Descargado!'
-                  : 'Descargar 4K'}
+                  : 'Descargar Render'}
               </span>
             </button>
           )}
@@ -853,7 +853,7 @@ export function PlanCanvasPreview({
                   Documento con carácter comercial y orientativo. Las superficies corresponden a superficie útil interior estimada.
                 </span>
                 <span className="font-medium text-stone-500 hidden sm:inline">
-                  Dollhouse 3D Studio
+                  Estudio de Arquitectura
                 </span>
               </div>
             </div>
@@ -964,7 +964,7 @@ export function PlanCanvasPreview({
 
               <div className="absolute bottom-3 right-3 px-3 py-1 rounded-full bg-stone-950/80 backdrop-blur-md text-stone-300 text-[10px] font-semibold border border-stone-800 flex items-center gap-1.5 pointer-events-none">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>Render 4K Ultra HD</span>
+                <span>Render en Alta Definición</span>
               </div>
             </div>
           ) : sourceDataUrl ? (

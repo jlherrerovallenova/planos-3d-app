@@ -41,7 +41,7 @@ export function RoomIdentifierPanel({
   const quickCategories: { id: RoomCategory; label: string; icon: string }[] = [
     { id: 'salon_comedor', label: 'Salón', icon: 'chair' },
     { id: 'cocina', label: 'Cocina', icon: 'countertops' },
-    { id: 'dormitorio_principal', label: 'Suite', icon: 'bed' },
+    { id: 'dormitorio_principal', label: 'Dorm. Principal', icon: 'bed' },
     { id: 'dormitorio_secundario', label: 'Dormitorio', icon: 'single_bed' },
     { id: 'bano_principal', label: 'Baño', icon: 'bathtub' },
     { id: 'terraza_balcon', label: 'Terraza', icon: 'deck' },

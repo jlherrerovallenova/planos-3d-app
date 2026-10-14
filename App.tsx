@@ -527,7 +527,7 @@ export function App() {
                 title="Haz clic para renombrar el proyecto"
               />
               <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-orange-100 text-[#c25e38]">
-                <span>✨</span> Dollhouse 3D Studio
+                <span>✨</span> Estudio de Planos 3D
               </span>
             </div>
             <p className="text-[11px] text-stone-400 hidden md:block">
@@ -541,7 +541,7 @@ export function App() {
           {/* Badge de conexión a IA */}
           <div className="hidden xl:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Motor: Gemini Nano Banana</span>
+            <span>Motor: Renderizado Inteligente IA</span>
           </div>
 
           <button

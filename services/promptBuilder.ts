@@ -32,13 +32,13 @@ export function buildArchitecturalPrompt(config: RenderConfig): string {
     : `${selectedKitchenFloor.label} in kitchen floor`;
   // REGLA CRÍTICA ESTRICTA: El plato de ducha SIEMPRE es blanco puro, NUNCA del material ni color del suelo del baño
   const showerTrayRule = `CRITICAL ARCHITECTURAL DETAIL: In all bathrooms, shower trays MUST ALWAYS BE PURE CHALK WHITE mineral resin or glossy white acrylic (never matching the bathroom floor tile color or material). Every shower tray is distinctly solid clean white with clear contrast against the ${selectedBathGres60.previewColor} floor tiles, framed by a transparent glass screen shower enclosure.`;
-  // DIRECTIVA ESTRICTA: NUNCA DIBUJAR TEXTO, NOMBRES DE ESTANCIA NI SUPERFICIES (m²) DENTRO DE LAS ESTANCIAS
-  const strictNoTextInRoomsDirective = `ABSOLUTE PROHIBITION OF TEXT, LABELS, WORDS, ROOM NAMES, AND SQUARE METERS INSIDE THE PLAN:
-1. DO NOT paint, write, print, or render ANY text, letters, words, room names (such as "DORMITORIO", "SALON", "COCINA", "BAÑO", "ASEO", "TERRAZA", "HALL", "DISTRIBUIDOR", etc.), dimensions, or square meter measurements ("m²", "sqm", numbers) inside any room or anywhere on the floor plan.
+  // DIRECTIVA ESTRICTA: NUNCA DIBUJAR TEXTO, NOMBRES DE ESTANCIA, SUBTÍTULOS EN INGLÉS NI SUPERFICIES (m²) DENTRO DE LAS ESTANCIAS
+  const strictNoTextInRoomsDirective = `ABSOLUTE PROHIBITION OF TEXT, LABELS, ENGLISH SUBTITLES, ROOM NAMES, AND SQUARE METERS INSIDE THE PLAN:
+1. DO NOT paint, write, print, or render ANY text, letters, words, subtitles (especially NO English subtitles or words like "Living Room", "Bedroom", "Master Bedroom", "Kitchen", "Bathroom", "Toilet", "Terrace", "Balcony", "Hallway", "Corridor", "Floor Plan", "Dollhouse", etc.), nor Spanish names ("DORMITORIO", "SALON", "COCINA", "BAÑO", "ASEO", "TERRAZA", "DISTRIBUIDOR", etc.), nor dimensions, nor square meter measurements ("m²", "sqm", numbers) inside any room or anywhere on the floor plan.
 2. Completely clean, erase, and eliminate all blueprint text, annotations, callout labels, and area numbers from the reference blueprint image.
 3. The floor surfaces inside all rooms must be 100% CLEAN of text: ONLY pure architectural flooring materials, walls, and furniture.
-4. Each room is identified strictly by an external number badge, NEVER by printed text or surface numbers in the image.
-STRICT RULE: ZERO text, ZERO room names, ZERO square meter numbers inside the rooms or on the floor.`;
+4. Each room is identified strictly by an external number badge, NEVER by printed text, English subtitles, or surface numbers in the image.
+STRICT RULE: ZERO text, ZERO English subtitles, ZERO room names, ZERO square meter numbers inside the rooms or on the floor.`;
 
   // CLÁUSULA CRÍTICA: IDENTIFICACIÓN Y MOBILIARIO DE ESTANCIAS (SIN TEXTO)
   let roomsIdentificationClause = '';
