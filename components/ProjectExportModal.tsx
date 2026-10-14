@@ -3,7 +3,8 @@ import { RenderConfig, RenderHistoryItem } from '../types';
 import {
   safeDownloadFile,
   downloadJsonConfig,
-  exportCommercialBrochureImage
+  exportCommercialBrochureImage,
+  exportCommercialBrochurePDF
 } from '../services/downloadHelper';
 
 interface ProjectExportModalProps {
@@ -41,6 +42,20 @@ export function ProjectExportModal({
     safeDownloadFile({ base64, mimeType, filename });
   };
 
+  const handleDownloadFichaPDF = async () => {
+    if (!renderedResult) return;
+    setIsExportingFicha(true);
+    await exportCommercialBrochurePDF({
+      imageSrc: `data:${renderedResult.mimeType};base64,${renderedResult.base64}`,
+      projectTitle,
+      markers: config.roomMarkers || [],
+      markerBadgeColor: config.markerBadgeColor,
+      promotionLogo: config.promotionLogo,
+      filename: `ficha_vectorial_${projectTitle.toLowerCase().replace(/[^\w]/g, '_')}.pdf`
+    });
+    setIsExportingFicha(false);
+  };
+
   const handleDownloadFichaComercial = async () => {
     if (!renderedResult) return;
     setIsExportingFicha(true);
@@ -48,6 +63,8 @@ export function ProjectExportModal({
       imageSrc: `data:${renderedResult.mimeType};base64,${renderedResult.base64}`,
       projectTitle,
       markers: config.roomMarkers || [],
+      markerBadgeColor: config.markerBadgeColor,
+      promotionLogo: config.promotionLogo,
       filename: `ficha_comercial_${projectTitle.toLowerCase().replace(/[^\w]/g, '_')}.png`
     });
     setIsExportingFicha(false);
@@ -131,17 +148,27 @@ export function ProjectExportModal({
                 </p>
               </div>
             </div>
-            <button
-              disabled={!renderedResult || isExportingFicha}
-              onClick={handleDownloadFichaComercial}
-              className="px-4 py-2 rounded-xl text-white text-xs font-semibold transition shrink-0 flex items-center gap-1.5 shadow-xs disabled:opacity-40 cursor-pointer"
-              style={{ backgroundColor: '#0F2C59' }}
-            >
-              <span className="material-symbols-outlined text-[16px]">
-                {isExportingFicha ? 'progress_activity' : 'download'}
-              </span>
-              <span>{isExportingFicha ? 'Generando...' : 'Descargar Ficha'}</span>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                disabled={!renderedResult || isExportingFicha}
+                onClick={handleDownloadFichaPDF}
+                className="px-3.5 py-2 rounded-xl bg-red-700 hover:bg-red-800 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-xs disabled:opacity-40 cursor-pointer"
+                title="Descargar Ficha Comercial en PDF vectorial con el logo corporativo de Lubens Arroyo"
+              >
+                <span className="material-symbols-outlined text-[16px]">picture_as_pdf</span>
+                <span>PDF</span>
+              </button>
+              <button
+                disabled={!renderedResult || isExportingFicha}
+                onClick={handleDownloadFichaComercial}
+                className="px-3.5 py-2 rounded-xl text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-xs disabled:opacity-40 cursor-pointer"
+                style={{ backgroundColor: '#0F2C59' }}
+                title="Descargar Ficha en Imagen PNG"
+              >
+                <span className="material-symbols-outlined text-[16px]">image</span>
+                <span>PNG</span>
+              </button>
+            </div>
           </div>
 
           {/* Opción 2: Descargar Memoria de Calidades en JSON */}

@@ -116,6 +116,24 @@ export function PdfExportModal({
 
         {/* Opciones */}
         <div className="p-6 space-y-4">
+          {/* Logo Corporativo Incluido en el PDF */}
+          <div className="flex items-center justify-between p-3 bg-stone-50 rounded-2xl border border-stone-200/90 shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <div>
+                <p className="text-xs font-bold text-stone-800">Logo Corporativo Incluido en el PDF</p>
+                <p className="text-[10px] text-stone-500">Membrete oficial: Lubens Arroyo</p>
+              </div>
+            </div>
+            <div className="bg-white px-2.5 py-1 rounded-xl border border-stone-200 flex items-center justify-center">
+              <img
+                src={promotionLogo || '/logo_promocion.png'}
+                alt="Logo Lubens Arroyo"
+                className="h-6 w-auto max-w-[130px] object-contain"
+              />
+            </div>
+          </div>
+
           <p className="text-xs text-stone-600 font-medium">
             Selecciona el formato de exportación para tu plano:
           </p>
