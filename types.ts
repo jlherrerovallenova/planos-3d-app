@@ -34,6 +34,15 @@ export type KitchenGresColor =
   | 'gres_gris_perla'
   | 'gres_cemento_antracita'
   | 'gres_terracota_suave';
+export type KitchenCountertopType =
+  | 'quartz_calacatta_white'
+  | 'granite_black_zimbabwe'
+  | 'ceramic_cement_grey'
+  | 'marble_white_carrara'
+  | 'porcelain_warm_sand'
+  | 'wood_solid_oak'
+  | 'stainless_steel_satin'
+  | 'quartz_black_marquina';
 export type BathroomFlooring60x60Tone =
   | 'gres_60_blanco_puro'
   | 'gres_60_arena_marfil'
@@ -108,6 +117,7 @@ export interface RenderConfig {
   flooringLiving: FlooringType;          // 2.1 Salón & Habitaciones
   flooringKitchen: KitchenFlooringType;  // 2.2 Cocina
   kitchenGresColor: KitchenGresColor;    // 2.2 Color para material de GRES en Cocina
+  kitchenCountertop?: KitchenCountertopType; // 2.2 Encimera de Cocina (Material y Color)
   flooringBathroomGres60: BathroomFlooring60x60Tone; // 2.3 Baños (Solo gres 60x60cm) tonalidad
   flooringTerrace: TerraceFlooringType;  // 2.4 Terraza
   // 3. Ventanas
@@ -120,6 +130,8 @@ export interface RenderConfig {
   exteriorWallColor: WallColorType;
   // 6. Identificador de Estancias (Corrección y precisión)
   roomMarkers: RoomMarker[];
+  markerBadgeColor?: string;             // Color de fondo libre para los puntos identificadores (por defecto #0F2C59)
+  promotionLogo?: string;                // Logo de la promoción para las fichas comerciales (base64 o URL)
   // Ajustes auxiliares
   extraDetails: string;
   strictBlueprintFidelity: boolean;

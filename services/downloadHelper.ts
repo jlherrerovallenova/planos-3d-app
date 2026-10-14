@@ -5,6 +5,7 @@
 
 import { jsPDF } from 'jspdf';
 import { sortRoomMarkers } from './roomSorter';
+import { DEFAULT_PROMOTION_LOGO } from './defaultPromotionLogo';
 
 export function sanitizeFilename(filename: string): string {
   // Mantener solo caracteres alfanuméricos, guiones y puntos
@@ -94,23 +95,49 @@ export async function downloadJsonConfig(data: any, filename = 'plano-3d-preset.
   });
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  let clean = hex.replace('#', '').trim();
+  if (clean.length === 3) {
+    clean = clean.split('').map((c) => c + c).join('');
+  }
+  const num = parseInt(clean, 16);
+  if (isNaN(num) || clean.length !== 6) {
+    return { r: 15, g: 44, b: 89 };
+  }
+  return {
+    r: (num >> 16) & 255,
+    g: (num >> 8) & 255,
+    b: num & 255
+  };
+}
+
+function getContrastColor(hex: string): '#FFFFFF' | '#18181B' {
+  const { r, g, b } = hexToRgb(hex);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 155 ? '#18181B' : '#FFFFFF';
+}
+
 export async function generateBrochureCanvas({
   imageSrc,
   projectTitle,
   markers,
+  markerBadgeColor = '#0F2C59',
+  promotionLogo = DEFAULT_PROMOTION_LOGO,
   width = 2480,
   height = 1754
 }: {
   imageSrc: string;
   projectTitle: string;
   markers: Array<{ id: string; name: string; areaSqMeters?: number }>;
+  markerBadgeColor?: string;
+  promotionLogo?: string | null;
   width?: number;
   height?: number;
 }): Promise<HTMLCanvasElement | null> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload = () => {
+    img.onload = async () => {
       try {
         const canvas = document.createElement('canvas');
         canvas.width = width;
@@ -120,6 +147,9 @@ export async function generateBrochureCanvas({
           resolve(null);
           return;
         }
+
+        const badgeBg = markerBadgeColor || '#0F2C59';
+        const badgeTextColor = getContrastColor(badgeBg);
 
         // Proporción de escala respecto al tamaño base (2480 x 1754 es A4 300DPI)
         const scale = width / 1920;
@@ -138,6 +168,35 @@ export async function generateBrochureCanvas({
         ctx.fillStyle = '#64748B';
         ctx.font = `600 ${Math.round(15 * scale)}px sans-serif`;
         ctx.fillText('FICHA COMERCIAL • PLANO AMUEBLADO Y CUADRO DE SUPERFICIES ÚTILES', headerMarginX, 104 * scale);
+
+        // Si hay logo de la promoción, dibujarlo en la esquina superior derecha del encabezado
+        if (promotionLogo) {
+          try {
+            await new Promise<void>((resolveLogo) => {
+              const logoImg = new Image();
+              logoImg.crossOrigin = 'anonymous';
+              logoImg.onload = () => {
+                const logoAspect = logoImg.width / logoImg.height;
+                const maxLogoH = 68 * scale;
+                const maxLogoW = 320 * scale;
+                let drawLogoH = maxLogoH;
+                let drawLogoW = drawLogoH * logoAspect;
+                if (drawLogoW > maxLogoW) {
+                  drawLogoW = maxLogoW;
+                  drawLogoH = drawLogoW / logoAspect;
+                }
+                const logoX = width - headerMarginX - drawLogoW;
+                const logoY = 26 * scale + (maxLogoH - drawLogoH) / 2;
+                ctx.drawImage(logoImg, logoX, logoY, drawLogoW, drawLogoH);
+                resolveLogo();
+              };
+              logoImg.onerror = () => resolveLogo();
+              logoImg.src = promotionLogo;
+            });
+          } catch (e) {
+            console.warn('Error dibujando logo de promoción en canvas:', e);
+          }
+        }
 
         // Línea divisoria superior
         ctx.strokeStyle = '#E2E8F0';
@@ -178,7 +237,7 @@ export async function generateBrochureCanvas({
 
         ctx.drawImage(img, drawX, drawY, drawW, drawH);
 
-        // Señalizar cada estancia en el plano con un círculo azul y número blanco profesional
+        // Señalizar cada estancia en el plano con el color de badge personalizado
         if (sortedMarkers && sortedMarkers.length > 0) {
           const radius = 17 * scale;
           sortedMarkers.forEach((m: any, idx: number) => {
@@ -192,14 +251,14 @@ export async function generateBrochureCanvas({
               ctx.arc(markerX, markerY, radius + 2.5 * scale, 0, Math.PI * 2);
               ctx.fill();
 
-              // Círculo azul marino arquitectónico
-              ctx.fillStyle = '#0F2C59';
+              // Círculo personalizado
+              ctx.fillStyle = badgeBg;
               ctx.beginPath();
               ctx.arc(markerX, markerY, radius, 0, Math.PI * 2);
               ctx.fill();
 
-              // Número en blanco centrado
-              ctx.fillStyle = '#FFFFFF';
+              // Número con color contrastante
+              ctx.fillStyle = badgeTextColor;
               ctx.font = `bold ${Math.round(18 * scale)}px sans-serif`;
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
@@ -323,17 +382,23 @@ export async function exportCommercialBrochureImage({
   imageSrc,
   projectTitle,
   markers,
+  markerBadgeColor,
+  promotionLogo = DEFAULT_PROMOTION_LOGO,
   filename = 'ficha_comercial_arquitectura.png'
 }: {
   imageSrc: string;
   projectTitle: string;
   markers: Array<{ id: string; name: string; areaSqMeters?: number }>;
+  markerBadgeColor?: string;
+  promotionLogo?: string | null;
   filename?: string;
 }): Promise<boolean> {
   const canvas = await generateBrochureCanvas({
     imageSrc,
     projectTitle,
     markers,
+    markerBadgeColor,
+    promotionLogo,
     width: 2480,
     height: 1754
   });
@@ -353,11 +418,15 @@ export async function exportCommercialBrochurePDF({
   imageSrc,
   projectTitle,
   markers,
+  markerBadgeColor = '#0F2C59',
+  promotionLogo = DEFAULT_PROMOTION_LOGO,
   filename = 'ficha_comercial_plano.pdf'
 }: {
   imageSrc: string;
   projectTitle: string;
   markers: Array<{ id: string; name: string; areaSqMeters?: number }>;
+  markerBadgeColor?: string;
+  promotionLogo?: string | null;
   filename?: string;
 }): Promise<boolean> {
   return new Promise((resolve) => {
@@ -365,6 +434,10 @@ export async function exportCommercialBrochurePDF({
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       try {
+        const badgeRgb = hexToRgb(markerBadgeColor || '#0F2C59');
+        const badgeTextColor = getContrastColor(markerBadgeColor || '#0F2C59');
+        const textRgb = hexToRgb(badgeTextColor);
+
         // A4 Landscape: 297mm x 210mm
         const doc = new jsPDF({
           orientation: 'landscape',
@@ -393,11 +466,39 @@ export async function exportCommercialBrochurePDF({
         doc.setTextColor(100, 116, 139); // #64748B
         doc.text('FICHA COMERCIAL ARQUITECTÓNICA • PLANO AMUEBLADO Y CUADRO DE SUPERFICIES ÚTILES', margin, margin + 9.5);
 
-        // Referencia comercial a la derecha
-        doc.setFont('courier', 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(100, 116, 139);
-        doc.text('REF: VT-01', pageWidth - margin, margin + 4.5, { align: 'right' });
+        // Logo de la promoción a la derecha del encabezado
+        const effectiveLogo = promotionLogo || DEFAULT_PROMOTION_LOGO;
+        if (effectiveLogo) {
+          try {
+            const logoMaxH = 10; // mm
+            const logoMaxW = 42; // mm (relación de aspecto ~3.8:1)
+            const logoAspect = 881 / 232;
+            let drawLogoW = logoMaxH * logoAspect;
+            let drawLogoH = logoMaxH;
+            if (drawLogoW > logoMaxW) {
+              drawLogoW = logoMaxW;
+              drawLogoH = drawLogoW / logoAspect;
+            }
+            const logoX = pageWidth - margin - drawLogoW;
+            const logoY = margin + (11 - drawLogoH) / 2;
+            const isPngLogo = effectiveLogo.startsWith('data:image/png') || !effectiveLogo.startsWith('data:image/jpeg');
+            doc.addImage(effectiveLogo, isPngLogo ? 'PNG' : 'JPEG', logoX, logoY, drawLogoW, drawLogoH, undefined, 'SLOW');
+
+            // Referencia comercial a la izquierda del logo
+            doc.setFont('courier', 'bold');
+            doc.setFontSize(8.5);
+            doc.setTextColor(100, 116, 139);
+            doc.text('REF: VT-01', logoX - 4, margin + 6, { align: 'right' });
+          } catch (logoErr) {
+            console.warn('Error insertando logo en PDF:', logoErr);
+          }
+        } else {
+          // Referencia comercial a la derecha si no hay logo
+          doc.setFont('courier', 'bold');
+          doc.setFontSize(9);
+          doc.setTextColor(100, 116, 139);
+          doc.text('REF: VT-01', pageWidth - margin, margin + 4.5, { align: 'right' });
+        }
 
         // Línea divisoria superior
         doc.setDrawColor(226, 232, 240); // #E2E8F0
@@ -445,7 +546,7 @@ export async function exportCommercialBrochurePDF({
 
         const sortedMarkers = sortRoomMarkers(markers || []);
 
-        // Señalizar cada estancia en el plano con un círculo azul y número blanco vectorial
+        // Señalizar cada estancia en el plano con círculo personalizado
         if (sortedMarkers && sortedMarkers.length > 0) {
           const circleRadius = 3.2; // mm (~6.4mm diámetro)
           sortedMarkers.forEach((m: any, idx: number) => {
@@ -457,14 +558,14 @@ export async function exportCommercialBrochurePDF({
               doc.setFillColor(255, 255, 255);
               doc.circle(markerX, markerY, circleRadius + 0.45, 'F');
 
-              // Círculo azul marino profesional
-              doc.setFillColor(15, 44, 89);
+              // Círculo personalizado
+              doc.setFillColor(badgeRgb.r, badgeRgb.g, badgeRgb.b);
               doc.circle(markerX, markerY, circleRadius, 'F');
 
-              // Número en color blanco
+              // Número en color contrastante
               doc.setFont('helvetica', 'bold');
               doc.setFontSize(8);
-              doc.setTextColor(255, 255, 255);
+              doc.setTextColor(textRgb.r, textRgb.g, textRgb.b);
               doc.text(String(idx + 1), markerX, markerY + 0.9, { align: 'center' });
             }
           });
@@ -479,11 +580,11 @@ export async function exportCommercialBrochurePDF({
         // Título del Cuadro
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(9);
-        doc.setTextColor(15, 44, 89);
+        doc.setTextColor(badgeRgb.r, badgeRgb.g, badgeRgb.b);
         doc.text('CUADRO DE SUPERFICIES ÚTILES', tableX + 4, contentY + 7.5);
 
-        // Barra decorativa azul marino gruesa
-        doc.setFillColor(15, 44, 89);
+        // Barra decorativa continua
+        doc.setFillColor(badgeRgb.r, badgeRgb.g, badgeRgb.b);
         doc.rect(tableX + 4, contentY + 10, tableWidth - 8, 1.3, 'F');
 
         // Filas de estancias numeradas
@@ -504,7 +605,7 @@ export async function exportCommercialBrochurePDF({
           // Número de orden
           doc.setFont('courier', 'bold');
           doc.setFontSize(8);
-          doc.setTextColor(15, 44, 89);
+          doc.setTextColor(badgeRgb.r, badgeRgb.g, badgeRgb.b);
           doc.text(numStr, tableX + 4, currentY);
 
           // Nombre de la estancia
@@ -558,7 +659,7 @@ export async function exportCommercialBrochurePDF({
         );
 
         doc.setFont('helvetica', 'bold');
-        doc.text('Estudio de Arquitectura', pageWidth - margin, pageHeight - 5.5, { align: 'right' });
+        doc.text('LUBENS ARROYO • Arquitectura & Promociones Inmobiliarias', pageWidth - margin, pageHeight - 5.5, { align: 'right' });
 
         const sanitizedName = sanitizeFilename(filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`);
         doc.save(sanitizedName);
@@ -578,12 +679,16 @@ export async function exportPlanOnlyPDF({
   projectTitle = 'Plano',
   paperFormat = 'a4',
   markers = [],
+  markerBadgeColor = '#0F2C59',
+  promotionLogo = DEFAULT_PROMOTION_LOGO,
   filename = 'plano_alta_resolucion.pdf'
 }: {
   imageSrc: string;
   projectTitle?: string;
   paperFormat?: 'a4' | 'a3';
   markers?: Array<{ id: string; name: string; x?: number; y?: number; areaSqMeters?: number }>;
+  markerBadgeColor?: string;
+  promotionLogo?: string | null;
   filename?: string;
 }): Promise<boolean> {
   return new Promise((resolve) => {
@@ -591,6 +696,10 @@ export async function exportPlanOnlyPDF({
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       try {
+        const badgeRgb = hexToRgb(markerBadgeColor || '#0F2C59');
+        const badgeTextColor = getContrastColor(markerBadgeColor || '#0F2C59');
+        const textRgb = hexToRgb(badgeTextColor);
+
         const isLandscape = (img.naturalWidth || img.width) >= (img.naturalHeight || img.height);
         const format = paperFormat === 'a3' ? 'a3' : 'a4';
 
@@ -623,6 +732,28 @@ export async function exportPlanOnlyPDF({
         doc.setTextColor(100, 116, 139);
         doc.text(`DOCUMENTO TÉCNICO ARQUITECTÓNICO • ESCALA COMPLETA • FORMATO ${format.toUpperCase()}`, margin, margin + 8.5);
 
+        // Si hay logo de la promoción, dibujarlo en la esquina superior derecha
+        const effectiveLogo = promotionLogo || DEFAULT_PROMOTION_LOGO;
+        if (effectiveLogo) {
+          try {
+            const logoMaxH = isA3 ? 10 : 8;
+            const logoMaxW = isA3 ? 42 : 34;
+            const logoAspect = 881 / 232;
+            let drawLogoW = logoMaxH * logoAspect;
+            let drawLogoH = logoMaxH;
+            if (drawLogoW > logoMaxW) {
+              drawLogoW = logoMaxW;
+              drawLogoH = drawLogoW / logoAspect;
+            }
+            const logoX = pageWidth - margin - drawLogoW;
+            const logoY = margin + (11 - drawLogoH) / 2;
+            const isPngLogo = effectiveLogo.startsWith('data:image/png') || !effectiveLogo.startsWith('data:image/jpeg');
+            doc.addImage(effectiveLogo, isPngLogo ? 'PNG' : 'JPEG', logoX, logoY, drawLogoW, drawLogoH, undefined, 'SLOW');
+          } catch (logoErr) {
+            console.warn('Error insertando logo en PDF de plano:', logoErr);
+          }
+        }
+
         doc.setDrawColor(226, 232, 240);
         doc.setLineWidth(0.4);
         doc.line(margin, margin + 11, pageWidth - margin, margin + 11);
@@ -653,7 +784,7 @@ export async function exportPlanOnlyPDF({
 
         const sortedMarkers = sortRoomMarkers(markers || []);
 
-        // Señalizar cada estancia en el plano con un círculo azul y número blanco profesional
+        // Señalizar cada estancia en el plano con el color de badge personalizado
         if (sortedMarkers && sortedMarkers.length > 0) {
           const circleRadius = isA3 ? 4.2 : 3.2; // mm
           sortedMarkers.forEach((m: any, idx: number) => {
@@ -665,14 +796,14 @@ export async function exportPlanOnlyPDF({
               doc.setFillColor(255, 255, 255);
               doc.circle(markerX, markerY, circleRadius + 0.45, 'F');
 
-              // Círculo azul marino profesional
-              doc.setFillColor(15, 44, 89);
+              // Círculo personalizado
+              doc.setFillColor(badgeRgb.r, badgeRgb.g, badgeRgb.b);
               doc.circle(markerX, markerY, circleRadius, 'F');
 
-              // Número en blanco
+              // Número con contraste adecuado
               doc.setFont('helvetica', 'bold');
               doc.setFontSize(isA3 ? 10 : 8);
-              doc.setTextColor(255, 255, 255);
+              doc.setTextColor(textRgb.r, textRgb.g, textRgb.b);
               doc.text(String(idx + 1), markerX, markerY + (isA3 ? 1.2 : 0.9), { align: 'center' });
             }
           });

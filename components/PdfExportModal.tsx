@@ -12,6 +12,8 @@ interface PdfExportModalProps {
   imageSrc: string | null;
   projectTitle: string;
   markers: RoomMarker[];
+  markerBadgeColor?: string;
+  promotionLogo?: string | null;
 }
 
 export function PdfExportModal({
@@ -19,7 +21,9 @@ export function PdfExportModal({
   onClose,
   imageSrc,
   projectTitle,
-  markers
+  markers,
+  markerBadgeColor,
+  promotionLogo
 }: PdfExportModalProps) {
   const [selectedFormat, setSelectedFormat] = useState<'brochure_a4' | 'plan_a4' | 'plan_a3' | 'brochure_png'>('brochure_a4');
   const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -40,6 +44,8 @@ export function PdfExportModal({
           imageSrc,
           projectTitle: safeTitle,
           markers,
+          markerBadgeColor,
+          promotionLogo,
           filename: `ficha_vectorial_${safeTitle.toLowerCase().replace(/[^\w]/g, '_')}.pdf`
         });
       } else if (selectedFormat === 'plan_a4') {
@@ -48,6 +54,8 @@ export function PdfExportModal({
           projectTitle: safeTitle,
           paperFormat: 'a4',
           markers,
+          markerBadgeColor,
+          promotionLogo,
           filename: `plano_completo_a4_${safeTitle.toLowerCase().replace(/[^\w]/g, '_')}.pdf`
         });
       } else if (selectedFormat === 'plan_a3') {
@@ -56,6 +64,8 @@ export function PdfExportModal({
           projectTitle: safeTitle,
           paperFormat: 'a3',
           markers,
+          markerBadgeColor,
+          promotionLogo,
           filename: `plano_gran_formato_a3_${safeTitle.toLowerCase().replace(/[^\w]/g, '_')}.pdf`
         });
       } else if (selectedFormat === 'brochure_png') {
@@ -63,6 +73,8 @@ export function PdfExportModal({
           imageSrc,
           projectTitle: safeTitle,
           markers,
+          markerBadgeColor,
+          promotionLogo,
           filename: `ficha_comercial_hd_${safeTitle.toLowerCase().replace(/[^\w]/g, '_')}.png`
         });
       }

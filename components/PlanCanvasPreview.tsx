@@ -49,6 +49,26 @@ interface PlanCanvasPreviewProps {
   } | null;
   onPdfPageChange?: (page: number) => void;
   onDropFile?: (file: File) => void;
+  // Personalización de color de puntos identificadores
+  markerBadgeColor?: string;
+  onChangeMarkerBadgeColor?: (color: string) => void;
+  // Logo de la promoción para fichas comerciales
+  promotionLogo?: string | null;
+  onChangePromotionLogo?: (logo: string | null) => void;
+  // Aislamiento / recorte automático de plano
+  onIsolatePlan?: () => void;
+  isPlanIsolated?: boolean;
+}
+
+function getContrastTextColor(hexColor?: string): string {
+  if (!hexColor) return '#FFFFFF';
+  const clean = hexColor.replace('#', '');
+  if (clean.length !== 6) return '#FFFFFF';
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luma > 170 ? '#18181B' : '#FFFFFF';
 }
 
 export function PlanCanvasPreview({
@@ -60,6 +80,12 @@ export function PlanCanvasPreview({
   projectTitle = 'Proyecto Residencial Los Álamos',
   activeMarkerId = null,
   isPinningMode = false,
+  markerBadgeColor = '#0F2C59',
+  onChangeMarkerBadgeColor,
+  promotionLogo,
+  onChangePromotionLogo,
+  onIsolatePlan,
+  isPlanIsolated = false,
   onMarkerClick,
   onCanvasClickToPositionMarker,
   onUpdateMarker,
@@ -85,6 +111,8 @@ export function PlanCanvasPreview({
   onPdfPageChange,
   onDropFile
 }: PlanCanvasPreviewProps) {
+  const badgeBg = markerBadgeColor || '#0F2C59';
+  const badgeText = getContrastTextColor(badgeBg);
   const [activeTab, setActiveTab] = useState<'ficha' | 'rendered' | 'split' | 'source'>('rendered');
   const [commandPrefillText, setCommandPrefillText] = useState<string | null>(null);
   const [sliderPosition, setSliderPosition] = useState<number>(50);
@@ -190,6 +218,8 @@ export function PlanCanvasPreview({
       imageSrc: targetImg,
       projectTitle,
       markers: sortedMarkers,
+      markerBadgeColor: badgeBg,
+      promotionLogo: promotionLogo || undefined,
       filename: `ficha_comercial_${projectTitle.toLowerCase().replace(/[^\w]/g, '_')}.png`
     });
     setIsExportingFicha(false);
@@ -612,6 +642,50 @@ export function PlanCanvasPreview({
             </button>
           )}
 
+          {/* Selector rápido de color de pines */}
+          {roomMarkers.length > 0 && onChangeMarkerBadgeColor && (
+            <label
+              className="p-1.5 rounded-xl border border-stone-700 bg-stone-800/80 hover:bg-stone-700 transition cursor-pointer flex items-center gap-1.5 relative overflow-hidden"
+              title="Color de los puntos identificadores (haz clic para cambiar libremente)"
+            >
+              <span
+                className="w-4 h-4 rounded-full border border-white/60 shadow-xs shrink-0"
+                style={{ backgroundColor: badgeBg }}
+              />
+              <span className="text-[11px] font-mono text-stone-300 font-bold hidden md:inline">
+                {badgeBg}
+              </span>
+              <input
+                type="color"
+                value={badgeBg}
+                onChange={(e) => onChangeMarkerBadgeColor(e.target.value)}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              />
+            </label>
+          )}
+
+          {/* Botón Aislar solo el plano (eliminar precios y textos exteriores) */}
+          {sourceImage && onIsolatePlan && (
+            <button
+              onClick={onIsolatePlan}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                isPlanIsolated
+                  ? 'bg-emerald-700/80 text-emerald-100 border-emerald-500 shadow-xs'
+                  : 'bg-stone-800/80 border-stone-700 text-stone-300 hover:text-white hover:bg-stone-700'
+              }`}
+              title={
+                isPlanIsolated
+                  ? 'Plano aislado: se han eliminado textos y precios exteriores. Clic para alternar original.'
+                  : 'Aislar solo el plano: recorta automáticamente precios, cartelas y textos exteriores.'
+              }
+            >
+              <span className="material-symbols-outlined text-[16px]">
+                {isPlanIsolated ? 'crop_free' : 'crop'}
+              </span>
+              <span>{isPlanIsolated ? 'Plano Aislado' : 'Aislar Plano'}</span>
+            </button>
+          )}
+
           {/* Ocultar/Mostrar overlay de marcadores */}
           {roomMarkers.length > 0 && activeTab !== 'ficha' && (
             <button
@@ -752,23 +826,61 @@ export function PlanCanvasPreview({
           {activeTab === 'ficha' ? (
             <div className="w-full max-w-7xl mx-auto bg-white text-stone-900 rounded-2xl shadow-2xl border border-stone-200/90 p-5 sm:p-7 flex flex-col justify-between max-h-[86vh] overflow-y-auto animate-fadeIn select-text">
               {/* Encabezado Comercial */}
-              <div className="border-b border-stone-200 pb-3 mb-4 flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#0F2C59]" />
-                    <h2 className="text-base sm:text-lg font-black tracking-tight text-[#0F2C59] uppercase font-sans">
-                      {projectTitle || 'Vivienda Residencial'}
-                    </h2>
+              <div className="border-b border-stone-200 pb-3 mb-4 flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-4">
+                  {promotionLogo && (
+                    <div className="bg-white p-1.5 rounded-xl border border-stone-200/90 shadow-2xs flex items-center justify-center shrink-0">
+                      <img
+                        src={promotionLogo}
+                        alt="Logo de la Promoción"
+                        className="h-9 sm:h-11 w-auto max-w-[190px] object-contain"
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: badgeBg }} />
+                      <h2 className="text-base sm:text-lg font-black tracking-tight uppercase font-sans" style={{ color: badgeBg }}>
+                        {projectTitle || 'Vivienda Residencial'}
+                      </h2>
+                    </div>
+                    <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mt-0.5">
+                      FICHA COMERCIAL • PLANO AMUEBLADO Y CUADRO DE SUPERFICIES ÚTILES
+                    </p>
                   </div>
-                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mt-0.5">
-                    FICHA COMERCIAL • PLANO AMUEBLADO Y CUADRO DE SUPERFICIES ÚTILES
-                  </p>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-1 rounded-md bg-stone-100 text-stone-600 text-[11px] font-bold border border-stone-200 font-mono">
                     REF: VT-01
                   </span>
+
+                  {onChangePromotionLogo && (
+                    <label
+                      className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow-xs cursor-pointer"
+                      title="Cambiar o subir logo de la promoción"
+                    >
+                      <span className="material-symbols-outlined text-[15px]">add_photo_alternate</span>
+                      <span>Logo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (evt) => {
+                              if (typeof evt.target?.result === 'string') {
+                                onChangePromotionLogo(evt.target.result);
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  )}
 
                   <button
                     onClick={handleExportFicha}
@@ -822,12 +934,14 @@ export function PlanCanvasPreview({
                               onClick={(e) => e.stopPropagation()}
                               style={{
                                 left: `${marker.x}%`,
-                                top: `${marker.y}%`
+                                top: `${marker.y}%`,
+                                backgroundColor: badgeBg,
+                                color: badgeText
                               }}
-                              className={`absolute -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-[#0F2C59] text-white border-2 border-white shadow-md flex items-center justify-center font-bold text-xs select-none z-30 font-sans transition-transform ${
+                              className={`absolute -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full border-2 border-white shadow-md flex items-center justify-center font-bold text-xs select-none z-30 font-sans transition-transform ${
                                 areMarkersLocked
                                   ? 'cursor-default'
-                                  : 'cursor-grab active:cursor-grabbing hover:scale-120 hover:bg-[#1A365D]'
+                                  : 'cursor-grab active:cursor-grabbing hover:scale-120'
                               } ${
                                 isDragging
                                   ? 'scale-135 ring-4 ring-blue-400 shadow-2xl cursor-grabbing'
@@ -930,7 +1044,7 @@ export function PlanCanvasPreview({
                       )}
                     </div>
                   )}
-                  <SurfaceScheduleTable markers={sortedMarkers} />
+                  <SurfaceScheduleTable markers={sortedMarkers} markerBadgeColor={badgeBg} />
                 </div>
               </div>
 
@@ -1025,12 +1139,14 @@ export function PlanCanvasPreview({
                       }}
                       style={{
                         left: `${marker.x}%`,
-                        top: `${marker.y}%`
+                        top: `${marker.y}%`,
+                        backgroundColor: badgeBg,
+                        color: badgeText
                       }}
-                      className={`absolute -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-[#0F2C59] text-white border-2 border-white shadow-md flex items-center justify-center font-bold text-xs select-none z-30 font-sans transition-transform ${
+                      className={`absolute -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full border-2 border-white shadow-md flex items-center justify-center font-bold text-xs select-none z-30 font-sans transition-transform ${
                         areMarkersLocked
                           ? 'cursor-default'
-                          : 'cursor-grab active:cursor-grabbing hover:scale-120 hover:bg-[#1A365D]'
+                          : 'cursor-grab active:cursor-grabbing hover:scale-120'
                       } ${
                         isDragging
                           ? 'scale-135 ring-4 ring-blue-400 shadow-2xl cursor-grabbing'
@@ -1102,16 +1218,20 @@ export function PlanCanvasPreview({
                             : `Estancia #${idx + 1} (Arrastra para recolocar)`
                         }
                       >
-                        {/* Círculo azul con número blanco profesional */}
+                        {/* Círculo con número profesional */}
                         <div
-                          className={`relative w-7 h-7 rounded-full bg-[#0F2C59] text-white border-2 border-white shadow-md flex items-center justify-center font-bold text-xs font-sans transition-all duration-200 select-none ${
+                          style={{
+                            backgroundColor: badgeBg,
+                            color: badgeText
+                          }}
+                          className={`relative w-7 h-7 rounded-full border-2 border-white shadow-md flex items-center justify-center font-bold text-xs font-sans transition-all duration-200 select-none ${
                             isDragging
                               ? 'scale-135 ring-4 ring-blue-400 shadow-2xl'
                               : isSelected
                               ? 'scale-125 ring-4 ring-blue-400 shadow-2xl'
                               : areMarkersLocked
                               ? ''
-                              : 'hover:scale-115 hover:bg-[#1A365D]'
+                              : 'hover:scale-115'
                           }`}
                         >
                           <span>{idx + 1}</span>
@@ -1224,7 +1344,7 @@ export function PlanCanvasPreview({
               >
                 ✕
               </button>
-              <SurfaceScheduleTable markers={roomMarkers} />
+              <SurfaceScheduleTable markers={roomMarkers} markerBadgeColor={badgeBg} />
             </div>
           </div>
         )}
@@ -1279,6 +1399,8 @@ export function PlanCanvasPreview({
           imageSrc={renderDataUrl || sourceDataUrl}
           projectTitle={projectTitle}
           markers={sortedMarkers}
+          markerBadgeColor={badgeBg}
+          promotionLogo={promotionLogo}
         />
       </div>
     </div>

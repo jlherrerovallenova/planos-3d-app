@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { RoomMarker, RoomCategory } from '../types';
-import { ROOM_CATEGORIES } from '../constants';
+import { ROOM_CATEGORIES, MARKER_COLOR_PRESETS } from '../constants';
 
 interface RoomIdentifierPanelProps {
   markers: RoomMarker[];
+  markerBadgeColor?: string;
+  onChangeMarkerBadgeColor?: (color: string) => void;
   onAddMarker: (category: RoomCategory, name?: string, area?: number) => void;
   onUpdateMarker: (id: string, updates: Partial<RoomMarker>) => void;
   onDeleteMarker: (id: string) => void;
@@ -20,6 +22,8 @@ interface RoomIdentifierPanelProps {
 
 export function RoomIdentifierPanel({
   markers,
+  markerBadgeColor = '#0F2C59',
+  onChangeMarkerBadgeColor,
   onAddMarker,
   onUpdateMarker,
   onDeleteMarker,
@@ -290,6 +294,62 @@ export function RoomIdentifierPanel({
           </div>
         </div>
       )}
+
+      {/* 4.5 Selector de Color de Fondo de los Puntos Identificadores */}
+      <div className="p-2.5 bg-stone-50 border border-stone-200/90 rounded-2xl space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[16px] text-[#c25e38]">palette</span>
+            <span>Color de los Puntos Identificadores</span>
+          </label>
+          <div className="flex items-center gap-1.5">
+            <span
+              className="w-5 h-5 rounded-full border border-white/60 shadow-xs flex items-center justify-center text-[10px] font-black text-white"
+              style={{ backgroundColor: markerBadgeColor }}
+            >
+              1
+            </span>
+            <span className="text-[11px] font-mono text-stone-600 font-bold uppercase">
+              {markerBadgeColor}
+            </span>
+          </div>
+        </div>
+
+        {/* Paleta rápida de colores y selector libre */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {MARKER_COLOR_PRESETS.map((preset) => {
+            const isSelected = (markerBadgeColor || '#0F2C59').toLowerCase() === preset.hex.toLowerCase();
+            return (
+              <button
+                key={preset.hex}
+                type="button"
+                onClick={() => onChangeMarkerBadgeColor && onChangeMarkerBadgeColor(preset.hex)}
+                className={`w-6 h-6 rounded-full transition-transform cursor-pointer border border-black/15 flex items-center justify-center ${
+                  isSelected ? 'scale-120 ring-2 ring-blue-500 ring-offset-1 shadow-sm' : 'hover:scale-110'
+                }`}
+                style={{ backgroundColor: preset.hex }}
+                title={preset.label}
+              >
+                {isSelected && <span className="material-symbols-outlined text-white text-[12px]">check</span>}
+              </button>
+            );
+          })}
+
+          {/* Selector libre con <input type="color" /> */}
+          <label
+            className="w-6 h-6 rounded-full border border-stone-300 hover:border-stone-400 bg-white flex items-center justify-center cursor-pointer transition hover:scale-110 relative overflow-hidden shadow-xs"
+            title="Elegir color personalizado libre"
+          >
+            <span className="material-symbols-outlined text-[13px] text-stone-700">colorize</span>
+            <input
+              type="color"
+              value={markerBadgeColor || '#0F2C59'}
+              onChange={(e) => onChangeMarkerBadgeColor && onChangeMarkerBadgeColor(e.target.value)}
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+            />
+          </label>
+        </div>
+      </div>
 
       {/* 5. Lista de Estancias añadidas */}
       <div className="space-y-1.5 pt-1">

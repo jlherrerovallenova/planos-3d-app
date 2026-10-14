@@ -4,16 +4,19 @@ import { sortRoomMarkers } from '../services/roomSorter';
 
 interface SurfaceScheduleTableProps {
   markers: RoomMarker[];
+  markerBadgeColor?: string;
   className?: string;
   showTotal?: boolean;
 }
 
 export function SurfaceScheduleTable({
   markers,
+  markerBadgeColor = '#0F2C59',
   className = '',
   showTotal = true
 }: SurfaceScheduleTableProps) {
   const sortedMarkers = useMemo(() => sortRoomMarkers(markers), [markers]);
+  const accentColor = markerBadgeColor || '#0F2C59';
 
   // Calcular superficie total sumando las áreas existentes
   const totalArea = sortedMarkers.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0);
@@ -34,15 +37,15 @@ export function SurfaceScheduleTable({
       {/* Título Principal de la Ficha */}
       <h3
         className="text-[13px] font-black uppercase tracking-wider mb-1.5 text-center sm:text-left"
-        style={{ color: '#0F2C59' }}
+        style={{ color: accentColor }}
       >
         CUADRO DE SUPERFICIES ÚTILES
       </h3>
 
-      {/* Franja decorativa azul marino gruesa idéntica a la captura */}
+      {/* Franja decorativa color personalizado */}
       <div
-        className="h-1 rounded-full mb-3.5 w-full"
-        style={{ backgroundColor: '#0F2C59' }}
+        className="h-1 rounded-full mb-3.5 w-full transition-colors duration-200"
+        style={{ backgroundColor: accentColor }}
       />
 
       {/* Lista de Estancias Numeradas */}
@@ -64,13 +67,12 @@ export function SurfaceScheduleTable({
               <div className="flex items-baseline gap-2 min-w-0">
                 <span
                   className="font-black text-[12px] shrink-0 font-mono"
-                  style={{ color: '#0F2C59' }}
+                  style={{ color: accentColor }}
                 >
                   {numFormatted}
                 </span>
                 <span
-                  className="font-bold text-[11.5px] uppercase truncate"
-                  style={{ color: '#1B365D' }}
+                  className="font-bold text-[11.5px] uppercase truncate text-stone-800"
                   title={marker.name}
                 >
                   {marker.name}
@@ -79,7 +81,7 @@ export function SurfaceScheduleTable({
 
               <span
                 className="font-black text-[12.5px] whitespace-nowrap text-right shrink-0"
-                style={{ color: '#0F2C59' }}
+                style={{ color: accentColor }}
               >
                 {formatM2(marker.areaSqMeters)}
               </span>
@@ -94,13 +96,13 @@ export function SurfaceScheduleTable({
         <div className="mt-3.5 pt-2.5 border-t-2 border-stone-200 flex items-center justify-between">
           <span
             className="text-[11px] font-black uppercase tracking-wider"
-            style={{ color: '#0F2C59' }}
+            style={{ color: accentColor }}
           >
             SUPERFICIE ÚTIL TOTAL
           </span>
           <span
             className="text-[13px] font-black"
-            style={{ color: '#0F2C59' }}
+            style={{ color: accentColor }}
           >
             {formatM2(totalArea)}
           </span>

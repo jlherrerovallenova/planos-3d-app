@@ -14,6 +14,7 @@ import {
   buildTargetedCorrectionPrompt,
   parseTargetedRoomFromText
 } from './services/promptBuilder';
+import { DEFAULT_PROMOTION_LOGO } from './services/defaultPromotionLogo';
 import { PlanCanvasPreview } from './components/PlanCanvasPreview';
 import { StyleSelector } from './components/StyleSelector';
 import { IntroModal } from './components/IntroModal';
@@ -23,6 +24,11 @@ import { analyzeBlueprintRooms } from './services/planAnalyzer';
 import { sortRoomMarkers } from './services/roomSorter';
 import { eraseTextAtCoordinate } from './services/planTextEraser';
 import { convertPdfToImage } from './services/pdfConverter';
+import {
+  cropImageToBoundingBox,
+  remapMarkersToCrop,
+  isSignificantCrop
+} from './services/planCropper';
 
 export function App() {
   // 1. Título y Configuración de renderizado
@@ -38,6 +44,16 @@ export function App() {
     name?: string;
     mediaId?: string;
   } | null>(null);
+
+  // Imagen original sin recortar (permite alternar entre plano aislado y original)
+  const [originalSourceImage, setOriginalSourceImage] = useState<{
+    base64: string;
+    mimeType: string;
+    name?: string;
+    mediaId?: string;
+  } | null>(null);
+  const [isPlanIsolated, setIsPlanIsolated] = useState<boolean>(false);
+  const [detectedBlueprintBox, setDetectedBlueprintBox] = useState<[number, number, number, number] | null>(null);
 
   const [renderedResult, setRenderedResult] = useState<{
     base64: string;
@@ -79,23 +95,45 @@ export function App() {
   // Limpieza de textos y nombres en plano
   const [isCleaningPlanText, setIsCleaningPlanText] = useState<boolean>(false);
 
-  // Análisis automático de estancias y superficies útiles con Gemini Vision
+  // Análisis automático de estancias, aislamiento de plano y superficies útiles con Gemini Vision
   const triggerPlanAnalysis = async (imgBase64: string, mime: string) => {
     setIsAnalyzingPlan(true);
     setGenerationError(null);
     try {
       const result = await analyzeBlueprintRooms(imgBase64, mime);
-      if (result.cleanedImageBase64) {
-        setSourceImage((prev) => (prev ? { ...prev, base64: result.cleanedImageBase64! } : prev));
+      let activeBase64 = result.cleanedImageBase64 || imgBase64;
+      let activeMime = mime;
+      let processedRooms = result.rooms || [];
+      let wasCropped = false;
+
+      // Aislamiento automático del plano: si contiene precios, cartelas o márgenes exteriores
+      if (result.blueprintBoundingBox && isSignificantCrop(result.blueprintBoundingBox)) {
+        try {
+          setDetectedBlueprintBox(result.blueprintBoundingBox);
+          const dataUrl = `data:${activeMime};base64,${activeBase64}`;
+          const cropRes = await cropImageToBoundingBox(dataUrl, result.blueprintBoundingBox, 2.5);
+          activeBase64 = cropRes.cleanBase64;
+          activeMime = cropRes.mimeType;
+          processedRooms = remapMarkersToCrop(processedRooms, cropRes.cropBox);
+          wasCropped = true;
+          setIsPlanIsolated(true);
+        } catch (cropErr) {
+          console.warn('Error al aislar plano automáticamente:', cropErr);
+        }
       }
-      if (result.rooms && result.rooms.length > 0) {
-        const sorted = sortRoomMarkers(result.rooms);
+
+      setSourceImage((prev) => (prev ? { ...prev, base64: activeBase64, mimeType: activeMime } : prev));
+
+      if (processedRooms.length > 0) {
+        const sorted = sortRoomMarkers(processedRooms);
         setConfig((prev) => ({
           ...prev,
           roomMarkers: sorted
         }));
         setGenerationSuccessMessage(
-          `¡Plano analizado y textos de estancias eliminados! Se han detectado ${result.rooms.length} estancias ordenadas comercialmente. En el plano solo se muestran los números identificadores.`
+          wasCropped
+            ? `¡Plano arquitectónico extraído y aislado! Se han eliminado automáticamente los precios y textos exteriores, detectando ${processedRooms.length} estancias útiles.`
+            : `¡Plano analizado y textos de estancias eliminados! Se han detectado ${processedRooms.length} estancias ordenadas comercialmente.`
         );
       }
     } catch (err: any) {
@@ -106,7 +144,8 @@ export function App() {
   };
 
   const handleDetectRooms = async () => {
-    if (!sourceImage) {
+    const targetImg = originalSourceImage || sourceImage;
+    if (!targetImg) {
       setGenerationError('Carga primero una imagen del plano para analizarla.');
       return;
     }
@@ -114,18 +153,39 @@ export function App() {
     setGenerationError(null);
     setGenerationSuccessMessage(null);
     try {
-      const result = await analyzeBlueprintRooms(sourceImage.base64, sourceImage.mimeType);
-      if (result.cleanedImageBase64) {
-        setSourceImage((prev) => (prev ? { ...prev, base64: result.cleanedImageBase64! } : prev));
+      const result = await analyzeBlueprintRooms(targetImg.base64, targetImg.mimeType);
+      let activeBase64 = result.cleanedImageBase64 || targetImg.base64;
+      let activeMime = targetImg.mimeType;
+      let processedRooms = result.rooms || [];
+      let wasCropped = false;
+
+      if (result.blueprintBoundingBox && isSignificantCrop(result.blueprintBoundingBox)) {
+        try {
+          setDetectedBlueprintBox(result.blueprintBoundingBox);
+          const dataUrl = `data:${activeMime};base64,${activeBase64}`;
+          const cropRes = await cropImageToBoundingBox(dataUrl, result.blueprintBoundingBox, 2.5);
+          activeBase64 = cropRes.cleanBase64;
+          activeMime = cropRes.mimeType;
+          processedRooms = remapMarkersToCrop(processedRooms, cropRes.cropBox);
+          wasCropped = true;
+          setIsPlanIsolated(true);
+        } catch (cropErr) {
+          console.warn('Error al aislar plano:', cropErr);
+        }
       }
-      if (result.rooms && result.rooms.length > 0) {
-        const sorted = sortRoomMarkers(result.rooms);
+
+      setSourceImage((prev) => (prev ? { ...prev, base64: activeBase64, mimeType: activeMime } : prev));
+
+      if (processedRooms.length > 0) {
+        const sorted = sortRoomMarkers(processedRooms);
         setConfig((prev) => ({
           ...prev,
           roomMarkers: sorted
         }));
         setGenerationSuccessMessage(
-          `¡Plano limpio y analizado! Se detectaron ${result.rooms.length} estancias ordenadas comercialmente y se eliminaron los nombres y superficies del plano (${result.totalUsefulArea ? result.totalUsefulArea + ' m²' : ''}).`
+          wasCropped
+            ? `¡Plano aislado con éxito! Precios y textos exteriores eliminados (${processedRooms.length} estancias detectadas).`
+            : `¡Plano limpio y analizado! Se detectaron ${processedRooms.length} estancias ordenadas comercialmente.`
         );
       } else {
         setGenerationError('No se encontraron estancias rotuladas en el plano.');
@@ -134,6 +194,46 @@ export function App() {
       setGenerationError(`Error al analizar el plano: ${err?.message || err}`);
     } finally {
       setIsAnalyzingPlan(false);
+    }
+  };
+
+  // Alternar entre el plano aislado (recortado sin precios/textos) y la imagen original completa
+  const handleToggleIsolatePlan = async () => {
+    if (!sourceImage && !originalSourceImage) return;
+
+    if (isPlanIsolated && originalSourceImage) {
+      // Revertir al plano original sin recorte
+      setSourceImage(originalSourceImage);
+      setIsPlanIsolated(false);
+      setGenerationSuccessMessage('Mostrando plano original completo (sin recorte).');
+      return;
+    }
+
+    const baseImg = originalSourceImage || sourceImage;
+    if (!baseImg) return;
+
+    if (detectedBlueprintBox) {
+      try {
+        const dataUrl = `data:${baseImg.mimeType};base64,${baseImg.base64}`;
+        const cropRes = await cropImageToBoundingBox(dataUrl, detectedBlueprintBox, 2.5);
+        setSourceImage({
+          ...baseImg,
+          base64: cropRes.cleanBase64,
+          mimeType: cropRes.mimeType
+        });
+        if (config.roomMarkers && config.roomMarkers.length > 0) {
+          setConfig((prev) => ({
+            ...prev,
+            roomMarkers: remapMarkersToCrop(prev.roomMarkers, cropRes.cropBox)
+          }));
+        }
+        setIsPlanIsolated(true);
+        setGenerationSuccessMessage('¡Plano arquitectónico aislado! Precios y textos exteriores eliminados.');
+      } catch (err) {
+        console.warn('Error recortando plano:', err);
+      }
+    } else {
+      triggerPlanAnalysis(baseImg.base64, baseImg.mimeType);
     }
   };
 
@@ -186,11 +286,14 @@ export function App() {
           numPages: res.numPages,
           currentPage: 1
         });
-        setSourceImage({
+        const loadedImg = {
           base64: res.base64,
           mimeType: 'image/png',
           name: file.name.replace(/\.pdf$/i, '') + (res.numPages > 1 ? ' (Pág. 1)' : '')
-        });
+        };
+        setSourceImage(loadedImg);
+        setOriginalSourceImage(loadedImg);
+        setIsPlanIsolated(false);
         setRenderedResult(null);
         triggerPlanAnalysis(res.base64, 'image/png');
       } catch (err: any) {
@@ -227,15 +330,18 @@ export function App() {
         }
       }
 
-      setSourceImage({
+      const loadedImg = {
         base64: cleanBase64,
         mimeType,
         name: file.name,
         mediaId
-      });
+      };
+      setSourceImage(loadedImg);
+      setOriginalSourceImage(loadedImg);
+      setIsPlanIsolated(false);
       setRenderedResult(null);
       setGenerationError(null);
-      // Extraer estancias y superficies automáticamente con IA
+      // Extraer estancias y aislar plano automáticamente con IA
       triggerPlanAnalysis(cleanBase64, mimeType);
     };
 
@@ -250,11 +356,14 @@ export function App() {
       setGenerationError(null);
       const res = await convertPdfToImage(pdfFileInfo.file, targetPage);
       setPdfFileInfo((prev) => (prev ? { ...prev, currentPage: targetPage } : null));
-      setSourceImage({
+      const loadedImg = {
         base64: res.base64,
         mimeType: 'image/png',
         name: `${pdfFileInfo.file.name.replace(/\.pdf$/i, '')} (Pág. ${targetPage})`
-      });
+      };
+      setSourceImage(loadedImg);
+      setOriginalSourceImage(loadedImg);
+      setIsPlanIsolated(false);
       setRenderedResult(null);
       triggerPlanAnalysis(res.base64, 'image/png');
     } catch (err: any) {
@@ -281,12 +390,15 @@ export function App() {
         if (item && item.base64) {
           const { cleanBase64, mimeType } = cleanBase64Data(item.base64);
           const finalMime = item.mimeType || mimeType;
-          setSourceImage({
+          const loadedImg = {
             base64: cleanBase64,
             mimeType: finalMime,
             name: item.name || 'Plano desde galería',
             mediaId: item.mediaId
-          });
+          };
+          setSourceImage(loadedImg);
+          setOriginalSourceImage(loadedImg);
+          setIsPlanIsolated(false);
           setRenderedResult(null);
           setGenerationError(null);
           triggerPlanAnalysis(cleanBase64, finalMime);
@@ -314,11 +426,14 @@ export function App() {
         ctx.drawImage(img, 0, 0);
         const dataUrl = canvas.toDataURL('image/png');
         const { cleanBase64 } = cleanBase64Data(dataUrl);
-        setSourceImage({
+        const loadedImg = {
           base64: cleanBase64,
           mimeType: 'image/png',
           name: sampleName
-        });
+        };
+        setSourceImage(loadedImg);
+        setOriginalSourceImage(loadedImg);
+        setIsPlanIsolated(false);
         setRenderedResult(null);
         setGenerationError(null);
         triggerPlanAnalysis(cleanBase64, 'image/png');
@@ -988,6 +1103,12 @@ export function App() {
               isGenerating={isGenerating}
               cameraAngle={config.cameraAngle}
               roomMarkers={config.roomMarkers || []}
+              markerBadgeColor={config.markerBadgeColor || '#0F2C59'}
+              onChangeMarkerBadgeColor={(color) => setConfig((prev) => ({ ...prev, markerBadgeColor: color }))}
+              promotionLogo={config.promotionLogo || DEFAULT_PROMOTION_LOGO}
+              onChangePromotionLogo={(logo) => setConfig((prev) => ({ ...prev, promotionLogo: logo || undefined }))}
+              onIsolatePlan={handleToggleIsolatePlan}
+              isPlanIsolated={isPlanIsolated}
               projectTitle={projectTitle}
               activeMarkerId={activeMarkerId}
               isPinningMode={isPinningMode}
@@ -998,6 +1119,9 @@ export function App() {
               onTogglePinningMode={() => setIsPinningMode(!isPinningMode)}
               onClearPlan={() => {
                 setSourceImage(null);
+                setOriginalSourceImage(null);
+                setIsPlanIsolated(false);
+                setDetectedBlueprintBox(null);
                 setRenderedResult(null);
               }}
               onSelectFromGallery={handleSelectFromGallery}

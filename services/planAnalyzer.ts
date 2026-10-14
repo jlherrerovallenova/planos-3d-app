@@ -9,6 +9,7 @@ export interface PlanAnalysisResult {
   terraceArea?: number;
   constructedArea?: number;
   textBoxes?: TextBoxDetection[];
+  blueprintBoundingBox?: [number, number, number, number];
   cleanedImageBase64?: string;
   rawResponse?: string;
 }
@@ -53,6 +54,9 @@ INSTRUCCIONES CLAVE:
    Si no hay 3 dormitorios, el Baño pasa a la posición 4 y así sucesivamente de forma natural.
 6. DETECCIÓN DE TEXTOS PARA ELIMINACIÓN:
    Detecta las cajas de delimitación [ymin, xmin, ymax, xmax] en escala 0-1000 de TODOS los textos rotulados dentro de las habitaciones (nombres de estancias como 'Salón', 'Dormitorio', 'Baño', 'Aseo', 'Vestíbulo', 'Pasillo', 'Distribuidor', 'Terraza' y números de superficie m2 como '30.74', '10.43', '4.14', etc.). Devuélvelos en el array 'textBoxes'.
+7. DETECCIÓN Y AISLAMIENTO DEL PLANO (BLUEPRINT BOUNDING BOX):
+   Detecta la caja delimitadora [ymin, xmin, ymax, xmax] en escala 0-1000 que encuadra EXCLUSIVAMENTE los muros exteriores y el perímetro de la vivienda / plano arquitectónico ('blueprintBoundingBox').
+   REGLA ESTRICTA DE EXCLUSIÓN: Si la imagen contiene columnas de texto externas, listados de precios (ejemplo: '5º B 250.000', '4º B 245.000', listas de importes), logotipos, leyendas, márgenes vacíos o dibujos secundarios fuera de la vivienda: EXCLÚYELOS de la caja. El 'blueprintBoundingBox' debe encuadrar ÚNICA Y EXCLUSIVAMENTE el plano de la vivienda.
 
 Devuelve estrictamente un objeto JSON con el siguiente esquema:
 {
@@ -71,6 +75,7 @@ Devuelve estrictamente un objeto JSON con el siguiente esquema:
       "box2d": [591, 62, 608, 103]
     }
   ],
+  "blueprintBoundingBox": [150, 480, 880, 850],
   "totalUsefulArea": 83.95,
   "terraceArea": 10.70,
   "constructedArea": 109.43
@@ -145,6 +150,9 @@ Devuelve estrictamente un objeto JSON con el siguiente esquema:
     terraceArea: parsed.terraceArea,
     constructedArea: parsed.constructedArea,
     textBoxes: detectedBoxes,
+    blueprintBoundingBox: Array.isArray(parsed.blueprintBoundingBox) && parsed.blueprintBoundingBox.length === 4
+      ? parsed.blueprintBoundingBox
+      : undefined,
     cleanedImageBase64: cleanedBase64Result,
     rawResponse: textContent
   };

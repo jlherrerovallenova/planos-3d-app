@@ -11,7 +11,8 @@ import {
   WINDOW_FRAME_OPTIONS,
   DOOR_FINISH_OPTIONS,
   WALL_COLOR_OPTIONS,
-  ROOM_CATEGORIES
+  ROOM_CATEGORIES,
+  KITCHEN_COUNTERTOP_OPTIONS
 } from '../constants';
 export function buildArchitecturalPrompt(config: RenderConfig): string {
   const selectedPalette = COLOR_PALETTE_SCHEMES.find(p => p.id === config.colorPalette) || COLOR_PALETTE_SCHEMES[0];
@@ -26,6 +27,7 @@ export function buildArchitecturalPrompt(config: RenderConfig): string {
   const selectedDoor = DOOR_FINISH_OPTIONS.find(d => d.id === config.doorFinish) || DOOR_FINISH_OPTIONS[0];
   const selectedInteriorWall = WALL_COLOR_OPTIONS.find(w => w.id === config.interiorWallColor) || WALL_COLOR_OPTIONS[0];
   const selectedExteriorWall = WALL_COLOR_OPTIONS.find(w => w.id === config.exteriorWallColor) || WALL_COLOR_OPTIONS[0];
+  const selectedCountertop = KITCHEN_COUNTERTOP_OPTIONS.find(c => c.id === config.kitchenCountertop) || KITCHEN_COUNTERTOP_OPTIONS[0];
   // Descripción del suelo de cocina teniendo en cuenta si es GRES con color
   const kitchenFloorPrompt = (config.flooringKitchen === 'gres_porcelanico_cocina' || config.flooringKitchen === 'porcelain_gres_kitchen')
     ? selectedKitchenGresColor.promptKeyword
@@ -39,6 +41,13 @@ export function buildArchitecturalPrompt(config: RenderConfig): string {
 3. The floor surfaces inside all rooms must be 100% CLEAN of text: ONLY pure architectural flooring materials, walls, and furniture.
 4. Each room is identified strictly by an external number badge, NEVER by printed text, English subtitles, or surface numbers in the image.
 STRICT RULE: ZERO text, ZERO English subtitles, ZERO room names, ZERO square meter numbers inside the rooms or on the floor.`;
+
+  // DIRECTIVA ESTRICTA: AISLAR Y EXTRAER EXCLUSIVAMENTE EL PLANO (PROHIBICIÓN TOTAL DE PRECIOS, TEXTOS EXTERNOS Y DIBUJOS MARGINALES)
+  const strictExtractOnlyPlanDirective = `MANDATORY EXTRACTION RULE — ISOLATE ONLY THE ARCHITECTURAL FLOOR PLAN:
+1. ABSOLUTE PROHIBITION OF EXTERNAL TEXTS, PRICES, AND MARGIN GRAPHICS: If the reference input blueprint or uploaded image contains prices (such as apartment floor levels and prices like "5º B 250.000", "4º B 245.000", price tables, currency sums, square meter cost), external marketing copy, title blocks, carátulas, promotional text columns, or side drawings outside the floor plan:
+   DO NOT copy, paint, render, or reproduce ANY of those external texts, prices, or side elements in the generated image!
+2. EXTRACT STRICTLY THE RESIDENTIAL APARTMENT FLOOR PLAN FOOTPRINT: The final generated render MUST ONLY contain the residential building floor plan itself, tightly cropped and centered on a solid clean background.
+3. ZERO PRICES, ZERO EXTERIOR TEXTS, ZERO SIDE DRAWINGS anywhere in the frame.`;
 
   // CLÁUSULA CRÍTICA: IDENTIFICACIÓN Y MOBILIARIO DE ESTANCIAS (SIN TEXTO)
   let roomsIdentificationClause = '';
@@ -65,6 +74,14 @@ STRICT RULE: ZERO text, ZERO English subtitles, ZERO room names, ZERO square met
   // DIRECTIVA ESTRICTA: NUNCA DIBUJAR TABLAS, LISTAS DE MATERIALES NI CUADROS DE TEXTO EN LA IMAGEN
   const strictNoTablesDirective = `ABSOLUTE PROHIBITION OF GRAPHIC TABLES OR TEXT SCHEDULES: DO NOT render or draw ANY table, chart, list of materials, legend, schedule box, text banner, or spreadsheet in or beside the floor plan. The output image must ONLY contain the pure architectural floor plan and its interior rooms/furniture. Absolutely NO side tables, NO material charts, NO text lists anywhere in the generated image.`;
 
+  // DIRECTIVA ESTRICTA: DETALLE GRÁFICO ARQUITECTÓNICO EXACTO DE ARMARIOS EMPOTRADOS (BARRA Y PERCHAS CAD)
+  const commercialWardrobes2dDirective = `CRITICAL ARCHITECTURAL DRAWING STANDARD FOR BUILT-IN WARDROBES (ARMARIOS EMPOTRADOS CON BARRA Y ROPA COLGADA):
+In all built-in wardrobes, fitted closets, and dressing areas (in master bedroom, secondary bedrooms, dressing rooms, and hallway/entry closets):
+Render them strictly in the standard top-down 2D CAD architectural blueprint symbol for clothes hanging closets:
+1. Draw an open wardrobe compartment with a continuous horizontal longitudinal centerline representing the hanging rod / clothes rail (barra de colgar longitudinal central que va de lado a lado).
+2. Across this central hanging rod, draw a continuous repeating rhythm of vertical and alternating slightly slanted/diagonal hatching line strokes crossing through the rail (trazos técnicos lineales verticales e inclinados alternados: / | \\ | / | \\ / | \\ que representan las perchas y prendas de ropa colgadas vistas en planta superior).
+3. The interior of every built-in wardrobe must clearly exhibit this exact linear CAD blueprint symbol (continuous longitudinal rod crossed by alternating slanted and vertical hanger ticks), exactly as shown in standard Spanish commercial catalog blueprints. Never draw an opaque solid closed box, never leave the wardrobe area blank/empty, and never draw cartoon plastic hangers.`;
+
   const cleanedExtraDetails = config.extraDetails
     ? config.extraDetails
         .replace(/cuadro\s*(de)?\s*(superficies?|materiales?)/gi, '')
@@ -76,22 +93,27 @@ STRICT RULE: ZERO text, ZERO English subtitles, ZERO room names, ZERO square met
     return [
       `Clean top-down 2D colored architectural floor plan rendered strictly from the reference blueprint layout.`,
       `Zero perspective distortion, completely flat 2D graphic catalog floor plan with furniture symbols placed in top view.`,
+      strictExtractOnlyPlanDirective,
       strictFramingAndOccupancyDirective,
       strictNoTextInRoomsDirective,
       roomsIdentificationClause,
+      commercialWardrobes2dDirective,
       `Interior style: ${selectedStyle.label}.`,
       `Walls: ${selectedInteriorWall.promptKeyword} on interior walls, ${selectedExteriorWall.promptKeyword} on perimeter exterior walls.`,
       `Flooring living & bedrooms: ${selectedLivingFloor.label}.`,
       `Kitchen flooring: ${kitchenFloorPrompt}.`,
+      `Kitchen countertop: ${selectedCountertop.promptKeyword}.`,
       `Bathrooms flooring: ${selectedBathGres60.promptKeyword}.`,
       `${showerTrayRule}`,
       `Terrace flooring: ${selectedTerraceFloor.promptKeyword}.`,
       `Windows: ${selectedWindowType.promptKeyword} in ${selectedWindowFinish.promptKeyword}.`,
       `Doors & wardrobes: ${selectedDoor.promptKeyword}.`,
+      commercialWardrobes2dDirective,
       `Color scheme: ${selectedPalette.promptKeyword}.`,
       cleanedExtraDetails ? `Extra notes: ${cleanedExtraDetails}.` : '',
       strictNoTablesDirective,
       strictNoTextInRoomsDirective,
+      strictExtractOnlyPlanDirective,
       strictFramingAndOccupancyDirective,
       `Crisp architectural drawing lines, completely clean floors with zero text and zero surface numbers, professional marketing presentation.`
     ].filter(Boolean).join(' ');
@@ -106,6 +128,7 @@ STRICT RULE: ZERO text, ZERO English subtitles, ZERO room names, ZERO square met
   return [
     `Transform this blueprint into an ultra-realistic ${angleDesc}.`,
     `Strictly follow the room boundaries and wall positions of the reference blueprint without adding extra rooms.`,
+    strictExtractOnlyPlanDirective,
     strictFramingAndOccupancyDirective,
     strictNoTextInRoomsDirective,
     roomsIdentificationClause,
@@ -114,14 +137,17 @@ STRICT RULE: ZERO text, ZERO English subtitles, ZERO room names, ZERO square met
     `Interior style: ${selectedStyle.promptKeyword}.`,
     `Living room & bedrooms flooring: ${selectedLivingFloor.label}.`,
     `Kitchen flooring: ${kitchenFloorPrompt}.`,
+    `Kitchen countertop work surfaces: ${selectedCountertop.promptKeyword}.`,
     `Bathrooms flooring: ${selectedBathGres60.promptKeyword}.`,
     `${showerTrayRule}`,
     `Terrace flooring: ${selectedTerraceFloor.promptKeyword}.`,
     `Windows: ${selectedWindowType.promptKeyword} with ${selectedWindowFinish.promptKeyword}.`,
     `Doors: ${selectedDoor.promptKeyword}.`,
+    config.cameraAngle === 'cenital_90' ? `Built-in wardrobes (armarios empotrados): top-down open cut showing central longitudinal hanging rod crossed by alternating vertical and slanted strokes representing clothes hung on hangers (CAD wardrobe hatching standard).` : '',
     `Color palette: ${selectedPalette.promptKeyword}.`,
     `Lighting: warm soft natural daylight streaming through exterior windows with gentle ambient occlusion.`,
     cleanedExtraDetails ? `Client details: ${cleanedExtraDetails}.` : '',
+    strictExtractOnlyPlanDirective,
     `Unreal Engine 5 archviz render quality, crisp geometry, clean photorealistic textures, zero text and zero surface numbers inside rooms.`
   ].filter(Boolean).join(' ');
 }

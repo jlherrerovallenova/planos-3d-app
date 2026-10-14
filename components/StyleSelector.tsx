@@ -16,8 +16,11 @@ import {
   WINDOW_TYPE_OPTIONS,
   WINDOW_FRAME_OPTIONS,
   DOOR_FINISH_OPTIONS,
-  WALL_COLOR_OPTIONS
+  WALL_COLOR_OPTIONS,
+  KITCHEN_COUNTERTOP_OPTIONS,
+  MARKER_COLOR_PRESETS
 } from '../constants';
+import { DEFAULT_PROMOTION_LOGO } from '../services/defaultPromotionLogo';
 
 interface StyleSelectorProps {
   config: RenderConfig;
@@ -305,6 +308,79 @@ export function StyleSelector({
                 })}
               </div>
             </div>
+
+            {/* Logo de la Promoción para Fichas Comerciales */}
+            <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200/90 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[16px] text-[#c25e38]">apartment</span>
+                  <span>Logo de la Promoción (Fichas Comerciales)</span>
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-stone-200 text-stone-700 font-mono">
+                  LUBENS
+                </span>
+              </div>
+
+              {/* Vista previa del logo actual */}
+              <div className="bg-white border border-stone-200 rounded-xl p-3 flex items-center justify-center min-h-[50px] shadow-2xs">
+                {config.promotionLogo ? (
+                  <img
+                    src={config.promotionLogo}
+                    alt="Logo de la promoción"
+                    className="max-h-10 w-auto max-w-full object-contain"
+                  />
+                ) : (
+                  <span className="text-xs text-stone-400 italic">Sin logo configurado</span>
+                )}
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex items-center gap-2">
+                <label className="flex-1 px-3 py-1.5 bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer">
+                  <span className="material-symbols-outlined text-[15px] text-[#c25e38]">upload</span>
+                  <span>Subir otro logo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                          if (typeof evt.target?.result === 'string') {
+                            updateField('promotionLogo', evt.target.result);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+
+                {config.promotionLogo !== DEFAULT_PROMOTION_LOGO && (
+                  <button
+                    type="button"
+                    onClick={() => updateField('promotionLogo', DEFAULT_PROMOTION_LOGO)}
+                    className="px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 rounded-xl text-xs font-medium transition cursor-pointer"
+                    title="Restablecer logo oficial Lubens"
+                  >
+                    Restablecer
+                  </button>
+                )}
+
+                {config.promotionLogo && (
+                  <button
+                    type="button"
+                    onClick={() => updateField('promotionLogo', undefined)}
+                    className="p-1.5 text-stone-400 hover:text-red-600 rounded-xl transition cursor-pointer"
+                    title="Quitar logo"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -432,6 +508,8 @@ export function StyleSelector({
           <div className="space-y-4 animate-fadeIn">
             <RoomIdentifierPanel
               markers={config.roomMarkers || []}
+              markerBadgeColor={config.markerBadgeColor || '#0F2C59'}
+              onChangeMarkerBadgeColor={(color) => updateField('markerBadgeColor', color)}
               onAddMarker={handleAddMarker}
               onUpdateMarker={handleUpdateMarker}
               onDeleteMarker={handleDeleteMarker}
@@ -523,6 +601,46 @@ export function StyleSelector({
                       }`}
                     >
                       <span className="text-xs font-bold text-stone-900 block truncate">{kFloor.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Encimera de Cocina (Material y Color) */}
+            <div className="space-y-2 pt-2 border-t border-stone-200/80">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[16px] text-[#c25e38]">soup_kitchen</span>
+                  <span>Encimera de Cocina (Material & Color)</span>
+                </label>
+                <span className="text-[10px] font-semibold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-full border border-stone-200">
+                  {KITCHEN_COUNTERTOP_OPTIONS.find((c) => c.id === (config.kitchenCountertop || 'quartz_calacatta_white'))?.material}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {KITCHEN_COUNTERTOP_OPTIONS.map((countertop) => {
+                  const isSelected = (config.kitchenCountertop || 'quartz_calacatta_white') === countertop.id;
+                  return (
+                    <button
+                      key={countertop.id}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => updateField('kitchenCountertop', countertop.id)}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        isSelected
+                          ? 'border-[#c25e38] bg-orange-50/50 ring-1 ring-[#c25e38]'
+                          : 'border-stone-200 bg-white hover:border-stone-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span
+                          className="w-3.5 h-3.5 rounded-full border border-black/15 shrink-0"
+                          style={{ backgroundColor: countertop.colorPreview }}
+                        />
+                        <span className="text-xs font-bold text-stone-900 truncate">{countertop.label}</span>
+                      </div>
+                      <p className="text-[10px] text-stone-500 line-clamp-1">{countertop.desc}</p>
                     </button>
                   );
                 })}
@@ -641,10 +759,61 @@ export function StyleSelector({
 
             {/* Puertas de paso y armarios */}
             <div className="space-y-2 pt-2 border-t border-stone-200/80">
-              <label className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[16px] text-[#c25e38]">door_front</span>
-                <span>Puertas de Paso & Armarios Empotrados</span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[16px] text-[#c25e38]">door_front</span>
+                  <span>Puertas de Paso & Armarios Empotrados</span>
+                </label>
+                {config.cameraAngle === 'plan_2d_furnished' && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    <span className="material-symbols-outlined text-[12px]">checkroom</span>
+                    Estándar CAD: Barra + perchas
+                  </span>
+                )}
+              </div>
+              {config.cameraAngle === 'plan_2d_furnished' && (
+                <div className="text-[11px] text-stone-600 bg-stone-50 border border-stone-200/90 rounded-xl p-2.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold text-stone-800 text-[11px]">
+                      <span className="material-symbols-outlined text-[15px] text-[#c25e38] shrink-0">checkroom</span>
+                      <span>Simbología de Armarios Empotrados (Plano 2D Comercial):</span>
+                    </div>
+                    <span className="text-[9px] font-mono text-stone-500 uppercase px-1.5 py-0.5 bg-stone-200/70 rounded font-semibold">CAD Oficial</span>
+                  </div>
+                  
+                  {/* Gráfico vectorial réplica exacta de la simbología arquitectónica solicitada */}
+                  <div className="w-full bg-white border border-stone-200/80 rounded-lg p-2.5 flex flex-col items-center justify-center shadow-xs">
+                    <svg viewBox="0 0 240 28" className="w-full max-w-[260px] h-7 stroke-stone-700" fill="none">
+                      {/* Línea guía superior de balda / fondo */}
+                      <line x1="2" y1="3" x2="238" y2="3" strokeWidth="0.8" className="stroke-stone-300" />
+                      {/* Barra longitudinal de colgar central */}
+                      <line x1="2" y1="14" x2="238" y2="14" strokeWidth="1.5" className="stroke-stone-800" />
+                      {/* Trazos de perchas y prendas colgadas en planta */}
+                      <line x1="12" y1="5" x2="10" y2="23" strokeWidth="1.1" />
+                      <line x1="22" y1="5" x2="22" y2="23" strokeWidth="1.1" />
+                      <line x1="32" y1="5" x2="38" y2="23" strokeWidth="1.1" />
+                      <line x1="47" y1="5" x2="47" y2="23" strokeWidth="1.1" />
+                      <line x1="58" y1="5" x2="64" y2="23" strokeWidth="1.1" />
+                      <line x1="74" y1="5" x2="70" y2="23" strokeWidth="1.1" />
+                      <line x1="86" y1="5" x2="93" y2="23" strokeWidth="1.1" />
+                      <line x1="104" y1="5" x2="100" y2="23" strokeWidth="1.1" />
+                      <line x1="116" y1="5" x2="123" y2="23" strokeWidth="1.1" />
+                      <line x1="134" y1="5" x2="130" y2="23" strokeWidth="1.1" />
+                      <line x1="146" y1="5" x2="153" y2="23" strokeWidth="1.1" />
+                      <line x1="164" y1="5" x2="160" y2="23" strokeWidth="1.1" />
+                      <line x1="176" y1="5" x2="183" y2="23" strokeWidth="1.1" />
+                      <line x1="194" y1="5" x2="194" y2="23" strokeWidth="1.1" />
+                      <line x1="204" y1="5" x2="204" y2="23" strokeWidth="1.1" />
+                      <line x1="214" y1="5" x2="219" y2="23" strokeWidth="1.1" />
+                      <line x1="228" y1="5" x2="228" y2="23" strokeWidth="1.1" />
+                    </svg>
+                  </div>
+
+                  <p className="text-[10px] text-stone-500 leading-tight">
+                    Barra de colgar longitudinal continua atravesada de extremo a extremo por trazos verticales e inclinados alternos (ropa colgada en perchas vista en planta cenital).
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {DOOR_FINISH_OPTIONS.map((door) => {
                   const isSelected = config.doorFinish === door.id;

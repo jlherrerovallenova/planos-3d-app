@@ -5,6 +5,7 @@ import {
   FlooringType,
   KitchenFlooringType,
   KitchenGresColor,
+  KitchenCountertopType,
   BathroomFlooring60x60Tone,
   TerraceFlooringType,
   WindowFrameType,
@@ -14,6 +15,7 @@ import {
   RoomCategory,
   PresetConfig
 } from './types';
+import { DEFAULT_PROMOTION_LOGO } from './services/defaultPromotionLogo';
 // Categorías de Estancias para el Identificador
 export const ROOM_CATEGORIES: {
   id: RoomCategory;
@@ -45,7 +47,7 @@ export const ROOM_CATEGORIES: {
       icon: 'bed',
       color: '#4F46E5',
       bgLight: '#EEF2FF',
-      promptDesc: 'Master Bedroom with double/king-size bed, nightstands, decorative headboard and wardrobe'
+      promptDesc: 'Master Bedroom with double/king-size bed, nightstands, decorative headboard and built-in wardrobe (showing top-down interior hanging bar with 6-7 clothes hangers)'
     },
     {
       id: 'dormitorio_secundario',
@@ -53,7 +55,7 @@ export const ROOM_CATEGORIES: {
       icon: 'single_bed',
       color: '#2563EB',
       bgLight: '#EFF6FF',
-      promptDesc: 'Secondary Bedroom with bed, bedside table, study desk or built-in closet'
+      promptDesc: 'Secondary Bedroom with bed, bedside table, study desk and built-in closet (showing top-down hanging bar with clothes hangers)'
     },
     {
       id: 'bano_principal',
@@ -101,7 +103,7 @@ export const ROOM_CATEGORIES: {
       icon: 'checkroom',
       color: '#DB2777',
       bgLight: '#FCE7F3',
-      promptDesc: 'Walk-in Closet / Dressing area lined with custom modular wardrobes and full-length mirror'
+      promptDesc: 'Walk-in Closet / Dressing area lined with custom modular wardrobes showing interior hanging bars with clothes hangers and full-length mirror'
     },
     {
       id: 'recibidor_distribuidor',
@@ -138,7 +140,7 @@ export const CAMERA_ANGLES: { id: CameraAngle; label: string; icon: string; desc
     id: 'plan_2d_furnished',
     label: 'Plano 2D Comercial Amueblado',
     icon: 'space_dashboard',
-    desc: 'Plano 2D ortográfico delineado de catálogo con texturas y mobiliario en 2D.',
+    desc: 'Plano 2D ortográfico delineado de catálogo con texturas, armarios con barra y 6-7 perchas, y mobiliario en 2D.',
     badge: 'Modo 2D'
   },
   {
@@ -340,6 +342,92 @@ export const KITCHEN_GRES_COLORS: {
       promptKeyword: 'warm toasted terracotta ceramic gres floor tiles in kitchen, artisanal Mediterranean look'
     }
   ];
+// 2.2 Encimera de Cocina: Material y Color
+export const KITCHEN_COUNTERTOP_OPTIONS: {
+  id: KitchenCountertopType;
+  label: string;
+  material: string;
+  desc: string;
+  colorPreview: string;
+  promptKeyword: string;
+}[] = [
+    {
+      id: 'quartz_calacatta_white',
+      label: 'Cuarzo / Silestone Blanco Calacatta',
+      material: 'Cuarzo Compacto',
+      desc: 'Blanco luminoso con sutiles vetas grises suaves, estilo limpio contemporáneo.',
+      colorPreview: '#F5F5F0',
+      promptKeyword: 'luxurious white Calacatta quartz kitchen countertop with subtle soft grey veining, clean polished straight edges'
+    },
+    {
+      id: 'granite_black_zimbabwe',
+      label: 'Granito Negro Zimbabue / Ébano',
+      material: 'Granito Natural Mate',
+      desc: 'Negro profundo satinado antihuellas, contraste arquitectónico elegante.',
+      colorPreview: '#1E1E22',
+      promptKeyword: 'honed deep black Zimbabwe granite kitchen countertop work surfaces with crisp squared edges'
+    },
+    {
+      id: 'ceramic_cement_grey',
+      label: 'Porcelánico Dekton Gris Cemento',
+      material: 'Superficie Ultracompacta Dekton',
+      desc: 'Gris neutro mate suave, estética minimalista y moderna.',
+      colorPreview: '#8E8E93',
+      promptKeyword: 'seamless matte cement grey Dekton ultra-compact porcelain kitchen countertop, minimalist architectural look'
+    },
+    {
+      id: 'marble_white_carrara',
+      label: 'Mármol Blanco Carrara Pulido',
+      material: 'Piedra Natural Mármol',
+      desc: 'Fondo blanco perlado con veteado plumoso clásico y luminoso.',
+      colorPreview: '#ECECEE',
+      promptKeyword: 'polished authentic white Carrara marble kitchen countertop with gentle grey feathery veins'
+    },
+    {
+      id: 'porcelain_warm_sand',
+      label: 'Porcelánico Arena Cálida / Travertino',
+      material: 'Gres Porcelánico Gran Formato',
+      desc: 'Tonalidad cálida y acogedora en crema travertino mate suave.',
+      colorPreview: '#E5D8C5',
+      promptKeyword: 'warm ivory sand travertine porcelain kitchen countertop, velvety matte surface and subtle mineral texture'
+    },
+    {
+      id: 'wood_solid_oak',
+      label: 'Roble Macizo Alistonado Tratado',
+      material: 'Madera Natural Tratada',
+      desc: 'Madera de roble natural barnizado hidrófugo, calidez nórdica y artesanal.',
+      colorPreview: '#C49A6C',
+      promptKeyword: 'solid natural oiled oak butcher-block timber kitchen countertop with warm wood grain'
+    },
+    {
+      id: 'stainless_steel_satin',
+      label: 'Acero Inoxidable Satinado Chef',
+      material: 'Acero Inox Quirúrgico',
+      desc: 'Acabado metálico continuo higiénico para cocinas estilo chef profesional.',
+      colorPreview: '#B0B0B5',
+      promptKeyword: 'seamless brushed satin stainless steel chef kitchen countertop with integrated sleek worktop'
+    },
+    {
+      id: 'quartz_black_marquina',
+      label: 'Negro Marquina con Veta Blanca',
+      material: 'Cuarzo / Dekton Laurent',
+      desc: 'Fondo negro azabache con espectaculares vetas blancas cruzadas de alta gama.',
+      colorPreview: '#252528',
+      promptKeyword: 'dramatic black Marquina quartz countertop with bold white lightning veins and polished finish'
+    }
+  ];
+// Paleta de colores predeterminados para los puntos identificadores de estancias
+export const MARKER_COLOR_PRESETS: { label: string; hex: string }[] = [
+  { label: 'Azul Marino Clásico', hex: '#0F2C59' },
+  { label: 'Negro Arquitectónico', hex: '#18181B' },
+  { label: 'Teja Terracota', hex: '#C25E38' },
+  { label: 'Verde Salvia Botánico', hex: '#2D5A43' },
+  { label: 'Borgoña Vino', hex: '#722F37' },
+  { label: 'Grafito Antracita', hex: '#3F3F46' },
+  { label: 'Azul Cobalto', hex: '#1D4ED8' },
+  { label: 'Dorado Mostaza', hex: '#B45309' },
+  { label: 'Púrpura Ciruela', hex: '#6B21A8' }
+];
 // 2.3 Baños: Solo gres de 60x60cm (Elegir tonalidad)
 export const BATHROOM_GRES_60X60_TONES: {
   id: BathroomFlooring60x60Tone;
@@ -667,6 +755,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       flooringLiving: 'light_oak_wood',
       flooringKitchen: 'matching_living_oak',
       kitchenGresColor: 'gres_gris_perla',
+      kitchenCountertop: 'quartz_calacatta_white',
       flooringBathroomGres60: 'gres_60_gris_perla',
       flooringTerrace: 'grey_outdoor_porcelain',
       windowType: 'oscilobatiente',
@@ -675,6 +764,8 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       interiorWallColor: 'blanco_roto_luz',
       exteriorWallColor: 'gris_niebla',
       roomMarkers: [],
+      markerBadgeColor: '#0F2C59',
+      promotionLogo: DEFAULT_PROMOTION_LOGO,
       extraDetails: '',
       strictBlueprintFidelity: true
     }
@@ -693,6 +784,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       flooringLiving: 'light_oak_wood',
       flooringKitchen: 'gres_porcelanico_cocina',
       kitchenGresColor: 'gres_blanco_nieve',
+      kitchenCountertop: 'wood_solid_oak',
       flooringBathroomGres60: 'gres_60_blanco_puro',
       flooringTerrace: 'teak_deck_wood',
       windowType: 'oscilobatiente',
@@ -701,6 +793,8 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       interiorWallColor: 'blanco_roto_luz',
       exteriorWallColor: 'blanco_puro',
       roomMarkers: [],
+      markerBadgeColor: '#0F2C59',
+      promotionLogo: DEFAULT_PROMOTION_LOGO,
       extraDetails: '',
       strictBlueprintFidelity: true
     }
@@ -719,6 +813,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       flooringLiving: 'travertine_marble',
       flooringKitchen: 'gres_porcelanico_cocina',
       kitchenGresColor: 'gres_arena_marfil',
+      kitchenCountertop: 'porcelain_warm_sand',
       flooringBathroomGres60: 'gres_60_beige_travertino',
       flooringTerrace: 'rustic_terracotta_tiles',
       windowType: 'corredera_minimal',
@@ -727,6 +822,8 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       interiorWallColor: 'arena_calida',
       exteriorWallColor: 'blanco_puro',
       roomMarkers: [],
+      markerBadgeColor: '#0F2C59',
+      promotionLogo: DEFAULT_PROMOTION_LOGO,
       extraDetails: 'Vigas vistas y lino natural',
       strictBlueprintFidelity: true
     }
@@ -745,6 +842,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       flooringLiving: 'warm_microcement',
       flooringKitchen: 'continuous_microcement',
       kitchenGresColor: 'gres_greige_calido',
+      kitchenCountertop: 'ceramic_cement_grey',
       flooringBathroomGres60: 'gres_60_greige_calido',
       flooringTerrace: 'grey_outdoor_porcelain',
       windowType: 'corredera_minimal',
@@ -753,6 +851,8 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       interiorWallColor: 'greige_suave',
       exteriorWallColor: 'gris_niebla',
       roomMarkers: [],
+      markerBadgeColor: '#0F2C59',
+      promotionLogo: DEFAULT_PROMOTION_LOGO,
       extraDetails: 'Líneas limpias y mobiliario bajo',
       strictBlueprintFidelity: true
     }
@@ -771,6 +871,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       flooringLiving: 'herringbone_parquet',
       flooringKitchen: 'gres_porcelanico_cocina',
       kitchenGresColor: 'gres_blanco_nieve',
+      kitchenCountertop: 'quartz_calacatta_white',
       flooringBathroomGres60: 'gres_60_blanco_puro',
       flooringTerrace: 'grey_outdoor_porcelain',
       windowType: 'oscilobatiente',
@@ -779,6 +880,8 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       interiorWallColor: 'blanco_puro',
       exteriorWallColor: 'gris_niebla',
       roomMarkers: [],
+      markerBadgeColor: '#0F2C59',
+      promotionLogo: DEFAULT_PROMOTION_LOGO,
       extraDetails: '',
       strictBlueprintFidelity: true
     }
