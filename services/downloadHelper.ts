@@ -147,10 +147,10 @@ export async function generateBrochureCanvas({
         ctx.lineTo(width - headerMarginX, 122 * scale);
         ctx.stroke();
 
-        // 3. Plano Render en el área izquierda (Fondo blanco puro, manteniendo el borde arquitectónico)
-        const planAreaX = 60 * scale;
+        // 3. Plano Render en el área izquierda (Ocupa al menos el 75% del ancho disponible)
+        const planAreaX = 50 * scale;
         const planAreaY = 145 * scale;
-        const planAreaW = 1260 * scale;
+        const planAreaW = 1400 * scale;
         const planAreaH = (height - 145 * scale - 70 * scale);
 
         ctx.fillStyle = '#FFFFFF';
@@ -166,7 +166,7 @@ export async function generateBrochureCanvas({
         ctx.stroke();
 
         const imgAspect = img.width / img.height;
-        const padding = 35 * scale;
+        const padding = 16 * scale;
         let drawW = planAreaW - padding * 2;
         let drawH = drawW / imgAspect;
         if (drawH > planAreaH - padding * 2) {
@@ -208,10 +208,10 @@ export async function generateBrochureCanvas({
           });
         }
 
-        // 4. Cuadro de Superficies Útiles en el área derecha
-        const tableX = (width - 540 * scale);
+        // 4. Cuadro de Superficies Útiles en el área derecha (25% del ancho disponible)
+        const tableX = 1470 * scale;
         const tableY = 145 * scale;
-        const tableW = 480 * scale;
+        const tableW = 400 * scale;
         const tableH = planAreaH;
 
         ctx.fillStyle = '#FFFFFF';
@@ -404,12 +404,12 @@ export async function exportCommercialBrochurePDF({
         doc.setLineWidth(0.4);
         doc.line(margin, margin + 12, pageWidth - margin, margin + 12);
 
-        // 3. Distribución: Plano (Izquierda) y Cuadro de Superficies (Derecha)
+        // 3. Distribución: Plano (Ocupa al menos el 75% del ancho útil) y Cuadro de Superficies (25%)
         const contentY = margin + 16;
         const contentHeight = pageHeight - contentY - 12; // Dejar 12mm para pie
-        const tableWidth = 75;
+        const tableWidth = 64;
         const tableX = pageWidth - margin - tableWidth;
-        const planWidth = tableX - margin - 6;
+        const planWidth = tableX - margin - 5;
 
         // Recuadro contenedor arquitectónico para el plano (Fondo blanco puro, manteniendo el borde)
         doc.setFillColor(255, 255, 255); // Fondo blanco puro
@@ -422,7 +422,7 @@ export async function exportCommercialBrochurePDF({
         const imgNaturalH = img.naturalHeight || img.height || 1080;
         const imgAspect = imgNaturalW / imgNaturalH;
 
-        const planPad = 4;
+        const planPad = 2;
         const maxImgW = planWidth - planPad * 2;
         const maxImgH = contentHeight - planPad * 2;
 
@@ -478,13 +478,13 @@ export async function exportCommercialBrochurePDF({
 
         // Título del Cuadro
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10.5);
+        doc.setFontSize(9);
         doc.setTextColor(15, 44, 89);
-        doc.text('CUADRO DE SUPERFICIES ÚTILES', tableX + 5, contentY + 7.5);
+        doc.text('CUADRO DE SUPERFICIES ÚTILES', tableX + 4, contentY + 7.5);
 
         // Barra decorativa azul marino gruesa
         doc.setFillColor(15, 44, 89);
-        doc.rect(tableX + 5, contentY + 10, tableWidth - 10, 1.3, 'F');
+        doc.rect(tableX + 4, contentY + 10, tableWidth - 8, 1.3, 'F');
 
         // Filas de estancias numeradas
         let currentY = contentY + 17;
@@ -503,28 +503,28 @@ export async function exportCommercialBrochurePDF({
 
           // Número de orden
           doc.setFont('courier', 'bold');
-          doc.setFontSize(8.5);
+          doc.setFontSize(8);
           doc.setTextColor(15, 44, 89);
-          doc.text(numStr, tableX + 5, currentY);
+          doc.text(numStr, tableX + 4, currentY);
 
           // Nombre de la estancia
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(7.5);
           doc.setTextColor(27, 54, 93);
-          const maxNameW = tableWidth - 30;
+          const maxNameW = tableWidth - 26;
           const cleanName = doc.splitTextToSize(m.name.toUpperCase(), maxNameW)[0];
-          doc.text(cleanName, tableX + 13, currentY);
+          doc.text(cleanName, tableX + 11.5, currentY);
 
           // Superficie útil
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(8);
+          doc.setFontSize(7.5);
           doc.setTextColor(15, 44, 89);
-          doc.text(areaStr, tableX + tableWidth - 5, currentY, { align: 'right' });
+          doc.text(areaStr, tableX + tableWidth - 4, currentY, { align: 'right' });
 
           // Línea divisoria tenue
           doc.setDrawColor(241, 245, 249);
           doc.setLineWidth(0.2);
-          doc.line(tableX + 5, currentY + 2.2, tableX + tableWidth - 5, currentY + 2.2);
+          doc.line(tableX + 4, currentY + 2.2, tableX + tableWidth - 4, currentY + 2.2);
 
           currentY += rowSpacing;
         });
@@ -534,17 +534,17 @@ export async function exportCommercialBrochurePDF({
           const totalY = contentY + contentHeight - 8;
           doc.setDrawColor(203, 213, 225);
           doc.setLineWidth(0.5);
-          doc.line(tableX + 5, totalY - 4.5, tableX + tableWidth - 5, totalY - 4.5);
+          doc.line(tableX + 4, totalY - 4.5, tableX + tableWidth - 4, totalY - 4.5);
 
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(8);
+          doc.setFontSize(7.5);
           doc.setTextColor(15, 44, 89);
-          doc.text('SUPERFICIE ÚTIL TOTAL', tableX + 5, totalY);
+          doc.text('SUPERFICIE ÚTIL TOTAL', tableX + 4, totalY);
 
           const totalStr =
             totalArea.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' m²';
-          doc.setFontSize(9.5);
-          doc.text(totalStr, tableX + tableWidth - 5, totalY, { align: 'right' });
+          doc.setFontSize(8.5);
+          doc.text(totalStr, tableX + tableWidth - 4, totalY, { align: 'right' });
         }
 
         // 5. Pie de página legal

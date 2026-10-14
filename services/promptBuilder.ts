@@ -55,6 +55,13 @@ STRICT RULE: ZERO text, ZERO English subtitles, ZERO room names, ZERO square met
   }
   const is2D = config.cameraAngle === 'plan_2d_furnished';
 
+  // DIRECTIVA ESTRICTA DE ENCUADRE Y ZOOM: EL RENDER DEL PLANO DEBE OCUPAR AL MENOS EL 75%-85% DEL ENCUADRE
+  const strictFramingAndOccupancyDirective = `CRITICAL ARCHITECTURAL CAMERA FRAMING & MAXIMUM CANVAS OCCUPANCY (AT LEAST 75% TO 85%):
+1. The architectural floor plan / 3D cutaway dollhouse MUST OCCUPY AT LEAST 75% TO 85% of the total rendered image area.
+2. Tight camera zoom and close framing: zoom in tightly directly on the building floor plan footprint, cropping closely around exterior walls.
+3. ABSOLUTELY MINIMIZE empty surrounding margins, dead space, blank borders, or vast empty floor/ground around the perimeter.
+4. The floor plan structure MUST BE THE BOLD HERO SUBJECT filling 75% to 85% of the frame, ensuring room layouts, furniture, and materials are clear, prominent, and large.`;
+
   // DIRECTIVA ESTRICTA: NUNCA DIBUJAR TABLAS, LISTAS DE MATERIALES NI CUADROS DE TEXTO EN LA IMAGEN
   const strictNoTablesDirective = `ABSOLUTE PROHIBITION OF GRAPHIC TABLES OR TEXT SCHEDULES: DO NOT render or draw ANY table, chart, list of materials, legend, schedule box, text banner, or spreadsheet in or beside the floor plan. The output image must ONLY contain the pure architectural floor plan and its interior rooms/furniture. Absolutely NO side tables, NO material charts, NO text lists anywhere in the generated image.`;
 
@@ -69,6 +76,7 @@ STRICT RULE: ZERO text, ZERO English subtitles, ZERO room names, ZERO square met
     return [
       `Clean top-down 2D colored architectural floor plan rendered strictly from the reference blueprint layout.`,
       `Zero perspective distortion, completely flat 2D graphic catalog floor plan with furniture symbols placed in top view.`,
+      strictFramingAndOccupancyDirective,
       strictNoTextInRoomsDirective,
       roomsIdentificationClause,
       `Interior style: ${selectedStyle.label}.`,
@@ -84,6 +92,7 @@ STRICT RULE: ZERO text, ZERO English subtitles, ZERO room names, ZERO square met
       cleanedExtraDetails ? `Extra notes: ${cleanedExtraDetails}.` : '',
       strictNoTablesDirective,
       strictNoTextInRoomsDirective,
+      strictFramingAndOccupancyDirective,
       `Crisp architectural drawing lines, completely clean floors with zero text and zero surface numbers, professional marketing presentation.`
     ].filter(Boolean).join(' ');
   }
@@ -97,6 +106,7 @@ STRICT RULE: ZERO text, ZERO English subtitles, ZERO room names, ZERO square met
   return [
     `Transform this blueprint into an ultra-realistic ${angleDesc}.`,
     `Strictly follow the room boundaries and wall positions of the reference blueprint without adding extra rooms.`,
+    strictFramingAndOccupancyDirective,
     strictNoTextInRoomsDirective,
     roomsIdentificationClause,
     `Walls cut cleanly at 1.2m height showing interior rooms, furniture, and daylight.`,
@@ -114,6 +124,7 @@ STRICT RULE: ZERO text, ZERO English subtitles, ZERO room names, ZERO square met
     cleanedExtraDetails ? `Client details: ${cleanedExtraDetails}.` : '',
     strictNoTablesDirective,
     strictNoTextInRoomsDirective,
+    strictFramingAndOccupancyDirective,
     `Unreal Engine 5 archviz render quality, crisp geometry, clean photorealistic textures, zero text and zero surface numbers inside rooms.`
   ].filter(Boolean).join(' ');
 }

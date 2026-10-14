@@ -650,10 +650,10 @@ export function App() {
         )}
       </div>
 
-      {/* 3. Espacio Principal de Trabajo (Proporción Áurea: 7 cols Canvas + 5 cols Control) */}
+      {/* 3. Espacio Principal de Trabajo (Visor amplio con al menos 75% en pantallas completas) */}
       <main className="flex-1 p-3 sm:p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 max-w-[1900px] w-full mx-auto">
-        {/* Columna Izquierda: Visor Interactivo (7 columnas) */}
-        <section className="lg:col-span-7 flex flex-col gap-3 min-h-[520px]">
+        {/* Columna Izquierda: Visor Interactivo (8 a 9 columnas - 75% de ancho en pantallas estándar) */}
+        <section className="lg:col-span-8 xl:col-span-9 flex flex-col gap-3 min-h-[520px]">
           {/* Mensajes de Notificación */}
           {generationError && (
             <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-800 flex items-center justify-between shadow-xs animate-fadeIn">
@@ -718,8 +718,8 @@ export function App() {
           </div>
         </section>
 
-        {/* Columna Derecha: Panel de Estilo & Memoria de Calidades (5 columnas) */}
-        <section className="lg:col-span-5 flex flex-col gap-3">
+        {/* Columna Derecha: Panel de Estilo & Memoria de Calidades (3 a 4 columnas) */}
+        <section className="lg:col-span-4 xl:col-span-3 flex flex-col gap-3">
           <StyleSelector
             config={config}
             onChangeConfig={setConfig}

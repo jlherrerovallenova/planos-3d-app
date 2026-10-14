@@ -663,7 +663,7 @@ export function PlanCanvasPreview({
         >
           {/* MODO 0: FICHA COMERCIAL DE VENTA CON CUADRO DE SUPERFICIES ÚTILES */}
           {activeTab === 'ficha' ? (
-            <div className="w-full max-w-5xl mx-auto bg-white text-stone-900 rounded-2xl shadow-2xl border border-stone-200/90 p-5 sm:p-7 flex flex-col justify-between max-h-[76vh] overflow-y-auto animate-fadeIn select-text">
+            <div className="w-full max-w-7xl mx-auto bg-white text-stone-900 rounded-2xl shadow-2xl border border-stone-200/90 p-5 sm:p-7 flex flex-col justify-between max-h-[86vh] overflow-y-auto animate-fadeIn select-text">
               {/* Encabezado Comercial */}
               <div className="border-b border-stone-200 pb-3 mb-4 flex items-center justify-between flex-wrap gap-2">
                 <div>
@@ -705,23 +705,23 @@ export function PlanCanvasPreview({
                 </div>
               </div>
 
-              {/* Cuerpo de la Ficha: Plano a la Izquierda y Cuadro de Superficies a la Derecha */}
+              {/* Cuerpo de la Ficha: Plano a la Izquierda (75% del ancho) y Cuadro de Superficies a la Derecha (25%) */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center flex-1 my-auto">
-                {/* Columna Izquierda / Central: Plano Renderizado o Base (Fondo blanco manteniendo el borde) */}
-                <div className="lg:col-span-7 flex flex-col items-center justify-center bg-white rounded-xl p-3 border border-stone-300 shadow-2xs min-h-[340px] max-h-[56vh]">
+                {/* Columna Izquierda / Central: Plano Renderizado o Base (Ocupa al menos el 75% con 9 de 12 columnas) */}
+                <div className="lg:col-span-9 flex flex-col items-center justify-center bg-white rounded-xl p-2 sm:p-3 border border-stone-300 shadow-2xs min-h-[440px] max-h-[72vh] w-full">
                   {renderDataUrl || sourceDataUrl ? (
                     <>
                       <div
                         ref={fichaPlanRef}
                         onClick={(e) => handleImageClick(e, fichaPlanRef.current)}
-                        className={`relative inline-block max-h-[48vh] max-w-full select-none ${
+                        className={`relative inline-block max-h-[66vh] max-w-full select-none ${
                           isEraserMode ? 'cursor-crosshair ring-2 ring-rose-500 rounded-lg' : ''
                         }`}
                       >
                         <img
                           src={renderDataUrl || sourceDataUrl!}
                           alt="Plano Ficha Comercial"
-                          className="max-h-[48vh] w-auto max-w-full object-contain rounded-lg shadow-sm block pointer-events-none select-none"
+                          className="max-h-[66vh] w-auto max-w-full object-contain rounded-lg shadow-sm block pointer-events-none select-none"
                         />
 
                         {/* Círculos azules interactivos y arrastrables con número blanco */}
@@ -807,8 +807,8 @@ export function PlanCanvasPreview({
                   )}
                 </div>
 
-                {/* Columna Derecha: Cuadro de Superficies Útiles (en esa misma posición exacta de la captura) */}
-                <div className="lg:col-span-5 flex flex-col justify-center items-center lg:items-end w-full max-w-sm">
+                {/* Columna Derecha: Cuadro de Superficies Útiles (25% del ancho) */}
+                <div className="lg:col-span-3 flex flex-col justify-center items-center lg:items-end w-full">
                   {onDetectWithAI && (
                     <div className="w-full mb-3 flex flex-col gap-2">
                       <button
@@ -858,12 +858,12 @@ export function PlanCanvasPreview({
               </div>
             </div>
           ) : activeTab === 'split' && sourceDataUrl && renderDataUrl ? (
-            <div className="relative max-h-[72vh] max-w-full rounded-2xl overflow-hidden shadow-2xl border border-stone-700">
+            <div className="relative max-h-[82vh] max-w-full rounded-2xl overflow-hidden shadow-2xl border border-stone-700">
               {/* Imagen 3D de fondo */}
               <img
                 src={renderDataUrl}
                 alt="Render 3D"
-                className="max-h-[72vh] w-auto max-w-full object-contain block select-none pointer-events-none"
+                className="max-h-[82vh] w-auto max-w-full object-contain block select-none pointer-events-none"
               />
 
               {/* Imagen 2D recortada superpuesta */}
@@ -874,7 +874,7 @@ export function PlanCanvasPreview({
                 <img
                   src={sourceDataUrl}
                   alt="Plano 2D Original"
-                  className="max-h-[72vh] w-auto max-w-full object-contain block"
+                  className="max-h-[82vh] w-auto max-w-full object-contain block"
                 />
               </div>
 
@@ -911,14 +911,14 @@ export function PlanCanvasPreview({
             <div
               ref={renderPlanRef}
               onClick={(e) => handleImageClick(e, renderPlanRef.current)}
-              className={`relative max-h-[72vh] inline-block rounded-2xl overflow-hidden shadow-2xl border border-stone-800 select-none ${
+              className={`relative max-h-[82vh] inline-block rounded-2xl overflow-hidden shadow-2xl border border-stone-800 select-none ${
                 isEraserMode ? 'cursor-crosshair ring-2 ring-rose-500' : ''
               }`}
             >
               <img
                 src={renderDataUrl}
                 alt="Render 3D Arquitectónico"
-                className="max-h-[72vh] w-auto max-w-full object-contain block rounded-2xl pointer-events-none"
+                className="max-h-[82vh] w-auto max-w-full object-contain block rounded-2xl pointer-events-none"
               />
 
               {/* OVERLAY DE PINES DE ESTANCIAS EN RENDER */}
@@ -972,14 +972,14 @@ export function PlanCanvasPreview({
             <div
               ref={basePlanRef}
               onClick={(e) => handleImageClick(e, basePlanRef.current)}
-              className={`relative max-h-[72vh] inline-block rounded-2xl overflow-hidden shadow-2xl border border-stone-800 select-none ${
+              className={`relative max-h-[82vh] inline-block rounded-2xl overflow-hidden shadow-2xl border border-stone-800 select-none ${
                 isEraserMode ? 'cursor-crosshair ring-2 ring-rose-500' : ''
               }`}
             >
                 <img
                   src={sourceDataUrl}
                   alt="Plano Base 2D"
-                  className="max-h-[72vh] w-auto max-w-full object-contain block rounded-2xl pointer-events-none"
+                  className="max-h-[82vh] w-auto max-w-full object-contain block rounded-2xl pointer-events-none"
                 />
 
                 {/* OVERLAY DE PINES DE ESTANCIAS */}
