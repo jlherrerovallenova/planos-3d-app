@@ -142,3 +142,178 @@ export function remapMarkersToCrop(
     };
   });
 }
+
+export interface TrimResult {
+  trimmedDataUrl: string;
+  markers: RoomMarker[];
+  wasTrimmed: boolean;
+  cropBox?: [number, number, number, number];
+}
+
+/**
+ * Escanea la imagen buscando el perímetro real del plano arquitectónico,
+ * eliminando automáticamente márgenes blancos o vacíos excesivos para que el plano
+ * aproveche al máximo el espacio de la ficha y el PDF sin quedar pequeño.
+ * Ajusta y remapea las coordenadas relativas de los marcadores de estancia.
+ */
+export async function autoTrimWhitespace(
+  imageSrc: string,
+  markers?: RoomMarker[],
+  paddingPercent: number = 2.5
+): Promise<TrimResult> {
+  return new Promise((resolve) => {
+    if (!imageSrc) {
+      resolve({ trimmedDataUrl: imageSrc, markers: markers || [], wasTrimmed: false });
+      return;
+    }
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        if (w < 50 || h < 50) {
+          resolve({ trimmedDataUrl: imageSrc, markers: markers || [], wasTrimmed: false });
+          return;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve({ trimmedDataUrl: imageSrc, markers: markers || [], wasTrimmed: false });
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, w, h);
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+
+        // Detección de píxeles con información gráfica (muros, texturas, suelos, carpinterías)
+        const isContent = (idx: number) => {
+          const a = data[idx + 3];
+          if (a < 25) return false;
+          const r = data[idx];
+          const g = data[idx + 1];
+          const b = data[idx + 2];
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          if (max - min > 15) return true; // Color o contraste
+          return max < 242; // Fondo no blanco
+        };
+
+        let minY = h, maxY = 0;
+        let minX = w, maxX = 0;
+        let contentFound = false;
+
+        const rowThreshold = Math.max(3, Math.floor(w * 0.004));
+        const colThreshold = Math.max(3, Math.floor(h * 0.004));
+
+        for (let y = 0; y < h; y += 2) {
+          let count = 0;
+          const rowStart = y * w * 4;
+          for (let x = 0; x < w; x += 2) {
+            if (isContent(rowStart + x * 4)) {
+              count++;
+              if (count >= rowThreshold) {
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+                contentFound = true;
+                break;
+              }
+            }
+          }
+        }
+
+        if (!contentFound || minY >= maxY) {
+          resolve({ trimmedDataUrl: imageSrc, markers: markers || [], wasTrimmed: false });
+          return;
+        }
+
+        for (let x = 0; x < w; x += 2) {
+          let count = 0;
+          for (let y = minY; y <= maxY; y += 2) {
+            if (isContent((y * w + x) * 4)) {
+              count++;
+              if (count >= colThreshold) {
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                break;
+              }
+            }
+          }
+        }
+
+        if (minX >= maxX) {
+          resolve({ trimmedDataUrl: imageSrc, markers: markers || [], wasTrimmed: false });
+          return;
+        }
+
+        const padX = Math.max(12, Math.round(w * (paddingPercent / 100)));
+        const padY = Math.max(12, Math.round(h * (paddingPercent / 100)));
+
+        const cropX = Math.max(0, minX - padX);
+        const cropY = Math.max(0, minY - padY);
+        const cropW = Math.min(w, maxX + padX) - cropX;
+        const cropH = Math.min(h, maxY + padY) - cropY;
+
+        // Si el recorte no es relevante (menos del 4% en ambos ejes)
+        if (cropW >= w * 0.96 && cropH >= h * 0.96) {
+          resolve({ trimmedDataUrl: imageSrc, markers: markers || [], wasTrimmed: false });
+          return;
+        }
+
+        const cropCanvas = document.createElement('canvas');
+        cropCanvas.width = cropW;
+        cropCanvas.height = cropH;
+        const cropCtx = cropCanvas.getContext('2d');
+        if (!cropCtx) {
+          resolve({ trimmedDataUrl: imageSrc, markers: markers || [], wasTrimmed: false });
+          return;
+        }
+
+        cropCtx.fillStyle = '#FFFFFF';
+        cropCtx.fillRect(0, 0, cropW, cropH);
+        cropCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+        const trimmedDataUrl = cropCanvas.toDataURL('image/png', 1.0);
+
+        const remappedMarkers = (markers || []).map((m) => {
+          const origPixelX = (m.x / 100) * w;
+          const origPixelY = (m.y / 100) * h;
+          const newPixelX = origPixelX - cropX;
+          const newPixelY = origPixelY - cropY;
+          const newPctX = Math.round((newPixelX / cropW) * 1000) / 10;
+          const newPctY = Math.round((newPixelY / cropH) * 1000) / 10;
+          return {
+            ...m,
+            x: Math.max(2, Math.min(98, newPctX)),
+            y: Math.max(2, Math.min(98, newPctY))
+          };
+        });
+
+        resolve({
+          trimmedDataUrl,
+          markers: remappedMarkers,
+          wasTrimmed: true,
+          cropBox: [
+            Math.round((cropY / h) * 1000),
+            Math.round((cropX / w) * 1000),
+            Math.round(((cropY + cropH) / h) * 1000),
+            Math.round(((cropX + cropW) / w) * 1000)
+          ]
+        });
+      } catch (err) {
+        console.warn('Error en autoTrimWhitespace:', err);
+        resolve({ trimmedDataUrl: imageSrc, markers: markers || [], wasTrimmed: false });
+      }
+    };
+    img.onerror = () => {
+      resolve({ trimmedDataUrl: imageSrc, markers: markers || [], wasTrimmed: false });
+    };
+    img.src = imageSrc;
+  });
+}
+

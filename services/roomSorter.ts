@@ -240,3 +240,63 @@ export function sortRoomMarkers<T extends { name: string; category?: any }>(room
     return (a.name || '').localeCompare(b.name || '', 'es', { numeric: true });
   });
 }
+
+/**
+ * Determina si una estancia es de naturaleza exterior (Terraza, Tendedero, Balcón, Porche, Jardín, etc.)
+ */
+export function isExteriorRoom(marker: { name: string; category?: any }): boolean {
+  const name = cleanText(marker.name);
+  const cat = (marker.category || '').toLowerCase();
+  return (
+    name.includes('terraza') ||
+    name.includes('balcon') ||
+    name.includes('porche') ||
+    name.includes('tendedero') ||
+    name.includes('solarium') ||
+    name.includes('jardin') ||
+    name.includes('patio') ||
+    cat === 'terraza_balcon'
+  );
+}
+
+export interface CategorizedSchedule {
+  sortedMarkers: RoomMarker[];
+  interiorRooms: RoomMarker[];
+  exteriorRooms: RoomMarker[];
+  interiorTotal: number;
+  exteriorTotal: number;
+  grandTotal: number;
+  hasExterior: boolean;
+}
+
+/**
+ * Agrupa y suma las estancias en Útiles Interiores y Exteriores según los estándares comerciales
+ */
+export function categorizeRoomsForSchedule(markers: RoomMarker[]): CategorizedSchedule {
+  const sortedMarkers = sortRoomMarkers(markers || []);
+  const interiorRooms: RoomMarker[] = [];
+  const exteriorRooms: RoomMarker[] = [];
+
+  sortedMarkers.forEach((m) => {
+    if (isExteriorRoom(m)) {
+      exteriorRooms.push(m);
+    } else {
+      interiorRooms.push(m);
+    }
+  });
+
+  const interiorTotal = interiorRooms.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0);
+  const exteriorTotal = exteriorRooms.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0);
+  const grandTotal = interiorTotal + exteriorTotal;
+
+  return {
+    sortedMarkers,
+    interiorRooms,
+    exteriorRooms,
+    interiorTotal,
+    exteriorTotal,
+    grandTotal,
+    hasExterior: exteriorRooms.length > 0
+  };
+}
+

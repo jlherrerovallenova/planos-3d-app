@@ -132,8 +132,8 @@ export function PdfExportModal({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {/* Tarjeta COMERCIALIZA con fondo blanco */}
-              <div className="bg-white px-2 py-0.5 rounded-xl border border-stone-300 flex flex-col items-center justify-center">
+              {/* Tarjeta COMERCIALIZA sin borde */}
+              <div className="bg-white px-2 py-0.5 rounded-xl flex flex-col items-center justify-center">
                 <span className="text-[7.5px] font-black text-[#991B1B] leading-none mb-0.5">COMERCIALIZA</span>
                 <img
                   src={agencyLogo || '/logo_terravall.png'}
@@ -142,8 +142,8 @@ export function PdfExportModal({
                 />
               </div>
 
-              {/* Logo Promoción Lubens */}
-              <div className="bg-white px-2.5 py-1 rounded-xl border border-stone-200 flex items-center justify-center">
+              {/* Logo Promoción Lubens sin borde */}
+              <div className="bg-white px-2.5 py-1 rounded-xl flex items-center justify-center">
                 <img
                   src={promotionLogo || '/logo_promocion.png'}
                   alt="Logo Lubens Arroyo"

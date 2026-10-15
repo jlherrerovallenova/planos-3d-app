@@ -998,13 +998,13 @@ export function PlanCanvasPreview({
         >
           {/* MODO 0: FICHA COMERCIAL DE VENTA CON CUADRO DE SUPERFICIES ÚTILES */}
           {activeTab === 'ficha' ? (
-            <div className="w-full max-w-7xl mx-auto bg-white text-stone-900 rounded-2xl shadow-2xl border border-stone-200/90 p-5 sm:p-7 flex flex-col justify-between max-h-[86vh] overflow-y-auto animate-fadeIn select-text">
+            <div className="w-full max-w-none mx-auto bg-white text-stone-900 rounded-none sm:rounded-sm shadow-xl border border-stone-200/90 p-5 sm:p-7 flex flex-col justify-between max-h-[86vh] overflow-y-auto animate-fadeIn select-text">
               {/* Encabezado Comercial */}
               <div className="border-b border-stone-200 pb-3 mb-4 flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-3.5 flex-wrap">
-                  {/* Tarjeta COMERCIALIZA con fondo blanco */}
+                  {/* Tarjeta COMERCIALIZA sin borde */}
                   {(commercialAgencyLogo || DEFAULT_AGENCY_LOGO) && (
-                    <div className="bg-white px-2.5 py-1 rounded-xl border border-stone-300 shadow-2xs flex flex-col items-center justify-center shrink-0">
+                    <div className="px-2 py-0.5 flex flex-col items-center justify-center shrink-0">
                       <span className="text-[7.5px] font-black text-[#991B1B] uppercase tracking-wider leading-none mb-0.5">
                         COMERCIALIZA
                       </span>
@@ -1016,9 +1016,9 @@ export function PlanCanvasPreview({
                     </div>
                   )}
 
-                  {/* Logo de la Promoción Lubens */}
+                  {/* Logo de la Promoción Lubens sin borde */}
                   {promotionLogo && (
-                    <div className="bg-white p-1.5 rounded-xl border border-stone-200/90 shadow-2xs flex items-center justify-center shrink-0">
+                    <div className="p-1 flex items-center justify-center shrink-0">
                       <img
                         src={promotionLogo}
                         alt="Logo de la Promoción"
@@ -1124,7 +1124,7 @@ export function PlanCanvasPreview({
               {/* Cuerpo de la Ficha: Plano a la Izquierda (75% del ancho) y Cuadro de Superficies a la Derecha (25%) */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center flex-1 my-auto">
                 {/* Columna Izquierda / Central: Plano Renderizado o Base (Ocupa al menos el 75% con 9 de 12 columnas) */}
-                <div className="lg:col-span-9 flex flex-col items-center justify-center bg-white rounded-xl p-2 sm:p-3 border border-stone-300 shadow-2xs min-h-[440px] max-h-[72vh] w-full">
+                <div className="lg:col-span-9 flex flex-col items-center justify-center bg-white p-2 sm:p-4 min-h-[480px] max-h-[84vh] w-full overflow-hidden">
                   {renderDataUrl || sourceDataUrl ? (
                     <>
                       <div
@@ -1135,14 +1135,14 @@ export function PlanCanvasPreview({
                           transformOrigin: 'center center',
                           transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
                         }}
-                        className={`relative inline-block max-h-[66vh] max-w-full select-none ${
-                          isEraserMode ? 'cursor-crosshair ring-2 ring-rose-500 rounded-lg' : ''
+                        className={`relative inline-block max-h-[78vh] max-w-full select-none ${
+                          isEraserMode ? 'cursor-crosshair ring-2 ring-rose-500' : ''
                         }`}
                       >
                         <img
                           src={renderDataUrl || sourceDataUrl!}
                           alt="Plano Ficha Comercial"
-                          className="max-h-[66vh] w-auto max-w-full object-contain rounded-lg shadow-sm block pointer-events-none select-none"
+                          className="max-h-[78vh] w-auto max-w-full object-contain block pointer-events-none select-none"
                         />
 
                         {/* Círculos azules interactivos y arrastrables con número blanco */}

@@ -77,6 +77,8 @@ export function App() {
   const [currentVersionNumber, setCurrentVersionNumber] = useState<number>(1);
   const [isIntroOpen, setIsIntroOpen] = useState<boolean>(false);
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isSidebarWide, setIsSidebarWide] = useState<boolean>(true);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -924,7 +926,7 @@ export function App() {
       />
 
       {/* 1. Header Comercial / Barra Superior */}
-      <header className="border-b border-stone-200/90 bg-white/95 backdrop-blur-md sticky top-0 z-40 px-4 lg:px-8 py-3 flex items-center justify-between">
+      <header className="border-b border-stone-200/90 bg-white/95 backdrop-blur-md sticky top-0 z-40 px-4 lg:px-6 py-2.5 flex items-center justify-between">
         <div className="flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#c25e38] to-[#e07a5f] text-white flex items-center justify-center shadow-md shadow-[#c25e38]/20">
             <span className="material-symbols-outlined text-[24px]">view_in_ar</span>
@@ -955,6 +957,40 @@ export function App() {
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Motor: Renderizado Inteligente IA</span>
           </div>
+
+          {/* Botón Maximizar Área de Trabajo / Alternar Panel Lateral */}
+          <button
+            onClick={() => setIsSidebarOpen((prev) => !prev)}
+            className={`px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 border cursor-pointer shadow-2xs ${
+              isSidebarOpen
+                ? 'bg-stone-100 hover:bg-stone-200 text-stone-800 border-stone-200'
+                : 'bg-[#c25e38]/10 hover:bg-[#c25e38]/20 text-[#c25e38] border-[#c25e38]/30 font-bold'
+            }`}
+            title={isSidebarOpen ? 'Ocultar panel lateral (Área de trabajo máxima)' : 'Mostrar panel de calidades'}
+          >
+            <span className="material-symbols-outlined text-[17px]">
+              {isSidebarOpen ? 'dock_to_right' : 'view_sidebar'}
+            </span>
+            <span className="hidden md:inline">
+              {isSidebarOpen ? 'Ocultar Calidades' : 'Ver Calidades'}
+            </span>
+          </button>
+
+          {/* Botón Alternar Ancho del Panel */}
+          {isSidebarOpen && (
+            <button
+              onClick={() => setIsSidebarWide((prev) => !prev)}
+              className="px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 border cursor-pointer shadow-2xs bg-stone-100 hover:bg-stone-200 text-stone-800 border-stone-200"
+              title={isSidebarWide ? 'Cambiar a ancho estándar' : 'Cambiar a panel extra ancho'}
+            >
+              <span className="material-symbols-outlined text-[17px]">
+                {isSidebarWide ? 'collapse_content' : 'expand_content'}
+              </span>
+              <span className="hidden md:inline">
+                {isSidebarWide ? 'Ancho Cómodo' : 'Extra Ancho'}
+              </span>
+            </button>
+          )}
 
           <button
             onClick={() => setIsIntroOpen(true)}
@@ -988,7 +1024,7 @@ export function App() {
       </header>
 
       {/* 2. Barra de Pasos / Guía de Flujo Sutil */}
-      <div className="bg-stone-100/60 border-b border-stone-200/80 px-4 lg:px-8 py-2 flex items-center justify-between text-xs text-stone-500 overflow-x-auto">
+      <div className="bg-stone-100/60 border-b border-stone-200/80 px-4 lg:px-6 py-2 flex items-center justify-between text-xs text-stone-500 overflow-x-auto">
         <div className="flex items-center gap-6 min-w-max">
           <div className="flex items-center gap-2 font-medium">
             <span
@@ -1062,10 +1098,10 @@ export function App() {
         )}
       </div>
 
-      {/* 3. Espacio Principal de Trabajo (Visor amplio con al menos 75% en pantallas completas) */}
-      <main className="flex-1 p-3 sm:p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 max-w-[1900px] w-full mx-auto">
-        {/* Columna Izquierda: Visor Interactivo (8 a 9 columnas - 75% de ancho en pantallas estándar) */}
-        <section className="lg:col-span-8 xl:col-span-9 flex flex-col gap-3 min-h-[520px]">
+      {/* 3. Espacio Principal de Trabajo (Aprovechamiento total del ancho de pantalla sin márgenes artificiales) */}
+      <main className="flex-1 w-full px-3 sm:px-4 lg:px-6 py-3 flex flex-col lg:flex-row gap-4 items-stretch">
+        {/* Columna Izquierda: Visor Interactivo (Ocupa todo el espacio disponible) */}
+        <section className="flex-1 min-w-0 flex flex-col gap-3 min-h-[540px]">
           {/* Mensajes de Notificación */}
           {generationError && (
             <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-800 flex items-center justify-between shadow-xs animate-fadeIn">
@@ -1152,33 +1188,55 @@ export function App() {
           </div>
         </section>
 
-        {/* Columna Derecha: Panel de Estilo & Memoria de Calidades (3 a 4 columnas) */}
-        <section className="lg:col-span-4 xl:col-span-3 flex flex-col gap-3">
-          <StyleSelector
-            config={config}
-            onChangeConfig={setConfig}
-            presets={presets}
-            activePresetId={activePresetId}
-            onApplyPreset={handleApplyPreset}
-            onSavePreset={handleSavePreset}
-            onDeletePreset={handleDeletePreset}
-            activeMarkerId={activeMarkerId}
-            onSelectMarker={setActiveMarkerId}
-            isPinningMode={isPinningMode}
-            onTogglePinningMode={() => setIsPinningMode(!isPinningMode)}
-            onGenerateRender={handleGenerate}
-            isGenerating={isGenerating}
-            disabled={isGenerating || isAnalyzingPlan}
-            onDetectWithAI={handleDetectRooms}
-            isDetectingWithAI={isAnalyzingPlan}
-            hasSourceImage={!!sourceImage}
-            history={history}
-            onApplyCorrection={handleApplyTargetedCorrection}
-            onRestoreVersion={handleRestoreVersion}
-            currentVersion={currentVersionNumber}
-          />
-        </section>
+        {/* Columna Derecha: Panel de Estilo & Memoria de Calidades (Opcionalmente colapsable) */}
+        {isSidebarOpen && (
+          <section
+            className={`w-full shrink-0 flex flex-col gap-3 animate-fadeIn transition-all duration-200 ${
+              isSidebarWide
+                ? 'lg:w-[500px] xl:w-[560px] 2xl:w-[620px]'
+                : 'lg:w-[420px] xl:w-[460px] 2xl:w-[500px]'
+            }`}
+          >
+            <StyleSelector
+              config={config}
+              onChangeConfig={setConfig}
+              presets={presets}
+              activePresetId={activePresetId}
+              onApplyPreset={handleApplyPreset}
+              onSavePreset={handleSavePreset}
+              onDeletePreset={handleDeletePreset}
+              activeMarkerId={activeMarkerId}
+              onSelectMarker={setActiveMarkerId}
+              isPinningMode={isPinningMode}
+              onTogglePinningMode={() => setIsPinningMode(!isPinningMode)}
+              onGenerateRender={handleGenerate}
+              isGenerating={isGenerating}
+              disabled={isGenerating || isAnalyzingPlan}
+              onDetectWithAI={handleDetectRooms}
+              isDetectingWithAI={isAnalyzingPlan}
+              hasSourceImage={!!sourceImage}
+              history={history}
+              onApplyCorrection={handleApplyTargetedCorrection}
+              onRestoreVersion={handleRestoreVersion}
+              currentVersion={currentVersionNumber}
+              isWide={isSidebarWide}
+              onToggleWide={() => setIsSidebarWide((prev) => !prev)}
+            />
+          </section>
+        )}
       </main>
+
+      {/* Botón flotante para restaurar panel si está oculto */}
+      {!isSidebarOpen && (
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="fixed bottom-6 right-6 z-40 px-4 py-2.5 rounded-2xl bg-stone-900/95 hover:bg-stone-900 text-white text-xs font-bold shadow-2xl border border-stone-700/80 backdrop-blur-md flex items-center gap-2 transition-all hover:scale-105 active:scale-95 cursor-pointer animate-fadeIn"
+          title="Abrir panel de estilos y calidades"
+        >
+          <span className="material-symbols-outlined text-[18px] text-[#c25e38]">tune</span>
+          <span>Abrir Panel de Calidades</span>
+        </button>
+      )}
 
       {/* Modales */}
       <IntroModal isOpen={isIntroOpen} onClose={() => setIsIntroOpen(false)} />

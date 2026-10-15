@@ -48,6 +48,9 @@ interface StyleSelectorProps {
   onApplyCorrection?: (instruction: string) => Promise<void>;
   onRestoreVersion?: (item: RenderHistoryItem) => void;
   currentVersion?: number;
+  // Control de ancho del panel lateral
+  isWide?: boolean;
+  onToggleWide?: () => void;
 }
 
 type TabMode = 'presets' | 'camera' | 'rooms' | 'flooring' | 'carpentry' | 'corrections';
@@ -73,7 +76,9 @@ export function StyleSelector({
   history = [],
   onApplyCorrection,
   onRestoreVersion,
-  currentVersion = 1
+  currentVersion = 1,
+  isWide = true,
+  onToggleWide
 }: StyleSelectorProps) {
   const [activeTab, setActiveTab] = useState<TabMode>('presets');
   const [panelCorrectionInput, setPanelCorrectionInput] = useState<string>('');
@@ -133,12 +138,12 @@ export function StyleSelector({
   return (
     <div className="bg-white rounded-3xl border border-stone-200/90 shadow-sm flex flex-col overflow-hidden text-stone-800">
       {/* 1. Header con Tabs principales de navegación tipo Studio */}
-      <div className="p-3 bg-stone-50 border-b border-stone-200/90 flex items-center justify-between gap-2 overflow-x-auto">
-        <div className="flex items-center gap-1 min-w-max">
+      <div className="p-2 sm:p-2.5 bg-stone-50 border-b border-stone-200/90 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1 overflow-x-auto hide-scrollbar py-0.5 flex-1 min-w-0">
           <button
             type="button"
             onClick={() => setActiveTab('presets')}
-            className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
               activeTab === 'presets'
                 ? 'bg-white text-stone-900 shadow-xs border border-stone-200'
                 : 'text-stone-500 hover:text-stone-800 hover:bg-stone-100'
@@ -151,7 +156,7 @@ export function StyleSelector({
           <button
             type="button"
             onClick={() => setActiveTab('camera')}
-            className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
               activeTab === 'camera'
                 ? 'bg-white text-stone-900 shadow-xs border border-stone-200'
                 : 'text-stone-500 hover:text-stone-800 hover:bg-stone-100'
@@ -164,7 +169,7 @@ export function StyleSelector({
           <button
             type="button"
             onClick={() => setActiveTab('rooms')}
-            className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
               activeTab === 'rooms'
                 ? 'bg-white text-stone-900 shadow-xs border border-stone-200'
                 : 'text-stone-500 hover:text-stone-800 hover:bg-stone-100'
@@ -182,7 +187,7 @@ export function StyleSelector({
           <button
             type="button"
             onClick={() => setActiveTab('flooring')}
-            className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
               activeTab === 'flooring'
                 ? 'bg-white text-stone-900 shadow-xs border border-stone-200'
                 : 'text-stone-500 hover:text-stone-800 hover:bg-stone-100'
@@ -195,7 +200,7 @@ export function StyleSelector({
           <button
             type="button"
             onClick={() => setActiveTab('carpentry')}
-            className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
               activeTab === 'carpentry'
                 ? 'bg-white text-stone-900 shadow-xs border border-stone-200'
                 : 'text-stone-500 hover:text-stone-800 hover:bg-stone-100'
@@ -208,7 +213,7 @@ export function StyleSelector({
           <button
             type="button"
             onClick={() => setActiveTab('corrections')}
-            className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
               activeTab === 'corrections'
                 ? 'bg-[#c25e38] text-white shadow-xs font-bold'
                 : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
@@ -228,24 +233,41 @@ export function StyleSelector({
           </button>
         </div>
 
-        {/* Toggle Fidelidad 100% Calco */}
-        <button
-          type="button"
-          onClick={() => updateField('strictBlueprintFidelity', !config.strictBlueprintFidelity)}
-          className={`shrink-0 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition-all flex items-center gap-1.5 cursor-pointer ${
-            config.strictBlueprintFidelity
-              ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-              : 'bg-white border-stone-200 text-stone-500'
-          }`}
-          title="Fuerza a la IA a calcar los tabiques sin añadir ni quitar habitaciones"
-        >
-          <span className="material-symbols-outlined text-[15px] text-emerald-600">verified</span>
-          <span>{config.strictBlueprintFidelity ? 'Calco 1:1' : 'Flexible'}</span>
-        </button>
+        {/* Acciones de cabecera: Alternar ancho y Modo Calco */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {onToggleWide && (
+            <button
+              type="button"
+              onClick={onToggleWide}
+              className="px-2.5 py-1.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-100 text-stone-700 hover:text-stone-900 transition flex items-center gap-1.5 text-[11px] font-semibold cursor-pointer shadow-2xs"
+              title={isWide ? 'Cambiar a ancho estándar' : 'Expandir ancho del panel'}
+            >
+              <span className="material-symbols-outlined text-[16px] text-stone-500">
+                {isWide ? 'collapse_content' : 'expand_content'}
+              </span>
+              <span className="hidden sm:inline">{isWide ? 'Ancho Cómodo' : 'Extra Ancho'}</span>
+            </button>
+          )}
+
+          {/* Toggle Fidelidad 100% Calco */}
+          <button
+            type="button"
+            onClick={() => updateField('strictBlueprintFidelity', !config.strictBlueprintFidelity)}
+            className={`px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs ${
+              config.strictBlueprintFidelity
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                : 'bg-white border-stone-200 text-stone-500'
+            }`}
+            title="Fuerza a la IA a calcar los tabiques sin añadir ni quitar habitaciones"
+          >
+            <span className="material-symbols-outlined text-[15px] text-emerald-600">verified</span>
+            <span>{config.strictBlueprintFidelity ? 'Calco 1:1' : 'Flexible'}</span>
+          </button>
+        </div>
       </div>
 
       {/* 2. Área Central con contenido scrolleable fluido */}
-      <div className="p-4 sm:p-5 overflow-y-auto max-h-[64vh] space-y-4">
+      <div className="p-4 sm:p-5 overflow-y-auto max-h-[calc(100vh-250px)] min-h-[480px] space-y-4">
         {/* ============================================================== */}
         {/* PESTAÑA 1: PRESETS MAESTROS (EXPERIENCIA 1-CLIC) */}
         {/* ============================================================== */}
@@ -270,17 +292,17 @@ export function StyleSelector({
             />
 
             {/* Selector de Gama Cromática */}
-            <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200/90 space-y-2">
-              <div className="flex items-center justify-between">
+            <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200/90 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-[16px] text-[#c25e38]">palette</span>
                   <span>Paleta Cromática Predominante</span>
                 </span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-stone-200 text-stone-700">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-stone-200 text-stone-700 shrink-0">
                   {selectedPalette.label}
                 </span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {COLOR_PALETTE_SCHEMES.map((pal) => {
                   const isSelected = config.colorPalette === pal.id;
                   return (
@@ -289,19 +311,29 @@ export function StyleSelector({
                       type="button"
                       disabled={disabled}
                       onClick={() => updateField('colorPalette', pal.id)}
-                      className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
                         isSelected
-                          ? 'border-[#c25e38] bg-white ring-1 ring-[#c25e38] shadow-xs'
-                          : 'border-stone-200 bg-white/70 hover:bg-white hover:border-stone-300'
+                          ? 'border-[#c25e38] bg-white ring-2 ring-[#c25e38]/30 shadow-xs'
+                          : 'border-stone-200 bg-white/80 hover:bg-white hover:border-stone-300'
                       }`}
                     >
-                      <span className="text-xs font-bold text-stone-800 block truncate">{pal.label}</span>
-                      <div className="flex items-center gap-1 mt-1.5">
+                      <div className="flex items-start justify-between gap-1.5">
+                        <span className={`text-xs font-bold leading-snug break-words ${isSelected ? 'text-[#c25e38]' : 'text-stone-800'}`}>
+                          {pal.label}
+                        </span>
+                        {isSelected && (
+                          <span className="text-[10px] font-bold text-[#c25e38] bg-orange-100/70 px-1.5 py-0.2 rounded-full shrink-0">
+                            ✓
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
                         {pal.colors.map((c, i) => (
                           <span
                             key={i}
-                            className="w-3.5 h-3.5 rounded-full border border-black/15 shadow-2xs"
+                            className="w-4 h-4 rounded-full border border-black/15 shadow-2xs shrink-0"
                             style={{ backgroundColor: c }}
+                            title={c}
                           />
                         ))}
                       </div>
@@ -324,7 +356,7 @@ export function StyleSelector({
               </div>
 
               {/* Vista previa del logo actual */}
-              <div className="bg-white border border-stone-200 rounded-xl p-3 flex items-center justify-center min-h-[50px] shadow-2xs">
+              <div className="bg-white rounded-xl p-3 flex items-center justify-center min-h-[50px]">
                 {config.promotionLogo ? (
                   <img
                     src={config.promotionLogo}
@@ -397,7 +429,7 @@ export function StyleSelector({
               </div>
 
               {/* Vista previa en caja blanca oficial COMERCIALIZA */}
-              <div className="bg-white border border-stone-300 rounded-xl p-2.5 flex flex-col items-center justify-center min-h-[64px] shadow-2xs">
+              <div className="bg-white rounded-xl p-2.5 flex flex-col items-center justify-center min-h-[64px]">
                 <span className="text-[9px] font-black text-[#991B1B] tracking-wider uppercase mb-1">
                   COMERCIALIZA
                 </span>
@@ -479,7 +511,7 @@ export function StyleSelector({
                 </span>
               </label>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {CAMERA_ANGLES.map((cam) => {
                   const isSelected = config.cameraAngle === cam.id;
                   return (
@@ -494,21 +526,21 @@ export function StyleSelector({
                           : 'border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <div className="flex items-center gap-1.5">
+                      <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
                           <span
-                            className={`material-symbols-outlined text-[18px] ${
+                            className={`material-symbols-outlined text-[18px] shrink-0 ${
                               isSelected ? 'text-[#c25e38]' : 'text-stone-400'
                             }`}
                           >
                             {cam.icon}
                           </span>
-                          <span className={`text-xs font-bold ${isSelected ? 'text-[#c25e38]' : 'text-stone-900'}`}>
-                            {cam.label.split('(')[0]}
+                          <span className={`text-xs font-bold leading-snug break-words ${isSelected ? 'text-[#c25e38]' : 'text-stone-900'}`}>
+                            {cam.label.split('(')[0].trim()}
                           </span>
                         </div>
                         {cam.badge && (
-                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-600">
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-600 shrink-0">
                             {cam.badge}
                           </span>
                         )}
@@ -691,7 +723,7 @@ export function StyleSelector({
                 <span>Iluminación & Atmósfera Solar</span>
               </label>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 {LIGHTING_PRESETS.map((light) => {
                   const isSelected = config.lighting === light.id;
                   return (
@@ -700,7 +732,7 @@ export function StyleSelector({
                       type="button"
                       disabled={disabled}
                       onClick={() => updateField('lighting', light.id as any)}
-                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-between gap-1.5 ${
                         isSelected
                           ? 'border-[#c25e38] bg-orange-50 text-[#c25e38] font-bold ring-1 ring-[#c25e38]'
                           : 'border-stone-200 bg-white hover:border-stone-300 text-stone-700'
@@ -709,7 +741,7 @@ export function StyleSelector({
                       <span className="material-symbols-outlined text-[20px] block mb-0.5">
                         {light.icon}
                       </span>
-                      <span className="text-[11px] block truncate">{light.label.split('(')[0]}</span>
+                      <span className="text-[11px] font-semibold leading-tight text-center break-words">{light.label.split('(')[0].trim()}</span>
                     </button>
                   );
                 })}
@@ -779,7 +811,7 @@ export function StyleSelector({
                 <span className="material-symbols-outlined text-[16px] text-[#c25e38]">texture</span>
                 <span>Suelo en Salón & Dormitorios</span>
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {FLOORING_LIVING_OPTIONS.map((floor) => {
                   const isSelected = config.flooringLiving === floor.id;
                   return (
@@ -788,15 +820,15 @@ export function StyleSelector({
                       type="button"
                       disabled={disabled}
                       onClick={() => updateField('flooringLiving', floor.id)}
-                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
                         isSelected
-                          ? 'border-[#c25e38] bg-orange-50/50 ring-1 ring-[#c25e38] shadow-xs'
+                          ? 'border-[#c25e38] bg-orange-50/50 ring-2 ring-[#c25e38]/30 shadow-xs'
                           : 'border-stone-200 bg-white hover:border-stone-300'
                       }`}
                     >
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2">
                         <span
-                          className="w-3.5 h-3.5 rounded-full border border-black/15 shrink-0"
+                          className="w-4 h-4 rounded-full border border-black/15 shrink-0"
                           style={{
                             backgroundColor:
                               floor.id.includes('oak')
@@ -812,9 +844,9 @@ export function StyleSelector({
                                 : '#E5E7EB'
                           }}
                         />
-                        <span className="text-xs font-bold text-stone-900 truncate">{floor.label}</span>
+                        <span className="text-xs font-bold text-stone-900 leading-snug break-words">{floor.label}</span>
                       </div>
-                      <p className="text-[10px] text-stone-500 line-clamp-1">{floor.desc}</p>
+                      <p className="text-[10px] text-stone-500 line-clamp-2 leading-tight">{floor.desc}</p>
                     </button>
                   );
                 })}
@@ -827,7 +859,7 @@ export function StyleSelector({
                 <span className="material-symbols-outlined text-[16px] text-[#c25e38]">countertops</span>
                 <span>Suelo en Cocina</span>
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {KITCHEN_FLOORING_OPTIONS.map((kFloor) => {
                   const isSelected = config.flooringKitchen === kFloor.id;
                   return (
@@ -836,13 +868,13 @@ export function StyleSelector({
                       type="button"
                       disabled={disabled}
                       onClick={() => updateField('flooringKitchen', kFloor.id)}
-                      className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                         isSelected
-                          ? 'border-[#c25e38] bg-orange-50/50 ring-1 ring-[#c25e38]'
+                          ? 'border-[#c25e38] bg-orange-50/50 ring-2 ring-[#c25e38]/30 shadow-xs'
                           : 'border-stone-200 bg-white hover:border-stone-300'
                       }`}
                     >
-                      <span className="text-xs font-bold text-stone-900 block truncate">{kFloor.label}</span>
+                      <span className="text-xs font-bold text-stone-900 block leading-snug break-words">{kFloor.label}</span>
                     </button>
                   );
                 })}
@@ -860,7 +892,7 @@ export function StyleSelector({
                   {KITCHEN_COUNTERTOP_OPTIONS.find((c) => c.id === (config.kitchenCountertop || 'quartz_calacatta_white'))?.material}
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {KITCHEN_COUNTERTOP_OPTIONS.map((countertop) => {
                   const isSelected = (config.kitchenCountertop || 'quartz_calacatta_white') === countertop.id;
                   return (
@@ -869,20 +901,20 @@ export function StyleSelector({
                       type="button"
                       disabled={disabled}
                       onClick={() => updateField('kitchenCountertop', countertop.id)}
-                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
                         isSelected
-                          ? 'border-[#c25e38] bg-orange-50/50 ring-1 ring-[#c25e38]'
+                          ? 'border-[#c25e38] bg-orange-50/50 ring-2 ring-[#c25e38]/30 shadow-xs'
                           : 'border-stone-200 bg-white hover:border-stone-300'
                       }`}
                     >
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2">
                         <span
-                          className="w-3.5 h-3.5 rounded-full border border-black/15 shrink-0"
+                          className="w-4 h-4 rounded-full border border-black/15 shrink-0"
                           style={{ backgroundColor: countertop.colorPreview }}
                         />
-                        <span className="text-xs font-bold text-stone-900 truncate">{countertop.label}</span>
+                        <span className="text-xs font-bold text-stone-900 leading-snug break-words">{countertop.label}</span>
                       </div>
-                      <p className="text-[10px] text-stone-500 line-clamp-1">{countertop.desc}</p>
+                      <p className="text-[10px] text-stone-500 line-clamp-2 leading-tight">{countertop.desc}</p>
                     </button>
                   );
                 })}
@@ -900,7 +932,7 @@ export function StyleSelector({
                   Plato ducha: Blanco Puro
                 </span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {BATHROOM_GRES_60X60_TONES.map((bTone) => {
                   const isSelected = config.flooringBathroomGres60 === bTone.id;
                   return (
@@ -909,17 +941,17 @@ export function StyleSelector({
                       type="button"
                       disabled={disabled}
                       onClick={() => updateField('flooringBathroomGres60', bTone.id)}
-                      className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 ${
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
                         isSelected
-                          ? 'border-[#c25e38] bg-orange-50/50 ring-1 ring-[#c25e38]'
+                          ? 'border-[#c25e38] bg-orange-50/50 ring-2 ring-[#c25e38]/30 shadow-xs'
                           : 'border-stone-200 bg-white hover:border-stone-300'
                       }`}
                     >
                       <span
-                        className="w-3.5 h-3.5 rounded-full border border-black/15 shrink-0"
+                        className="w-4 h-4 rounded-full border border-black/15 shrink-0"
                         style={{ backgroundColor: bTone.previewColor }}
                       />
-                      <span className="text-xs font-bold text-stone-900 truncate">{bTone.label}</span>
+                      <span className="text-xs font-bold text-stone-900 leading-snug break-words">{bTone.label}</span>
                     </button>
                   );
                 })}
@@ -932,7 +964,7 @@ export function StyleSelector({
                 <span className="material-symbols-outlined text-[16px] text-[#c25e38]">deck</span>
                 <span>Pavimento en Terraza Exterior / Balcón</span>
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {TERRACE_FLOORING_OPTIONS.map((tFloor) => {
                   const isSelected = config.flooringTerrace === tFloor.id;
                   return (
@@ -941,17 +973,17 @@ export function StyleSelector({
                       type="button"
                       disabled={disabled}
                       onClick={() => updateField('flooringTerrace', tFloor.id)}
-                      className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 ${
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
                         isSelected
-                          ? 'border-[#c25e38] bg-orange-50/50 ring-1 ring-[#c25e38]'
+                          ? 'border-[#c25e38] bg-orange-50/50 ring-2 ring-[#c25e38]/30 shadow-xs'
                           : 'border-stone-200 bg-white hover:border-stone-300'
                       }`}
                     >
                       <span
-                        className="w-3.5 h-3.5 rounded-full border border-black/15 shrink-0"
+                        className="w-4 h-4 rounded-full border border-black/15 shrink-0"
                         style={{ backgroundColor: tFloor.previewColor }}
                       />
-                      <span className="text-xs font-bold text-stone-900 truncate">{tFloor.label}</span>
+                      <span className="text-xs font-bold text-stone-900 leading-snug break-words">{tFloor.label}</span>
                     </button>
                   );
                 })}
@@ -971,7 +1003,7 @@ export function StyleSelector({
                 <span className="material-symbols-outlined text-[16px] text-[#c25e38]">window</span>
                 <span>Ventanas & Carpintería Exterior</span>
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {WINDOW_FRAME_OPTIONS.map((frame) => {
                   const isSelected = config.windowFrames === frame.id;
                   return (
@@ -980,19 +1012,17 @@ export function StyleSelector({
                       type="button"
                       disabled={disabled}
                       onClick={() => updateField('windowFrames', frame.id)}
-                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
                         isSelected
-                          ? 'border-[#c25e38] bg-orange-50/50 ring-1 ring-[#c25e38]'
+                          ? 'border-[#c25e38] bg-orange-50/50 ring-2 ring-[#c25e38]/30 shadow-xs'
                           : 'border-stone-200 bg-white hover:border-stone-300'
                       }`}
                     >
-                      <div className="flex items-center gap-2 mb-1">
-                        <span
-                          className="w-3.5 h-3.5 rounded-full border border-black/15 shrink-0"
-                          style={{ backgroundColor: frame.colorPreview }}
-                        />
-                        <span className="text-xs font-bold text-stone-900 truncate">{frame.label}</span>
-                      </div>
+                      <span
+                        className="w-4 h-4 rounded-full border border-black/15 shrink-0"
+                        style={{ backgroundColor: frame.colorPreview }}
+                      />
+                      <span className="text-xs font-bold text-stone-900 leading-snug break-words">{frame.label}</span>
                     </button>
                   );
                 })}
@@ -1056,7 +1086,7 @@ export function StyleSelector({
                   </p>
                 </div>
               )}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {DOOR_FINISH_OPTIONS.map((door) => {
                   const isSelected = config.doorFinish === door.id;
                   return (
@@ -1065,19 +1095,17 @@ export function StyleSelector({
                       type="button"
                       disabled={disabled}
                       onClick={() => updateField('doorFinish', door.id)}
-                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
                         isSelected
-                          ? 'border-[#c25e38] bg-orange-50/50 ring-1 ring-[#c25e38]'
+                          ? 'border-[#c25e38] bg-orange-50/50 ring-2 ring-[#c25e38]/30 shadow-xs'
                           : 'border-stone-200 bg-white hover:border-stone-300'
                       }`}
                     >
-                      <div className="flex items-center gap-2 mb-1">
-                        <span
-                          className="w-3.5 h-3.5 rounded-full border border-black/15 shrink-0"
-                          style={{ backgroundColor: door.colorPreview }}
-                        />
-                        <span className="text-xs font-bold text-stone-900 truncate">{door.label}</span>
-                      </div>
+                      <span
+                        className="w-4 h-4 rounded-full border border-black/15 shrink-0"
+                        style={{ backgroundColor: door.colorPreview }}
+                      />
+                      <span className="text-xs font-bold text-stone-900 leading-snug break-words">{door.label}</span>
                     </button>
                   );
                 })}
@@ -1090,7 +1118,7 @@ export function StyleSelector({
                 <span className="material-symbols-outlined text-[16px] text-[#c25e38]">format_paint</span>
                 <span>Paredes Interiores (Pintura lisa)</span>
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {WALL_COLOR_OPTIONS.map((wall) => {
                   const isSelected = config.interiorWallColor === wall.id;
                   return (
@@ -1099,9 +1127,9 @@ export function StyleSelector({
                       type="button"
                       disabled={disabled}
                       onClick={() => updateField('interiorWallColor', wall.id)}
-                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 ${
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
                         isSelected
-                          ? 'border-[#c25e38] bg-orange-50/50 ring-1 ring-[#c25e38]'
+                          ? 'border-[#c25e38] bg-orange-50/50 ring-2 ring-[#c25e38]/30 shadow-xs'
                           : 'border-stone-200 bg-white hover:border-stone-300'
                       }`}
                     >
@@ -1109,7 +1137,7 @@ export function StyleSelector({
                         className="w-4 h-4 rounded-full border border-black/20 shrink-0"
                         style={{ backgroundColor: wall.hex }}
                       />
-                      <span className="text-xs font-bold text-stone-900 truncate">{wall.label}</span>
+                      <span className="text-xs font-bold text-stone-900 leading-snug break-words">{wall.label}</span>
                     </button>
                   );
                 })}
@@ -1283,20 +1311,24 @@ export function StyleSelector({
 
       {/* 3. Footer Sticky: Resumen de Calidades + CTA de Generar Render */}
       <div className="p-3.5 bg-stone-50 border-t border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-        {/* Chip de resumen de configuración activa */}
-        <div className="min-w-0 flex items-center gap-1.5 text-[11px] text-stone-600 truncate">
-          <span className="font-bold text-stone-900">{selectedStyle.label}</span>
-          <span>•</span>
-          <span className="truncate">{selectedCamera.label.split('(')[0]}</span>
-          <span>•</span>
-          <span className="truncate">{selectedLivingFloor.label}</span>
-          <span>•</span>
-          <span className="truncate">{selectedWindowFrame.label}</span>
+        {/* Chip de resumen de configuración activa con etiquetas completas */}
+        <div className="min-w-0 flex-1 flex flex-wrap items-center gap-1.5 text-[11px] text-stone-600">
+          <span className="font-bold text-stone-900 px-2 py-0.5 rounded-md bg-stone-200/80">
+            {selectedStyle.label}
+          </span>
+          <span className="px-2 py-0.5 rounded-md bg-stone-100 border border-stone-200 font-medium">
+            {selectedCamera.label.split('(')[0].trim()}
+          </span>
+          <span className="px-2 py-0.5 rounded-md bg-stone-100 border border-stone-200 font-medium">
+            {selectedLivingFloor.label}
+          </span>
+          <span className="px-2 py-0.5 rounded-md bg-stone-100 border border-stone-200 font-medium">
+            {selectedWindowFrame.label}
+          </span>
           {markersCount > 0 && (
-            <>
-              <span>•</span>
-              <span className="font-bold text-[#c25e38]">{markersCount} estancias</span>
-            </>
+            <span className="font-bold text-[#c25e38] px-2 py-0.5 rounded-md bg-orange-100/60 border border-orange-200">
+              {markersCount} estancias
+            </span>
           )}
         </div>
 

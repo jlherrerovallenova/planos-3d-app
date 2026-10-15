@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { RoomMarker } from '../types';
-import { sortRoomMarkers } from '../services/roomSorter';
+import { categorizeRoomsForSchedule } from '../services/roomSorter';
 
 interface SurfaceScheduleTableProps {
   markers: RoomMarker[];
@@ -11,105 +11,185 @@ interface SurfaceScheduleTableProps {
 
 export function SurfaceScheduleTable({
   markers,
-  markerBadgeColor = '#0F2C59',
+  markerBadgeColor = '#0E3B64',
   className = '',
   showTotal = true
 }: SurfaceScheduleTableProps) {
-  const sortedMarkers = useMemo(() => sortRoomMarkers(markers), [markers]);
-  const accentColor = markerBadgeColor || '#0F2C59';
+  const schedule = useMemo(() => categorizeRoomsForSchedule(markers || []), [markers]);
+  const primaryNavy = '#0E3B64';
+  const textDarkNavy = '#0F2F4E';
+  const skyBlueBar = '#A8D4F2';
 
-  // Calcular superficie total sumando las áreas existentes
-  const totalArea = sortedMarkers.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0);
-
-  // Formateador con coma decimal española (ej. 26,40)
+  // Formateador con coma decimal española (ej. 20,25 m²)
   const formatM2 = (val?: number) => {
     if (val === undefined || val === null || isNaN(val)) return '—';
     return val.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' m²';
   };
 
+  const hasInterior = schedule.interiorRooms.length > 0;
+  const hasExterior = schedule.exteriorRooms.length > 0;
+  const isEmpty = schedule.sortedMarkers.length === 0;
+
   return (
     <div
-      className={`bg-white p-5 rounded-2xl shadow-md border border-stone-200/90 max-w-sm w-full select-none font-sans ${className}`}
-      style={{
-        boxShadow: '0 4px 20px -2px rgba(18, 50, 88, 0.08)'
-      }}
+      className={`bg-white px-3 sm:px-4 py-2 max-w-[340px] w-full select-none font-schedule ${className}`}
     >
       {/* Título Principal de la Ficha */}
       <h3
-        className="text-[13px] font-black uppercase tracking-wider mb-1.5 text-center sm:text-left"
-        style={{ color: accentColor }}
+        className="text-[15.5px] font-black uppercase tracking-tight text-center sm:text-left mb-1.5"
+        style={{ color: primaryNavy }}
       >
         CUADRO DE SUPERFICIES ÚTILES
       </h3>
 
-      {/* Franja decorativa color personalizado */}
+      {/* Franja decorativa azul marino gruesa bajo el título */}
       <div
-        className="h-1 rounded-full mb-3.5 w-full transition-colors duration-200"
-        style={{ backgroundColor: accentColor }}
+        className="h-[3.5px] mb-3 w-full"
+        style={{ backgroundColor: primaryNavy }}
       />
 
-      {/* Lista de Estancias Numeradas */}
-      <div className="space-y-1.5 text-[12px]">
-        {sortedMarkers.length === 0 ? (
-          <div className="py-4 text-center text-stone-400 text-xs italic">
-            Sin estancias registradas.
-            <br />
-            Pulsa en "Extraer estancias y m² con IA".
-          </div>
-        ) : (
-          sortedMarkers.map((marker, index) => {
+      {/* Contenido de la Tabla */}
+      {isEmpty ? (
+        <div className="py-5 text-center text-stone-400 text-xs italic">
+          Sin estancias registradas.
+          <br />
+          Pulsa en "Extraer estancias y m² con IA".
+        </div>
+      ) : (
+        <div className="space-y-1 text-[13px] leading-tight">
+          {/* 1. Estancias Útiles Interiores */}
+          {schedule.interiorRooms.map((marker, index) => {
             const numFormatted = String(index + 1).padStart(2, '0') + '.';
-          return (
-            <div
-              key={marker.id || index}
-              className="flex items-baseline justify-between gap-3 py-0.5 border-b border-stone-100 last:border-b-0"
-            >
-              <div className="flex items-baseline gap-2 min-w-0">
+            return (
+              <div
+                key={marker.id || index}
+                className="flex items-baseline justify-between gap-2 py-0.5"
+              >
+                <div className="flex items-baseline gap-2 min-w-0">
+                  <span
+                    className="font-extrabold text-[13px] shrink-0"
+                    style={{ color: primaryNavy }}
+                  >
+                    {numFormatted}
+                  </span>
+                  <span
+                    className="font-semibold text-[13px] uppercase truncate"
+                    style={{ color: textDarkNavy }}
+                    title={marker.name}
+                  >
+                    {marker.name}
+                  </span>
+                </div>
+
                 <span
-                  className="font-black text-[12px] shrink-0 font-mono"
-                  style={{ color: accentColor }}
+                  className="font-extrabold text-[13px] whitespace-nowrap text-right shrink-0"
+                  style={{ color: primaryNavy }}
                 >
-                  {numFormatted}
-                </span>
-                <span
-                  className="font-bold text-[11.5px] uppercase truncate text-stone-800"
-                  title={marker.name}
-                >
-                  {marker.name}
+                  {formatM2(marker.areaSqMeters)}
                 </span>
               </div>
+            );
+          })}
 
-              <span
-                className="font-black text-[12.5px] whitespace-nowrap text-right shrink-0"
-                style={{ color: accentColor }}
-              >
-                {formatM2(marker.areaSqMeters)}
-              </span>
-            </div>
-          );
-        })
-      )}
-      </div>
+          {/* 2. Subtotal Útil Interior (Solo si hay estancias exteriores para separar) */}
+          {hasInterior && hasExterior && (
+            <>
+              <div
+                className="my-1.5 border-t w-full"
+                style={{ borderColor: `${primaryNavy}70` }}
+              />
+              <div className="flex items-baseline justify-between py-0.5">
+                <span
+                  className="text-[13px] font-extrabold uppercase tracking-tight"
+                  style={{ color: primaryNavy }}
+                >
+                  ÚTIL TOTAL INTERIOR
+                </span>
+                <span
+                  className="text-[13px] font-extrabold"
+                  style={{ color: primaryNavy }}
+                >
+                  {formatM2(schedule.interiorTotal)}
+                </span>
+              </div>
+              <div
+                className="my-1.5 border-t w-full"
+                style={{ borderColor: `${primaryNavy}70` }}
+              />
 
-      {/* Total Superficie Útil */}
-      {showTotal && markers.length > 0 && totalArea > 0 && (
-        <div className="mt-3.5 pt-2.5 border-t-2 border-stone-200 flex items-center justify-between">
-          <span
-            className="text-[11px] font-black uppercase tracking-wider"
-            style={{ color: accentColor }}
-          >
-            SUPERFICIE ÚTIL TOTAL
-          </span>
-          <span
-            className="text-[13px] font-black"
-            style={{ color: accentColor }}
-          >
-            {formatM2(totalArea)}
-          </span>
+              {/* 3. Estancias Exteriores (Terraza, Tendedero, Balcón, etc.) */}
+              {schedule.exteriorRooms.map((marker, idx) => {
+                const numFormatted =
+                  String(schedule.interiorRooms.length + idx + 1).padStart(2, '0') + '.';
+                return (
+                  <div
+                    key={marker.id || idx}
+                    className="flex items-baseline justify-between gap-2 py-0.5"
+                  >
+                    <div className="flex items-baseline gap-2 min-w-0">
+                      <span
+                        className="font-extrabold text-[13px] shrink-0"
+                        style={{ color: primaryNavy }}
+                      >
+                        {numFormatted}
+                      </span>
+                      <span
+                        className="font-semibold text-[13px] uppercase truncate"
+                        style={{ color: textDarkNavy }}
+                        title={marker.name}
+                      >
+                        {marker.name}
+                      </span>
+                    </div>
+
+                    <span
+                      className="font-extrabold text-[13px] whitespace-nowrap text-right shrink-0"
+                      style={{ color: primaryNavy }}
+                    >
+                      {formatM2(marker.areaSqMeters)}
+                    </span>
+                  </div>
+                );
+              })}
+            </>
+          )}
+
+          {/* Línea divisoria antes del Total */}
+          {showTotal && schedule.grandTotal > 0 && (
+            <>
+              <div
+                className="my-2 border-t w-full"
+                style={{ borderColor: primaryNavy }}
+              />
+
+              {/* Total Superficie Útil */}
+              <div className="flex items-baseline justify-between pb-1">
+                <span
+                  className="text-[13.5px] font-black uppercase tracking-tight"
+                  style={{ color: primaryNavy }}
+                >
+                  SUPERFICIE ÚTIL TOTAL
+                </span>
+                <span
+                  className="text-[14px] font-black"
+                  style={{ color: primaryNavy }}
+                >
+                  {formatM2(schedule.grandTotal)}
+                </span>
+              </div>
+            </>
+          )}
         </div>
       )}
+
+      {/* Franja decorativa celeste / azul cielo inferior de la ficha */}
+      <div
+        className="h-[5px] w-full mt-2.5"
+        style={{ backgroundColor: skyBlueBar }}
+      />
     </div>
   );
 }
 
 export default SurfaceScheduleTable;
+
