@@ -79,12 +79,14 @@ function getContrastTextColor(hexColor?: string): string {
   return luma > 170 ? '#18181B' : '#FFFFFF';
 }
 
+const EMPTY_ROOM_MARKERS: RoomMarker[] = [];
+
 export function PlanCanvasPreview({
   sourceImage,
   renderedResult,
   isGenerating,
   cameraAngle,
-  roomMarkers = [],
+  roomMarkers = EMPTY_ROOM_MARKERS,
   projectTitle = 'Proyecto residencial de 140 viviendas',
   activeMarkerId = null,
   isPinningMode = false,
@@ -237,19 +239,29 @@ export function PlanCanvasPreview({
     };
   }, [draggingMarkerId, onUpdateMarker]);
 
-  // Cambiar automáticamente a pestaña Ficha Comercial cuando llega el resultado renderizado
-  useEffect(() => {
-    if (renderedResult) {
+  // Cambiar automáticamente de pestaña de forma inteligente cuando llega un nuevo render
+  const [prevRenderedResult, setPrevRenderedResult] = useState(renderedResult);
+  if (renderedResult !== prevRenderedResult) {
+    const isFirstRender = !prevRenderedResult && !!renderedResult;
+    setPrevRenderedResult(renderedResult);
+    if (isFirstRender) {
       setActiveTab('ficha');
-    }
-  }, [renderedResult]);
-
-  // Si no hay resultado todavía, asegurar que se muestre el source
-  useEffect(() => {
-    if (!renderedResult && sourceImage && activeTab !== 'source' && activeTab !== 'ficha') {
+    } else if (renderedResult && activeTab === 'source') {
+      setActiveTab('rendered');
+    } else if (!renderedResult && sourceImage && activeTab !== 'source' && activeTab !== 'ficha') {
       setActiveTab('source');
     }
-  }, [renderedResult, sourceImage]);
+  }
+
+  // Cerrar popover de edición con tecla Escape
+  useEffect(() => {
+    if (!editingMarkerId) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setEditingMarkerId(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editingMarkerId]);
 
   // Exportar Ficha Comercial Completa (Plano + Cuadro de Superficies) en Imagen
   const handleExportFicha = async () => {
@@ -410,10 +422,19 @@ export function PlanCanvasPreview({
               </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {SAMPLE_PLANS.map((sample, idx) => (
+              {SAMPLE_PLANS.map((sample) => (
                 <div
-                  key={idx}
+                  key={sample.url}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Probar plano muestra ${sample.name}`}
                   onClick={() => onLoadSamplePlan(sample.url, sample.name)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onLoadSamplePlan(sample.url, sample.name);
+                    }
+                  }}
                   className="group p-3 rounded-2xl bg-stone-50/80 hover:bg-stone-100/90 border border-stone-200/90 hover:border-[#c25e38]/60 transition-all cursor-pointer flex items-center gap-3.5 shadow-2xs"
                 >
                   <img
@@ -864,6 +885,7 @@ export function PlanCanvasPreview({
                     </div>
                     <input
                       type="range"
+                      aria-label="Ángulo libre de rotación del plano"
                       min="0"
                       max="359"
                       step="5"
@@ -992,7 +1014,6 @@ export function PlanCanvasPreview({
         {/* CONTENEDOR DE IMAGEN (Con soporte de zoom) */}
         <div
           ref={imageContainerRef}
-          onClick={handleContainerClick}
           className="relative max-w-full max-h-full flex items-center justify-center transition-transform duration-150 ease-out"
           style={{ transform: activeTab === 'ficha' ? 'none' : `scale(${zoomLevel})` }}
         >
@@ -1129,7 +1150,13 @@ export function PlanCanvasPreview({
                     <>
                       <div
                         ref={fichaPlanRef}
+                        role="region"
+                        aria-label="Plano de la Ficha Comercial"
+                        tabIndex={0}
                         onClick={(e) => handleImageClick(e, fichaPlanRef.current)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleImageClick(e as any, fichaPlanRef.current);
+                        }}
                         style={{
                           transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : undefined,
                           transformOrigin: 'center center',
@@ -1150,10 +1177,19 @@ export function PlanCanvasPreview({
                           const isDragging = draggingMarkerId === marker.id;
                           return (
                             <div
-                              key={marker.id || idx}
+                              key={marker.id || `marker-ficha-${marker.name}-${idx}`}
+                              role="button"
+                              tabIndex={0}
+                              aria-label={`Estancia #${idx + 1} ${marker.name}`}
                               onMouseDown={(e) => handleMarkerDragStart(e, marker.id, fichaPlanRef.current)}
                               onTouchStart={(e) => handleMarkerDragStart(e, marker.id, fichaPlanRef.current)}
                               onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                }
+                              }}
                               style={{
                                 left: `${marker.x}%`,
                                 top: `${marker.y}%`,

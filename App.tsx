@@ -47,14 +47,14 @@ export function App() {
   } | null>(null);
 
   // Imagen original sin recortar (permite alternar entre plano aislado y original)
-  const [originalSourceImage, setOriginalSourceImage] = useState<{
+  const originalSourceImageRef = useRef<{
     base64: string;
     mimeType: string;
     name?: string;
     mediaId?: string;
   } | null>(null);
   const [isPlanIsolated, setIsPlanIsolated] = useState<boolean>(false);
-  const [detectedBlueprintBox, setDetectedBlueprintBox] = useState<[number, number, number, number] | null>(null);
+  const detectedBlueprintBoxRef = useRef<[number, number, number, number] | null>(null);
 
   const [renderedResult, setRenderedResult] = useState<{
     base64: string;
@@ -112,7 +112,7 @@ export function App() {
       // Aislamiento automático del plano: si contiene precios, cartelas o márgenes exteriores
       if (result.blueprintBoundingBox && isSignificantCrop(result.blueprintBoundingBox)) {
         try {
-          setDetectedBlueprintBox(result.blueprintBoundingBox);
+          detectedBlueprintBoxRef.current = result.blueprintBoundingBox;
           const dataUrl = `data:${activeMime};base64,${activeBase64}`;
           const cropRes = await cropImageToBoundingBox(dataUrl, result.blueprintBoundingBox, 2.5);
           activeBase64 = cropRes.cleanBase64;
@@ -147,7 +147,7 @@ export function App() {
   };
 
   const handleDetectRooms = async () => {
-    const targetImg = originalSourceImage || sourceImage;
+    const targetImg = originalSourceImageRef.current || sourceImage;
     if (!targetImg) {
       setGenerationError('Carga primero una imagen del plano para analizarla.');
       return;
@@ -164,7 +164,7 @@ export function App() {
 
       if (result.blueprintBoundingBox && isSignificantCrop(result.blueprintBoundingBox)) {
         try {
-          setDetectedBlueprintBox(result.blueprintBoundingBox);
+          detectedBlueprintBoxRef.current = result.blueprintBoundingBox;
           const dataUrl = `data:${activeMime};base64,${activeBase64}`;
           const cropRes = await cropImageToBoundingBox(dataUrl, result.blueprintBoundingBox, 2.5);
           activeBase64 = cropRes.cleanBase64;
@@ -202,23 +202,23 @@ export function App() {
 
   // Alternar entre el plano aislado (recortado sin precios/textos) y la imagen original completa
   const handleToggleIsolatePlan = async () => {
-    if (!sourceImage && !originalSourceImage) return;
+    if (!sourceImage && !originalSourceImageRef.current) return;
 
-    if (isPlanIsolated && originalSourceImage) {
+    if (isPlanIsolated && originalSourceImageRef.current) {
       // Revertir al plano original sin recorte
-      setSourceImage(originalSourceImage);
+      setSourceImage(originalSourceImageRef.current);
       setIsPlanIsolated(false);
       setGenerationSuccessMessage('Mostrando plano original completo (sin recorte).');
       return;
     }
 
-    const baseImg = originalSourceImage || sourceImage;
+    const baseImg = originalSourceImageRef.current || sourceImage;
     if (!baseImg) return;
 
-    if (detectedBlueprintBox) {
+    if (detectedBlueprintBoxRef.current) {
       try {
         const dataUrl = `data:${baseImg.mimeType};base64,${baseImg.base64}`;
-        const cropRes = await cropImageToBoundingBox(dataUrl, detectedBlueprintBox, 2.5);
+        const cropRes = await cropImageToBoundingBox(dataUrl, detectedBlueprintBoxRef.current, 2.5);
         setSourceImage({
           ...baseImg,
           base64: cropRes.cleanBase64,
@@ -295,7 +295,7 @@ export function App() {
           name: file.name.replace(/\.pdf$/i, '') + (res.numPages > 1 ? ' (Pág. 1)' : '')
         };
         setSourceImage(loadedImg);
-        setOriginalSourceImage(loadedImg);
+        originalSourceImageRef.current = loadedImg;
         setIsPlanIsolated(false);
         setRenderedResult(null);
         triggerPlanAnalysis(res.base64, 'image/png');
@@ -340,7 +340,7 @@ export function App() {
         mediaId
       };
       setSourceImage(loadedImg);
-      setOriginalSourceImage(loadedImg);
+      originalSourceImageRef.current = loadedImg;
       setIsPlanIsolated(false);
       setRenderedResult(null);
       setGenerationError(null);
@@ -365,7 +365,7 @@ export function App() {
         name: `${pdfFileInfo.file.name.replace(/\.pdf$/i, '')} (Pág. ${targetPage})`
       };
       setSourceImage(loadedImg);
-      setOriginalSourceImage(loadedImg);
+      originalSourceImageRef.current = loadedImg;
       setIsPlanIsolated(false);
       setRenderedResult(null);
       triggerPlanAnalysis(res.base64, 'image/png');
@@ -400,7 +400,7 @@ export function App() {
             mediaId: item.mediaId
           };
           setSourceImage(loadedImg);
-          setOriginalSourceImage(loadedImg);
+          originalSourceImageRef.current = loadedImg;
           setIsPlanIsolated(false);
           setRenderedResult(null);
           setGenerationError(null);
@@ -435,7 +435,7 @@ export function App() {
           name: sampleName
         };
         setSourceImage(loadedImg);
-        setOriginalSourceImage(loadedImg);
+        originalSourceImageRef.current = loadedImg;
         setIsPlanIsolated(false);
         setRenderedResult(null);
         setGenerationError(null);
@@ -523,6 +523,7 @@ export function App() {
 
   // Generación con IA
   const handleGenerate = async () => {
+    if (isGenerating) return;
     if (!sourceImage) {
       setGenerationError('Por favor, selecciona o sube un plano 2D antes de generar la maqueta.');
       return;
@@ -587,14 +588,22 @@ export function App() {
         throw new Error('No se encontró VITE_GEMINI_API_KEY en .env.local.');
       }
 
-      const candidateModels = [
-        'nano-banana-pro-preview',
-        'gemini-nano-banana-2.1',
+      // Priorizar el motor de render seleccionado por el usuario en config.renderEngine
+      const chosenEngine = config.renderEngine && config.renderEngine !== 'auto' ? config.renderEngine : null;
+      const defaultSequence = [
+        'gemini-3.1-flash-image',
+        'gemini-3-pro-image',
         'gemini-2.5-flash-image',
-        'gemini-3-pro-image-preview'
+        'gemini-3.1-flash-image-preview',
+        'gemini-3-pro-image-preview',
+        'gemini-3.1-flash-lite-image'
       ];
+      const candidateModels = chosenEngine
+        ? [chosenEngine, ...defaultSequence.filter((m) => m !== chosenEngine)]
+        : defaultSequence;
 
       let generatedImage: { base64: string; mimeType: string } | null = null;
+      let usedEngineName = '';
       let lastErrorMessage = '';
 
       for (const model of candidateModels) {
@@ -640,6 +649,7 @@ export function App() {
               base64: cleanBase64,
               mimeType: imagePart.inlineData.mimeType || mimeType || 'image/jpeg'
             };
+            usedEngineName = model;
             break;
           }
         } catch (modelErr: any) {
@@ -653,18 +663,21 @@ export function App() {
 
         const historyItem: RenderHistoryItem = {
           id: `render_${Date.now()}`,
-          mediaId: 'gemini_nano_banana',
+          mediaId: 'gemini_image',
           base64: generatedImage.base64,
           mimeType: generatedImage.mimeType,
           prompt: currentPrompt,
           config: { ...config },
           timestamp: Date.now(),
           versionNumber: 1,
-          appliedInstruction: 'Render inicial'
+          appliedInstruction: 'Render inicial',
+          usedEngine: usedEngineName
         };
         setCurrentVersionNumber(1);
         setHistory((prev) => [historyItem, ...prev]);
-        setGenerationSuccessMessage('¡Maqueta 3D renderizada con éxito!');
+        setGenerationSuccessMessage(
+          `¡Render completado con éxito! (Motor: ${usedEngineName.replace('gemini-', '')})`
+        );
         setIsGenerating(false);
         return;
       }
@@ -726,7 +739,8 @@ export function App() {
       // 2. Si Flow SDK está disponible
       const flowSdk = (window as any).Flow;
       if (flowSdk && typeof flowSdk.generate?.image === 'function') {
-        const refIds = sourceImage?.mediaId ? [sourceImage.mediaId] : [];
+        const latestMediaId = (history.length > 0 && history[0].mediaId) ? history[0].mediaId : sourceImage?.mediaId;
+        const refIds = latestMediaId ? [latestMediaId] : [];
         let genRes: any = null;
         try {
           genRes = await flowSdk.generate.image({
@@ -774,14 +788,21 @@ export function App() {
         throw new Error('No se encontró VITE_GEMINI_API_KEY en .env.local.');
       }
 
-      const candidateModels = [
-        'nano-banana-pro-preview',
-        'gemini-nano-banana-2.1',
+      // Priorizar el motor de render seleccionado por el usuario en config.renderEngine
+      const chosenEngine = config.renderEngine && config.renderEngine !== 'auto' ? config.renderEngine : null;
+      const defaultSequence = [
+        'gemini-3.1-flash-image',
+        'gemini-3-pro-image',
         'gemini-2.5-flash-image',
-        'gemini-3-pro-image-preview'
+        'gemini-3.1-flash-image-preview',
+        'gemini-3-pro-image-preview',
+        'gemini-3.1-flash-lite-image'
       ];
+      const candidateModels = chosenEngine
+        ? [chosenEngine, ...defaultSequence.filter((m) => m !== chosenEngine)]
+        : defaultSequence;
 
-      // Imagen base: priorizar el render actual (Image-to-Image) para preservar contexto
+      // Imagen base: priorizar el render actual (Image-to-Image) para preservar contexto arquitectónico
       const baseImgToRefine = renderedResult || sourceImage;
       const parts: any[] = [];
 
@@ -795,20 +816,10 @@ export function App() {
         });
       }
 
-      // Adjuntar también el plano base 2D como referencia estructural si existe
-      if (renderedResult && sourceImage && sourceImage.base64) {
-        const { cleanBase64, mimeType } = cleanBase64Data(sourceImage.base64);
-        parts.push({
-          inlineData: {
-            mimeType: sourceImage.mimeType || mimeType || 'image/jpeg',
-            data: cleanBase64
-          }
-        });
-      }
-
       parts.push({ text: targetedPrompt });
 
       let generatedImage: { base64: string; mimeType: string } | null = null;
+      let usedEngineName = '';
       let lastErrorMessage = '';
 
       for (const model of candidateModels) {
@@ -838,6 +849,7 @@ export function App() {
               base64: cleanBase64,
               mimeType: imagePart.inlineData.mimeType || mimeType || 'image/jpeg'
             };
+            usedEngineName = model;
             break;
           }
         } catch (modelErr: any) {
@@ -859,10 +871,13 @@ export function App() {
           config: { ...config, roomMarkers: updatedMarkers },
           timestamp: Date.now(),
           versionNumber: nextVersion,
-          appliedInstruction: instruction
+          appliedInstruction: instruction,
+          usedEngine: usedEngineName
         };
         setHistory((prev) => [historyItem, ...prev]);
-        setGenerationSuccessMessage(`¡Corrección aplicada con éxito! (Versión v${nextVersion} guardada)`);
+        setGenerationSuccessMessage(
+          `¡Corrección aplicada con éxito en v${nextVersion}! (Motor: ${usedEngineName.replace('gemini-', '')})`
+        );
         setIsGenerating(false);
         return;
       }
@@ -1085,9 +1100,9 @@ export function App() {
         {!sourceImage && (
           <div className="hidden lg:flex items-center gap-2 shrink-0">
             <span className="text-[11px] text-stone-400">Probar plano muestra:</span>
-            {SAMPLE_PLANS.map((sample, idx) => (
+            {SAMPLE_PLANS.map((sample) => (
               <button
-                key={idx}
+                key={sample.url}
                 onClick={() => handleLoadSample(sample.url, sample.name)}
                 className="px-2.5 py-0.5 rounded-lg bg-white border border-stone-200 hover:border-[#c25e38] text-stone-700 text-[11px] font-medium transition cursor-pointer"
               >
@@ -1110,7 +1125,9 @@ export function App() {
                 <span>{generationError}</span>
               </span>
               <button
+                type="button"
                 onClick={() => setGenerationError(null)}
+                aria-label="Cerrar notificación de error"
                 className="text-red-500 hover:text-red-900 font-bold cursor-pointer"
               >
                 ✕
@@ -1125,7 +1142,9 @@ export function App() {
                 <span>{generationSuccessMessage}</span>
               </span>
               <button
+                type="button"
                 onClick={() => setGenerationSuccessMessage(null)}
+                aria-label="Cerrar mensaje de éxito"
                 className="text-emerald-500 hover:text-emerald-900 font-bold cursor-pointer"
               >
                 ✕
@@ -1161,9 +1180,9 @@ export function App() {
               onTogglePinningMode={() => setIsPinningMode(!isPinningMode)}
               onClearPlan={() => {
                 setSourceImage(null);
-                setOriginalSourceImage(null);
+                originalSourceImageRef.current = null;
                 setIsPlanIsolated(false);
-                setDetectedBlueprintBox(null);
+                detectedBlueprintBoxRef.current = null;
                 setRenderedResult(null);
               }}
               onSelectFromGallery={handleSelectFromGallery}

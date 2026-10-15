@@ -14,7 +14,8 @@ import {
   WallColorType,
   RoomCategory,
   PresetConfig,
-  IsometricOrientation
+  IsometricOrientation,
+  RenderEngine
 } from './types';
 import { DEFAULT_PROMOTION_LOGO } from './services/defaultPromotionLogo';
 import { DEFAULT_AGENCY_LOGO } from './services/defaultAgencyLogo';
@@ -230,6 +231,71 @@ export const ISOMETRIC_ORIENTATIONS: IsometricOrientationOption[] = [
   }
 ];
 
+// 1.1b Motores de Render Gemini Disponibles
+export interface RenderEngineOption {
+  id: RenderEngine;
+  label: string;
+  modelName: string;
+  badge: string;
+  desc: string;
+  speed: 'Ultra Rápido' | 'Rápido' | 'Alta Definición';
+  icon: string;
+  versionTag: string;
+}
+
+export const RENDER_ENGINE_OPTIONS: RenderEngineOption[] = [
+  {
+    id: 'auto',
+    label: 'Automático Inteligente',
+    modelName: 'Selección dinámica',
+    badge: 'Recomendado',
+    desc: 'Selecciona dinámicamente el mejor motor según el modo 2D, maqueta 3D o retoque, con tolerancia a fallos.',
+    speed: 'Rápido',
+    icon: 'auto_mode',
+    versionTag: 'Auto'
+  },
+  {
+    id: 'gemini-3.1-flash-image',
+    label: 'Gemini 3.1 Flash Image',
+    modelName: 'gemini-3.1-flash-image',
+    badge: 'Última Generación',
+    desc: 'Motor de última generación (Nano Banana 2). Gran equilibrio entre velocidad, fidelidad de planos y texturas limpias.',
+    speed: 'Rápido',
+    icon: 'bolt',
+    versionTag: 'v3.1 Flash'
+  },
+  {
+    id: 'gemini-3-pro-image',
+    label: 'Gemini 3 Pro Image',
+    modelName: 'gemini-3-pro-image',
+    badge: 'Máximo Detalle',
+    desc: 'Motor Pro de máxima fidelidad (Nano Banana Pro). Mayor riqueza en acabados arquitectónicos, mobiliario y cotas.',
+    speed: 'Alta Definición',
+    icon: 'hotel_class',
+    versionTag: 'v3.0 Pro'
+  },
+  {
+    id: 'gemini-2.5-flash-image',
+    label: 'Gemini 2.5 Flash Image',
+    modelName: 'gemini-2.5-flash-image',
+    badge: 'Estable & Seguro',
+    desc: 'Motor clásico de alta estabilidad para planos 2D y maquetas 3D comerciales.',
+    speed: 'Rápido',
+    icon: 'verified',
+    versionTag: 'v2.5 Flash'
+  },
+  {
+    id: 'gemini-3.1-flash-lite-image',
+    label: 'Gemini 3.1 Flash Lite Image',
+    modelName: 'gemini-3.1-flash-lite-image',
+    badge: 'Baja Latencia',
+    desc: 'Motor ultrarrápido ideal para pruebas ágiles y previsualizaciones instantáneas.',
+    speed: 'Ultra Rápido',
+    icon: 'speed',
+    versionTag: 'v3.1 Lite'
+  }
+];
+
 // 1.2 Gama Cromática General (Paredes & Textiles)
 export const COLOR_PALETTE_SCHEMES: {
   id: ColorPaletteScheme;
@@ -286,6 +352,54 @@ export const COLOR_PALETTE_SCHEMES: {
       desc: 'Presencia de negros, maderas oscuras y acentos de grafito intenso.',
       colors: ['#F4F4F5', '#71717A', '#3F3F46', '#18181B'],
       promptKeyword: 'high contrast interior, charcoal and graphite accents with distinct dark architectural elements'
+    },
+    {
+      id: 'navy_indigo_honey',
+      label: 'Azul Índigo & Roble Miel',
+      badge: 'Mediterráneo Noche',
+      desc: 'Azul marino y pizarra profundo en tapicerías, roble miel cálido y blanco tiza.',
+      colors: ['#F4F5F7', '#C69C6D', '#4A6B82', '#1B365D'],
+      promptKeyword: 'sophisticated deep indigo navy blue and slate accents, warm honey oak woodwork, crisp pure white walls, coastal European elegance'
+    },
+    {
+      id: 'terracotta_earth_clay',
+      label: 'Terracota Tostada, Arcilla & Caliza',
+      badge: 'Tierra Toscana',
+      desc: 'Cálidos colores teja artesanal, caldero y arcilla tostada con caliza y lino.',
+      colors: ['#EADFC9', '#D98A6C', '#C15C3D', '#6B705C'],
+      promptKeyword: 'warm earthy terracotta tile tones, rich burnt sienna and baked clay pottery accents, natural golden limestone, Mediterranean warmth'
+    },
+    {
+      id: 'emerald_forest_brass',
+      label: 'Verde Bosque Esmeralda & Latón',
+      badge: 'Lujo Botánico',
+      desc: 'Verdes profundos de bosque y eucalipto, nogal noble y destellos de latón dorado.',
+      colors: ['#FAF8F5', '#4D6A56', '#1E3F20', '#C5A059'],
+      promptKeyword: 'rich deep emerald forest green upholstery, eucalyptus green accents, warm walnut woodwork, elegant brushed brass and gold metallic hardware'
+    },
+    {
+      id: 'mustard_ochre_walnut',
+      label: 'Mostaza Ocre, Teca & Antracita',
+      badge: 'Mid-Century 60s',
+      desc: 'Vibrante amarillo mostaza y ocre tostado, maderas de teca y estructura en carbón.',
+      colors: ['#F7F5F0', '#D4A017', '#8B5A2B', '#33383F'],
+      promptKeyword: 'vibrant warm mustard yellow and golden ochre textiles, mid-century teak and dark walnut furniture, sharp charcoal anthracite graphic contrast'
+    },
+    {
+      id: 'cognac_leather_walnut',
+      label: 'Cuero Coñac, Nogal & Pizarra',
+      badge: 'Club Británico',
+      desc: 'Cuero caramelo envejecido, panelados de nogal tostado y texturas de pizarra gris.',
+      colors: ['#D8C3A5', '#A0522D', '#4A2E1B', '#706E6B'],
+      promptKeyword: 'rich cognac caramel leather armchairs, dark smoked walnut cabinetry, slate grey stone textures, warm masculine clubroom sophistication'
+    },
+    {
+      id: 'coastal_turquoise_coral',
+      label: 'Turquesa Balear, Coral & Blanco',
+      badge: 'Costero Fresco',
+      desc: 'Aguamarina turquesa brillante y toques de coral terracota sobre fondo blanco puro.',
+      colors: ['#FFFFFF', '#E3CAA5', '#E07A5F', '#2A7F8E'],
+      promptKeyword: 'vibrant Mediterranean turquoise and sea glass accents, warm sunset coral and terracotta details, luminous pure whitewashed walls, sun-drenched coastal villa'
     }
   ];
 // 1.3 Estilo Decorativo General
@@ -850,7 +964,8 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       promotionLogo: DEFAULT_PROMOTION_LOGO,
       commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
       extraDetails: '',
-      strictBlueprintFidelity: true
+      strictBlueprintFidelity: true,
+      renderEngine: 'auto'
     }
   },
   {

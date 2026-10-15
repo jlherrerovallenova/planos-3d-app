@@ -112,8 +112,10 @@ export function PdfExportModal({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             disabled={isExporting}
+            aria-label="Cerrar modal de exportación PDF"
             className="text-white/60 hover:text-white p-1 rounded-lg transition cursor-pointer"
           >
             ✕

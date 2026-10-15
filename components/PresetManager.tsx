@@ -112,23 +112,30 @@ export function PresetManager({
           <p className="text-[11px] font-medium text-stone-700">
             Guarda la memoria de calidades completa (pavimentos, carpintería, muros y modo) como preset reutilizable:
           </p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              required
-              disabled={disabled}
-              placeholder="Ej: Promoción Dama de la Noche - Bloque 2"
-              value={presetNameInput}
-              onChange={(e) => setPresetNameInput(e.target.value)}
-              className="flex-1 text-xs bg-white border border-stone-300 rounded-xl px-3 py-2 text-stone-800 focus:outline-none focus:border-[#c25e38]"
-            />
-            <button
-              type="submit"
-              disabled={disabled}
-              className="px-4 py-2 bg-[#c25e38] hover:bg-[#a84d2b] text-white rounded-xl text-xs font-bold cursor-pointer transition shadow-xs shrink-0"
-            >
-              Guardar
-            </button>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="preset-name-input" className="text-[11px] font-semibold text-stone-700">
+              Nombre de la memoria:
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="preset-name-input"
+                type="text"
+                required
+                disabled={disabled}
+                placeholder="Ej: Promoción Dama de la Noche - Bloque 2"
+                aria-label="Nombre de la memoria de calidades"
+                value={presetNameInput}
+                onChange={(e) => setPresetNameInput(e.target.value)}
+                className="flex-1 text-xs bg-white border border-stone-300 rounded-xl px-3 py-2 text-stone-800 focus:outline-none focus:border-[#c25e38]"
+              />
+              <button
+                type="submit"
+                disabled={disabled}
+                className="px-4 py-2 bg-[#c25e38] hover:bg-[#a84d2b] text-white rounded-xl text-xs font-bold cursor-pointer transition shadow-xs shrink-0"
+              >
+                Guardar
+              </button>
+            </div>
           </div>
         </form>
       )}
@@ -146,7 +153,16 @@ export function PresetManager({
           return (
             <div
               key={preset.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Aplicar preset ${preset.name}`}
               onClick={() => onApplyPreset(preset)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onApplyPreset(preset);
+                }
+              }}
               className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all duration-150 flex flex-col justify-between gap-3 group relative overflow-hidden bg-gradient-to-br ${gradient} ${
                 isSelected
                   ? 'border-[#c25e38] ring-2 ring-[#c25e38] shadow-md shadow-orange-500/10'

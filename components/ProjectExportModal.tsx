@@ -198,7 +198,7 @@ export function ProjectExportModal({
           {/* Opción 3: Prompt Arquitectónico */}
           <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+              <label htmlFor="project-export-prompt" className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-[16px] text-[#c25e38]">terminal</span>
                 <span>Prompt Arquitectónico Compilado</span>
               </label>
@@ -214,6 +214,8 @@ export function ProjectExportModal({
               </button>
             </div>
             <textarea
+              id="project-export-prompt"
+              aria-label="Prompt Arquitectónico Compilado"
               readOnly
               rows={3}
               value={currentPrompt}

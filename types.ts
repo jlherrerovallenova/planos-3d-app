@@ -15,13 +15,25 @@ export type InteriorStyle =
   | 'industrial_loft'
   | 'japandi_zen'
   | 'luxury_hotel';
+export type RenderEngine =
+  | 'auto'
+  | 'gemini-3.1-flash-image'
+  | 'gemini-3-pro-image'
+  | 'gemini-2.5-flash-image'
+  | 'gemini-3.1-flash-lite-image';
 export type ColorPaletteScheme =
   | 'light_soft_pastel'      // Colores claros y suaves (blancos rotos, crudos, greige sedoso, arenas y pasteles sutiles)
   | 'warm_sand_cream'        // Arena cálida, crema y marfil luminoso
   | 'soft_sage_light'        // Salvia suave, lino y blanco empolvado
   | 'soft_rose_linen'        // Palo de rosa empolvado, alabastro y lino
   | 'neutral_balanced'       // Neutro equilibrado arquitectónico
-  | 'deep_contrasts';        // Contrastes oscuros
+  | 'deep_contrasts'         // Contrastes oscuros y grafito
+  | 'navy_indigo_honey'      // Azul Índigo, Roble Dorado & Blanco Puro
+  | 'terracotta_earth_clay'  // Terracota Tostada, Arcilla & Caliza
+  | 'emerald_forest_brass'   // Verde Bosque Esmeralda, Latón & Nogal
+  | 'mustard_ochre_walnut'   // Mostaza Ocre, Teca & Antracita Mid-Century
+  | 'cognac_leather_walnut'  // Cuero Coñac, Nogal Oscuro & Piedra Pizarra
+  | 'coastal_turquoise_coral'; // Turquesa Mediterráneo, Coral & Blanco Ibicenco
 export type FlooringType =
   | 'light_oak_wood'
   | 'herringbone_parquet'
@@ -147,6 +159,7 @@ export interface RenderConfig {
   // Ajustes auxiliares
   extraDetails: string;
   strictBlueprintFidelity: boolean;
+  renderEngine?: RenderEngine;           // Motor de render Gemini seleccionado (ej. 'auto', 'gemini-3.1-flash-image', etc.)
 }
 export interface PresetConfig {
   id: string;
@@ -165,4 +178,5 @@ export interface RenderHistoryItem {
   timestamp: number;
   versionNumber?: number;
   appliedInstruction?: string;
+  usedEngine?: string;
 }

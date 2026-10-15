@@ -49,6 +49,16 @@ STRICT RULE: ZERO text, ZERO English subtitles, ZERO room names, ZERO square met
 2. EXTRACT STRICTLY THE RESIDENTIAL APARTMENT FLOOR PLAN FOOTPRINT: The final generated render MUST ONLY contain the residential building floor plan itself, tightly cropped and centered on a solid clean background.
 3. ZERO PRICES, ZERO EXTERIOR TEXTS, ZERO SIDE DRAWINGS anywhere in the frame.`;
 
+  // DIRECTIVA CRÍTICA: UN SOLO PLANO ARQUITECTÓNICO ÚNICO (PROHIBICIÓN TOTAL DE VISTAS DUPLICADAS, AMPLIACIONES O PLANOS LADO A LADO)
+  const strictSinglePlanMandate = `MANDATORY SINGLE-DRAWING RULE (NEVER DUPLICATE OR SPLIT):
+1. The generated image MUST CONTAIN EXACTLY ONE (1) SINGLE UNIFIED APARTMENT FLOOR PLAN centered cleanly on the canvas.
+2. ABSOLUTE PROHIBITION OF MULTIPLE VIEWS OR DUPLICATED ROOMS:
+   - NEVER draw two plans side-by-side.
+   - NEVER draw a separate zoomed-in view, detail crop, or enlarged duplicate of the living room, salon, or any other room next to the main floor plan.
+   - DO NOT split the canvas into two sections.
+   - Every room must appear EXACTLY ONCE in the entire image, unified inside the continuous perimeter of the apartment.
+3. Center the single apartment floor plan cleanly on a solid neutral white background.`;
+
   // CLÁUSULA CRÍTICA: IDENTIFICACIÓN Y MOBILIARIO DE ESTANCIAS (SIN TEXTO)
   let roomsIdentificationClause = '';
   if (config.roomMarkers && config.roomMarkers.length > 0) {
@@ -64,12 +74,11 @@ STRICT RULE: ZERO text, ZERO English subtitles, ZERO room names, ZERO square met
   }
   const is2D = config.cameraAngle === 'plan_2d_furnished';
 
-  // DIRECTIVA ESTRICTA DE ENCUADRE Y ZOOM: EL RENDER DEL PLANO DEBE OCUPAR AL MENOS EL 75%-85% DEL ENCUADRE
-  const strictFramingAndOccupancyDirective = `CRITICAL ARCHITECTURAL CAMERA FRAMING & MAXIMUM CANVAS OCCUPANCY (AT LEAST 75% TO 85%):
-1. The architectural floor plan / 3D cutaway dollhouse MUST OCCUPY AT LEAST 75% TO 85% of the total rendered image area.
-2. Tight camera zoom and close framing: zoom in tightly directly on the building floor plan footprint, cropping closely around exterior walls.
-3. ABSOLUTELY MINIMIZE empty surrounding margins, dead space, blank borders, or vast empty floor/ground around the perimeter.
-4. The floor plan structure MUST BE THE BOLD HERO SUBJECT filling 75% to 85% of the frame, ensuring room layouts, furniture, and materials are clear, prominent, and large.`;
+  // DIRECTIVA ESTRICTA DE ENCUADRE Y PROPORCIÓN ARQUITECTÓNICA
+  const strictFramingAndOccupancyDirective = `CRITICAL ARCHITECTURAL CAMERA FRAMING & OCCUPANCY:
+1. The single architectural floor plan MUST BE THE CENTRAL HERO SUBJECT, clearly centered on the canvas, maintaining its true structural proportions without stretching.
+2. Frame closely around exterior perimeter walls with clean, balanced, uniform neutral white borders.
+3. DO NOT generate secondary drawings, zoomed room crops, or filler artwork to fill horizontal canvas margins.`;
 
   // DIRECTIVA ESTRICTA: NUNCA DIBUJAR TABLAS, LISTAS DE MATERIALES NI CUADROS DE TEXTO EN LA IMAGEN
   const strictNoTablesDirective = `ABSOLUTE PROHIBITION OF GRAPHIC TABLES OR TEXT SCHEDULES: DO NOT render or draw ANY table, chart, list of materials, legend, schedule box, text banner, or spreadsheet in or beside the floor plan. The output image must ONLY contain the pure architectural floor plan and its interior rooms/furniture. Absolutely NO side tables, NO material charts, NO text lists anywhere in the generated image.`;
@@ -93,6 +102,7 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
     return [
       `Clean top-down 2D colored architectural floor plan rendered strictly from the reference blueprint layout.`,
       `Zero perspective distortion, completely flat 2D graphic catalog floor plan with furniture symbols placed in top view.`,
+      strictSinglePlanMandate,
       strictExtractOnlyPlanDirective,
       strictFramingAndOccupancyDirective,
       strictNoTextInRoomsDirective,
@@ -114,6 +124,7 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
       strictNoTablesDirective,
       strictNoTextInRoomsDirective,
       strictExtractOnlyPlanDirective,
+      strictSinglePlanMandate,
       strictFramingAndOccupancyDirective,
       `Crisp architectural drawing lines, completely clean floors with zero text and zero surface numbers, professional marketing presentation.`
     ].filter(Boolean).join(' ');
@@ -152,6 +163,7 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
   return [
     `Transform this blueprint into an ultra-realistic ${angleDesc}.`,
     `Strictly follow the room boundaries and wall positions of the reference blueprint without adding extra rooms.`,
+    strictSinglePlanMandate,
     strictExtractOnlyPlanDirective,
     strictFramingAndOccupancyDirective,
     strictNoTextInRoomsDirective,
@@ -276,13 +288,12 @@ export function buildTargetedCorrectionPrompt(
   }
 
   return [
-    `IMAGE-TO-IMAGE TARGETED ARCHITECTURAL RETOUCH AND CORRECTION:`,
-    `You are modifying the reference 3D architectural render image.`,
-    `ABSOLUTE PRESERVATION MANDATE: Strictly preserve 100% of the existing camera angle, lighting, 1.2m cutaway wall heights, and the flooring, partitions, and furniture in ALL OTHER ROOMS of the house. Do NOT alter or re-imagine any rooms or areas that are not mentioned.`,
-    `SPECIFIC TARGETED CORRECTION TO EXECUTE:`,
-    `"${correctionInstruction}"`,
+    `IMAGE-TO-IMAGE TARGETED ARCHITECTURAL RETOUCH AND EDITING:`,
+    `You are editing the provided architectural 3D render image.`,
+    `USER MODIFICATION COMMAND (MUST BE APPLIED CLEARLY): "${correctionInstruction}".`,
     roomContext,
-    `Seamlessly integrate this change into the interior style (${config.interiorStyle || 'contemporary'}) with high realism.`,
+    `ABSOLUTE PRESERVATION MANDATE: Strictly preserve 100% of the existing camera angle, lighting, 1.2m cutaway wall heights, structural layout, and the flooring, partitions, and furniture in ALL OTHER ROOMS of the house that are not mentioned. Do NOT re-imagine or alter unrelated areas.`,
+    `Seamlessly integrate the requested change into the interior style (${config.interiorStyle || 'contemporary'}) with high archviz realism.`,
     `ABSOLUTE PROHIBITION OF TEXT: DO NOT render, write, or print ANY text, room names, English subtitles, or area numbers inside the rooms or on the floor surfaces. Keep floors 100% clean of text.`,
     `CAMERA & CANVAS OCCUPANCY: Maintain the exact same close-up architectural framing where the floor plan occupies at least 75% to 85% of the frame.`,
     `Photorealistic archviz quality, crisp geometry, clean textures, Unreal Engine 5 rendering fidelity.`

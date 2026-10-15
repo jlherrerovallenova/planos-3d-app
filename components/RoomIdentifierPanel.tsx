@@ -150,9 +150,9 @@ export function RoomIdentifierPanel({
 
       {/* 2. Chips de Adición Rápida en 1 clic */}
       <div className="space-y-1.5">
-        <label className="text-[11px] font-bold uppercase tracking-wider text-stone-500 block">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500 block">
           Añadir Estancia con 1 Clic:
-        </label>
+        </span>
         <div className="flex flex-wrap gap-1.5">
           {quickCategories.map((q) => (
             <button
@@ -173,8 +173,12 @@ export function RoomIdentifierPanel({
       <form onSubmit={handleCustomAdd} className="p-3 bg-stone-50 border border-stone-200 rounded-2xl space-y-2">
         <div className="grid grid-cols-3 gap-2 text-xs">
           <div>
-            <span className="text-[10px] font-medium text-stone-500 block mb-0.5">Categoría:</span>
+            <label htmlFor="custom-room-category-select" className="text-[10px] font-medium text-stone-500 block mb-0.5">
+              Categoría:
+            </label>
             <select
+              id="custom-room-category-select"
+              aria-label="Categoría de estancia"
               disabled={disabled}
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value as RoomCategory)}
@@ -188,8 +192,12 @@ export function RoomIdentifierPanel({
             </select>
           </div>
           <div>
-            <span className="text-[10px] font-medium text-stone-500 block mb-0.5">Nombre libre:</span>
+            <label htmlFor="custom-room-name-input" className="text-[10px] font-medium text-stone-500 block mb-0.5">
+              Nombre libre:
+            </label>
             <input
+              id="custom-room-name-input"
+              aria-label="Nombre libre de la estancia"
               type="text"
               disabled={disabled}
               placeholder="Ej: Sala de Cine..."
@@ -199,8 +207,12 @@ export function RoomIdentifierPanel({
             />
           </div>
           <div>
-            <span className="text-[10px] font-medium text-stone-500 block mb-0.5">Superficie (m²):</span>
+            <label htmlFor="custom-room-area-input" className="text-[10px] font-medium text-stone-500 block mb-0.5">
+              Superficie (m²):
+            </label>
             <input
+              id="custom-room-area-input"
+              aria-label="Superficie en metros cuadrados"
               type="number"
               step="0.01"
               disabled={disabled}
@@ -241,8 +253,12 @@ export function RoomIdentifierPanel({
 
           <div className="grid grid-cols-3 gap-2 text-xs">
             <div>
-              <span className="text-[10px] text-stone-500">Nombre:</span>
+              <label htmlFor={`edit-marker-name-${activeMarker.id}`} className="text-[10px] text-stone-500 block">
+                Nombre:
+              </label>
               <input
+                id={`edit-marker-name-${activeMarker.id}`}
+                aria-label="Nombre de la estancia activa"
                 type="text"
                 value={activeMarker.name}
                 onChange={(e) => onUpdateMarker(activeMarker.id, { name: e.target.value })}
@@ -250,8 +266,12 @@ export function RoomIdentifierPanel({
               />
             </div>
             <div>
-              <span className="text-[10px] text-stone-500">Tipo:</span>
+              <label htmlFor={`edit-marker-type-${activeMarker.id}`} className="text-[10px] text-stone-500 block">
+                Tipo:
+              </label>
               <select
+                id={`edit-marker-type-${activeMarker.id}`}
+                aria-label="Tipo de estancia activa"
                 value={activeMarker.category}
                 onChange={(e) =>
                   onUpdateMarker(activeMarker.id, { category: e.target.value as RoomCategory })
@@ -266,8 +286,12 @@ export function RoomIdentifierPanel({
               </select>
             </div>
             <div>
-              <span className="text-[10px] text-stone-500">Superficie (m²):</span>
+              <label htmlFor={`edit-marker-area-${activeMarker.id}`} className="text-[10px] text-stone-500 block">
+                Superficie (m²):
+              </label>
               <input
+                id={`edit-marker-area-${activeMarker.id}`}
+                aria-label="Superficie en m² de la estancia activa"
                 type="number"
                 step="0.01"
                 placeholder="m²"
@@ -283,8 +307,12 @@ export function RoomIdentifierPanel({
           </div>
 
           <div>
-            <span className="text-[10px] text-stone-500">Observaciones (muebles, acabados):</span>
+            <label htmlFor={`edit-marker-notes-${activeMarker.id}`} className="text-[10px] text-stone-500 block">
+              Observaciones (muebles, acabados):
+            </label>
             <input
+              id={`edit-marker-notes-${activeMarker.id}`}
+              aria-label="Observaciones de la estancia activa"
               type="text"
               placeholder="Ej: Sofá esquinero beige, isla con campana de techo..."
               value={activeMarker.notes || ''}
@@ -298,10 +326,10 @@ export function RoomIdentifierPanel({
       {/* 4.5 Selector de Color de Fondo de los Puntos Identificadores */}
       <div className="p-2.5 bg-stone-50 border border-stone-200/90 rounded-2xl space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
+          <span className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
             <span className="material-symbols-outlined text-[16px] text-[#c25e38]">palette</span>
             <span>Color de los Puntos Identificadores</span>
-          </label>
+          </span>
           <div className="flex items-center gap-1.5">
             <span
               className="w-5 h-5 rounded-full border border-white/60 shadow-xs flex items-center justify-center text-[10px] font-black text-white"
@@ -385,7 +413,16 @@ export function RoomIdentifierPanel({
               return (
                 <div
                   key={marker.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Seleccionar estancia #${idx + 1} ${marker.name}`}
                   onClick={() => onSelectMarker(marker.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onSelectMarker(marker.id);
+                    }
+                  }}
                   className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
                     isSelected
                       ? 'border-[#c25e38] bg-orange-50/70 shadow-xs ring-1 ring-[#c25e38]'

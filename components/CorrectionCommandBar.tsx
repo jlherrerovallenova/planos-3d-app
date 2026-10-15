@@ -29,6 +29,8 @@ export function CorrectionCommandBar({
 }: CorrectionCommandBarProps) {
   const [commandText, setCommandText] = useState<string>('');
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Escuchar prellenado externo (por ejemplo, al hacer clic en un pin de estancia)
@@ -36,10 +38,11 @@ export function CorrectionCommandBar({
     if (externalPrefillText) {
       setCommandText(externalPrefillText);
       setIsExpanded(true);
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         inputRef.current?.focus();
       }, 50);
       if (onClearPrefill) onClearPrefill();
+      return () => clearTimeout(timer);
     }
   }, [externalPrefillText, onClearPrefill]);
 
@@ -50,10 +53,25 @@ export function CorrectionCommandBar({
   // Analizar en tiempo real si el usuario menciona alguna estancia
   const detection = parseTargetedRoomFromText(commandText, roomMarkers);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const isBusy = isGenerating || isSubmitting;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commandText.trim() || isGenerating) return;
-    onApplyCorrection(commandText.trim());
+    const textToSubmit = commandText.trim();
+    if (!textToSubmit || isBusy) return;
+
+    try {
+      setIsSubmitting(true);
+      setFeedbackMessage(null);
+      await onApplyCorrection(textToSubmit);
+      setCommandText('');
+      setFeedbackMessage(`✓ Modificación aplicada con éxito en la versión v${currentVersion + 1}`);
+      setTimeout(() => setFeedbackMessage(null), 4500);
+    } catch {
+      // Mantiene el texto en caso de error para que el usuario no lo pierda
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChipClick = (snippet: string) => {
@@ -110,7 +128,7 @@ export function CorrectionCommandBar({
               <button
                 type="button"
                 onClick={onUndoToPreviousVersion}
-                disabled={isGenerating}
+                disabled={isBusy}
                 className="px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer border border-stone-700"
                 title="Deshacer y volver a la versión anterior"
               >
@@ -135,6 +153,12 @@ export function CorrectionCommandBar({
         {/* Input de comandos */}
         {isExpanded && (
           <form onSubmit={handleSubmit} className="space-y-2">
+            {feedbackMessage && (
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-950/70 border border-emerald-500/40 rounded-lg text-[11px] text-emerald-300 font-medium animate-fadeIn">
+                <span className="material-symbols-outlined text-[14px] text-emerald-400">check_circle</span>
+                <span>{feedbackMessage}</span>
+              </div>
+            )}
             <div className="flex items-center gap-2 bg-stone-900/90 rounded-xl px-3 py-1.5 border border-stone-700 focus-within:border-[#c25e38] transition-all">
               <span className="text-[#c25e38] font-mono font-bold text-sm select-none">&gt;</span>
               <input
@@ -143,18 +167,21 @@ export function CorrectionCommandBar({
                 value={commandText}
                 onChange={(e) => setCommandText(e.target.value)}
                 placeholder={
-                  activeMarker
+                  isBusy
+                    ? 'Aplicando modificación con IA sobre el render...'
+                    : activeMarker
                     ? `Ej: El suelo de la estancia ${activeMarkerIdx + 1} es de parquet, o cambia mobiliario...`
                     : 'Ej: El suelo de la estancia 8 es de parquet, o añade isla en cocina...'
                 }
-                className="w-full bg-transparent text-white text-xs placeholder:text-stone-500 focus:outline-none"
-                disabled={isGenerating}
+                className="w-full bg-transparent text-white text-xs placeholder:text-stone-500 focus:outline-none disabled:opacity-50"
+                disabled={isBusy}
               />
 
-              {commandText && (
+              {commandText && !isBusy && (
                 <button
                   type="button"
                   onClick={() => setCommandText('')}
+                  aria-label="Limpiar texto de corrección"
                   className="text-stone-500 hover:text-stone-300 text-xs px-1"
                 >
                   ✕
@@ -163,14 +190,14 @@ export function CorrectionCommandBar({
 
               <button
                 type="submit"
-                disabled={isGenerating || !commandText.trim()}
+                disabled={isBusy || !commandText.trim()}
                 className="px-3.5 py-1.5 rounded-lg bg-[#c25e38] hover:bg-[#a84d2b] disabled:opacity-40 text-white font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shrink-0 shadow-xs"
                 title="Aplicar corrección puntual sobre el render actual con Gemini"
               >
-                <span className={`material-symbols-outlined text-[14px] ${isGenerating ? 'animate-spin' : ''}`}>
-                  {isGenerating ? 'autorenew' : 'auto_fix_high'}
+                <span className={`material-symbols-outlined text-[14px] ${isBusy ? 'animate-spin' : ''}`}>
+                  {isBusy ? 'autorenew' : 'auto_fix_high'}
                 </span>
-                <span>{isGenerating ? 'Corrigiendo...' : 'Corregir'}</span>
+                <span>{isBusy ? 'Corrigiendo...' : 'Corregir'}</span>
               </button>
             </div>
 
@@ -181,10 +208,10 @@ export function CorrectionCommandBar({
               </span>
               {roomMarkers.slice(0, 8).map((m, idx) => (
                 <button
-                  key={m.id || idx}
+                  key={m.id || m.name}
                   type="button"
                   onClick={() => handleRoomChipClick(idx + 1, m.name)}
-                  className="px-2 py-0.5 rounded-md bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white border border-stone-700 shrink-0 transition cursor-pointer"
+                  className="px-2.5 py-0.5 rounded-md bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white border border-stone-700 shrink-0 transition cursor-pointer"
                 >
                   #{idx + 1} {m.name}
                 </button>
@@ -195,12 +222,12 @@ export function CorrectionCommandBar({
               <span className="text-stone-500 shrink-0 text-[10px] font-semibold uppercase">
                 Ajustes:
               </span>
-              {quickSuggestions.slice(0, 3).map((snippet, idx) => (
+              {quickSuggestions.slice(0, 3).map((snippet) => (
                 <button
-                  key={idx}
+                  key={snippet}
                   type="button"
                   onClick={() => handleChipClick(snippet)}
-                  className="px-2 py-0.5 rounded-md bg-stone-900/80 hover:bg-stone-800 text-stone-400 hover:text-amber-300 border border-stone-800 shrink-0 transition cursor-pointer"
+                  className="px-2.5 py-0.5 rounded-md bg-stone-900/80 hover:bg-stone-800 text-stone-400 hover:text-amber-300 border border-stone-800 shrink-0 transition cursor-pointer"
                 >
                   + {snippet}
                 </button>
