@@ -34,6 +34,19 @@ export function buildArchitecturalPrompt(config: RenderConfig): string {
     : `${selectedKitchenFloor.label} in kitchen floor`;
   // REGLA CRÍTICA ESTRICTA: El plato de ducha SIEMPRE es blanco puro, NUNCA del material ni color del suelo del baño
   const showerTrayRule = `CRITICAL ARCHITECTURAL DETAIL: In all bathrooms, shower trays MUST ALWAYS BE PURE CHALK WHITE mineral resin or glossy white acrylic (never matching the bathroom floor tile color or material). Every shower tray is distinctly solid clean white with clear contrast against the ${selectedBathGres60.previewColor} floor tiles, framed by a transparent glass screen shower enclosure.`;
+
+  // REGLA CRÍTICA ESTRICTA DE COCINAS: ÚNICAMENTE VITROCERÁMICA Y FREGADERO (EL RESTO ES EXCLUSIVAMENTE ENCIMERA)
+  const kitchenMinimalistRule = `CRITICAL ARCHITECTURAL STANDARD FOR ALL KITCHENS (REGLA ESTRICTA DE COCINA: ÚNICAMENTE VITROCERÁMICA Y FREGADERO, EL RESTO EXCLUSIVAMENTE ENCIMERA LIMPIA):
+In all kitchens and open-plan kitchen areas (in both 2D floor plans and 3D cutaway renders):
+1. The ONLY kitchen elements and fixtures that must be visible on the kitchen worktop are:
+   - The flush/integrated ceramic or induction cooktop (placa vitrocerámica o inducción enrasada).
+   - The kitchen sink and faucet (fregadero y grifo).
+2. THE REST OF THE KITCHEN WORKTOP MUST BE 100% UNINTERRUPTED, CLEAN BARE COUNTERTOP (ENCIMERA TOTALMENTE DESPEJADA):
+   - ABSOLUTE PROHIBITION of any other visible appliances or objects: DO NOT show, draw, or render refrigerators (frigoríficos), microwaves (microondas), ovens above the counter, tall appliance towers, range hoods, coffee makers, toasters, blenders, air fryers, dish drainers, cutting boards, knives, dishware, bottles, pots, pans, food, or decorative knick-knacks.
+   - The countertop surface (${selectedCountertop.promptKeyword}) must be completely flat, bare, continuous, and pristine with zero clutter.
+3. Underneath the countertop there are only clean, seamless base cabinetry units.
+STRICT MANDATE: In kitchens, ONLY the vitrocerámica and the fregadero are visible; the rest is strictly bare, clean countertop surface with zero other appliances and zero clutter.`;
+
   // DIRECTIVA ESTRICTA: NUNCA DIBUJAR TEXTO, NOMBRES DE ESTANCIA, SUBTÍTULOS EN INGLÉS NI SUPERFICIES (m²) DENTRO DE LAS ESTANCIAS
   const strictNoTextInRoomsDirective = `ABSOLUTE PROHIBITION OF TEXT, LABELS, ENGLISH SUBTITLES, ROOM NAMES, AND SQUARE METERS INSIDE THE PLAN:
 1. DO NOT paint, write, print, or render ANY text, letters, words, subtitles (especially NO English subtitles or words like "Living Room", "Bedroom", "Master Bedroom", "Kitchen", "Bathroom", "Toilet", "Terrace", "Balcony", "Hallway", "Corridor", "Floor Plan", "Dollhouse", etc.), nor Spanish names ("DORMITORIO", "SALON", "COCINA", "BAÑO", "ASEO", "TERRAZA", "DISTRIBUIDOR", etc.), nor dimensions, nor square meter measurements ("m²", "sqm", numbers) inside any room or anywhere on the floor plan.
@@ -68,7 +81,11 @@ STRICT RULE: ZERO text, ZERO English subtitles, ZERO room names, ZERO square met
       const hPos = marker.x < 35 ? 'left / west section' : marker.x > 65 ? 'right / east section' : 'central area';
       const vPos = marker.y < 35 ? 'upper / north part' : marker.y > 65 ? 'lower / south part' : 'middle area';
       const specificNotes = marker.notes ? ` with ${marker.notes}` : '';
-      return `Space #${idx + 1} located at ${hPos}, ${vPos}: strictly furnish and layout as a ${cat?.promptDesc || 'functional room'}${specificNotes}. (CRITICAL: DO NOT write "${marker.name}" or any text or surface area numbers inside this space).`;
+      const isKitchen = marker.category === 'cocina' || marker.name.toLowerCase().includes('cocina');
+      const kitchenConstraint = isKitchen
+        ? ' (STRICT KITCHEN MANDATE: ONLY the ceramic/induction cooktop and the sink are visible; the rest is 100% bare clean countertop with zero other appliances, zero refrigerators, and zero clutter).'
+        : '';
+      return `Space #${idx + 1} located at ${hPos}, ${vPos}: strictly furnish and layout as a ${cat?.promptDesc || 'functional room'}${specificNotes}${kitchenConstraint}. (CRITICAL: DO NOT write "${marker.name}" or any text or surface area numbers inside this space).`;
     }).join(' ');
     roomsIdentificationClause = `INTERIOR FURNISHING LAYOUT (NO TEXT IN ROOMS): ${roomDescriptions} Ensure each room is furnished according to its layout, but keep all room floors 100% clean and free of room names, text labels, or area measurements.`;
   }
@@ -113,6 +130,7 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
       `Flooring living & bedrooms: ${selectedLivingFloor.label}.`,
       `Kitchen flooring: ${kitchenFloorPrompt}.`,
       `Kitchen countertop: ${selectedCountertop.promptKeyword}.`,
+      kitchenMinimalistRule,
       `Bathrooms flooring: ${selectedBathGres60.promptKeyword}.`,
       `${showerTrayRule}`,
       `Terrace flooring: ${selectedTerraceFloor.promptKeyword}.`,
@@ -126,7 +144,8 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
       strictExtractOnlyPlanDirective,
       strictSinglePlanMandate,
       strictFramingAndOccupancyDirective,
-      `Crisp architectural drawing lines, completely clean floors with zero text and zero surface numbers, professional marketing presentation.`
+      kitchenMinimalistRule,
+      `Crisp architectural drawing lines, completely clean floors with zero text and zero surface numbers, strictly only vitrocerámica and sink visible in kitchens with the rest clean bare countertop, professional marketing presentation.`
     ].filter(Boolean).join(' ');
   }
   // Vista 3D Dollhouse
@@ -174,6 +193,7 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
     `Living room & bedrooms flooring: ${selectedLivingFloor.label}.`,
     `Kitchen flooring: ${kitchenFloorPrompt}.`,
     `Kitchen countertop work surfaces: ${selectedCountertop.promptKeyword}.`,
+    kitchenMinimalistRule,
     `Bathrooms flooring: ${selectedBathGres60.promptKeyword}.`,
     `${showerTrayRule}`,
     `Terrace flooring: ${selectedTerraceFloor.promptKeyword}.`,
@@ -184,7 +204,8 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
     `Lighting: warm soft natural daylight streaming through exterior windows with gentle ambient occlusion.`,
     cleanedExtraDetails ? `Client details: ${cleanedExtraDetails}.` : '',
     strictExtractOnlyPlanDirective,
-    `Unreal Engine 5 archviz render quality, crisp geometry, clean photorealistic textures, zero text and zero surface numbers inside rooms.`
+    kitchenMinimalistRule,
+    `Unreal Engine 5 archviz render quality, crisp geometry, clean photorealistic textures, zero text and zero surface numbers inside rooms, kitchens strictly showing solely the ceramic cooktop and sink with bare pristine countertops.`
   ].filter(Boolean).join(' ');
 }
 
@@ -294,6 +315,7 @@ export function buildTargetedCorrectionPrompt(
     roomContext,
     `ABSOLUTE PRESERVATION MANDATE: Strictly preserve 100% of the existing camera angle, lighting, 1.2m cutaway wall heights, structural layout, and the flooring, partitions, and furniture in ALL OTHER ROOMS of the house that are not mentioned. Do NOT re-imagine or alter unrelated areas.`,
     `Seamlessly integrate the requested change into the interior style (${config.interiorStyle || 'contemporary'}) with high archviz realism.`,
+    `KITCHEN STANDARD: In all kitchens, strictly ensure ONLY the ceramic cooktop (vitrocerámica) and the sink (fregadero) are visible, and the rest is strictly bare, clean countertop with zero other appliances, zero refrigerators, and zero clutter.`,
     `ABSOLUTE PROHIBITION OF TEXT: DO NOT render, write, or print ANY text, room names, English subtitles, or area numbers inside the rooms or on the floor surfaces. Keep floors 100% clean of text.`,
     `CAMERA & CANVAS OCCUPANCY: Maintain the exact same close-up architectural framing where the floor plan occupies at least 75% to 85% of the frame.`,
     `Photorealistic archviz quality, crisp geometry, clean textures, Unreal Engine 5 rendering fidelity.`

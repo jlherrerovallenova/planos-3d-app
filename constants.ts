@@ -42,7 +42,7 @@ export const ROOM_CATEGORIES: {
       icon: 'countertops',
       color: '#EA580C',
       bgLight: '#FFEDD5',
-      promptDesc: 'Kitchen fitted with countertop, induction cooktop, sink, refrigerator and matching cabinetry'
+      promptDesc: 'Kitchen fitted with continuous countertop where ONLY the ceramic/induction cooktop (vitrocerámica) and sink (fregadero) are visible, with the entire remainder being strictly bare, clean countertop (zero other appliances, zero refrigerators, zero clutter)'
     },
     {
       id: 'dormitorio_principal',

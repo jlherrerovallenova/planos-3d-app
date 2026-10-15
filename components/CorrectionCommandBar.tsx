@@ -92,7 +92,7 @@ export function CorrectionCommandBar({
   const quickSuggestions = [
     'suelo de parquet en espiga',
     'suelo de microcemento continuo',
-    'añadir isla central en cocina',
+    'cocina: solo vitrocerámica y fregadero (resto encimera)',
     'cambiar a cama doble 160cm',
     'paredes en blanco roto',
     'ducha de obra con mampara de cristal'

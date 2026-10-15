@@ -1096,13 +1096,23 @@ export function StyleSelector({
             {/* Encimera de Cocina (Material y Color) */}
             <div className="space-y-2 pt-2 border-t border-stone-200/80">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[16px] text-[#c25e38]">soup_kitchen</span>
-                  <span>Encimera de Cocina (Material & Color)</span>
-                </span>
-                <span className="text-[10px] font-semibold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-full border border-stone-200">
-                  {KITCHEN_COUNTERTOP_OPTIONS.find((c) => c.id === (config.kitchenCountertop || 'quartz_calacatta_white'))?.material}
-                </span>
+                <div>
+                  <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px] text-[#c25e38]">soup_kitchen</span>
+                    <span>Encimera de Cocina (Material & Color)</span>
+                  </span>
+                  <p className="text-[10px] text-emerald-700 font-medium">
+                    Regla activa: Únicamente vitrocerámica y fregadero visibles (resto encimera limpia)
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    Solo vitro + fregadero
+                  </span>
+                  <span className="text-[10px] font-semibold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-full border border-stone-200">
+                    {KITCHEN_COUNTERTOP_OPTIONS.find((c) => c.id === (config.kitchenCountertop || 'quartz_calacatta_white'))?.material}
+                  </span>
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {KITCHEN_COUNTERTOP_OPTIONS.map((countertop) => {
@@ -1504,7 +1514,7 @@ export function StyleSelector({
                 {[
                   'Suelo parquet espiga en habitaciones',
                   'Suelo microcemento continuo en salón',
-                  'Isla central con taburetes en cocina',
+                  'Cocina: solo vitrocerámica y fregadero (resto encimera)',
                   'Cama doble 160cm con cabecero',
                   'Ducha mineral blanco puro con mampara',
                   'Paredes en blanco roto cálido'
