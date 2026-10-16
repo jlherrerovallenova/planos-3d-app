@@ -126,6 +126,7 @@ export async function generateBrochureCanvas({
   markerBadgeColor = '#0F2C59',
   promotionLogo = DEFAULT_PROMOTION_LOGO,
   agencyLogo = DEFAULT_AGENCY_LOGO,
+  unitIdentifier = 'PORTAL 1 - 1º A',
   width = 2480,
   height = 1754
 }: {
@@ -135,6 +136,7 @@ export async function generateBrochureCanvas({
   markerBadgeColor?: string;
   promotionLogo?: string | null;
   agencyLogo?: string | null;
+  unitIdentifier?: string;
   width?: number;
   height?: number;
 }): Promise<HTMLCanvasElement | null> {
@@ -262,6 +264,17 @@ export async function generateBrochureCanvas({
           } catch (e) {
             console.warn('Error dibujando logo comercializadora:', e);
           }
+        }
+
+        // Identificador de vivienda (PORTAL - PISO - LETRA) a la izquierda de los logos
+        if (unitIdentifier) {
+          const displayUnit = unitIdentifier.toUpperCase().trim();
+          ctx.fillStyle = '#0F2C59';
+          ctx.font = `bold ${Math.round(15 * scale)}px monospace`;
+          ctx.textAlign = 'right';
+          const rightOffset = width - headerMarginX - (promoLogoW > 0 ? promoLogoW + 24 * scale : 0) - (effectiveAgency ? 285 * scale : 0);
+          ctx.fillText(displayUnit, rightOffset - 12 * scale, 64 * scale);
+          ctx.textAlign = 'left';
         }
 
         // Línea divisoria superior
@@ -484,6 +497,7 @@ export async function exportCommercialBrochureImage({
   markerBadgeColor,
   promotionLogo = DEFAULT_PROMOTION_LOGO,
   agencyLogo = DEFAULT_AGENCY_LOGO,
+  unitIdentifier = 'PORTAL 1 - 1º A',
   filename = 'ficha_comercial_arquitectura.png'
 }: {
   imageSrc: string;
@@ -492,6 +506,7 @@ export async function exportCommercialBrochureImage({
   markerBadgeColor?: string;
   promotionLogo?: string | null;
   agencyLogo?: string | null;
+  unitIdentifier?: string;
   filename?: string;
 }): Promise<boolean> {
   const canvas = await generateBrochureCanvas({
@@ -501,6 +516,7 @@ export async function exportCommercialBrochureImage({
     markerBadgeColor,
     promotionLogo,
     agencyLogo,
+    unitIdentifier,
     width: 2480,
     height: 1754
   });
@@ -523,6 +539,7 @@ export async function exportCommercialBrochurePDF({
   markerBadgeColor = '#0E3B64',
   promotionLogo = DEFAULT_PROMOTION_LOGO,
   agencyLogo = DEFAULT_AGENCY_LOGO,
+  unitIdentifier = 'PORTAL 1 - 1º A',
   filename = 'ficha_comercial_plano.pdf'
 }: {
   imageSrc: string;
@@ -531,6 +548,7 @@ export async function exportCommercialBrochurePDF({
   markerBadgeColor?: string;
   promotionLogo?: string | null;
   agencyLogo?: string | null;
+  unitIdentifier?: string;
   filename?: string;
 }): Promise<boolean> {
   const trimRes = await autoTrimWhitespace(imageSrc, markers as any, 2.0);
@@ -643,12 +661,13 @@ export async function exportCommercialBrochurePDF({
           }
         }
 
-        // Referencia comercial a la izquierda de los logos
+        // Identificador de vivienda (PORTAL - PISO - LETRA) a la izquierda de los logos
         doc.setFont('courier', 'bold');
         doc.setFontSize(8.5);
-        doc.setTextColor(100, 116, 139);
+        doc.setTextColor(15, 44, 89);
         const refX = (effectiveAgency ? agencyBoxX : promoLogoX) - 4;
-        doc.text('REF: VT-01', refX, margin + 5.8, { align: 'right' });
+        const displayIdentifier = unitIdentifier ? unitIdentifier.toUpperCase().trim() : 'PORTAL 1 - 1º A';
+        doc.text(displayIdentifier, refX, margin + 5.8, { align: 'right' });
 
         // Línea divisoria superior
         doc.setDrawColor(226, 232, 240); // #E2E8F0

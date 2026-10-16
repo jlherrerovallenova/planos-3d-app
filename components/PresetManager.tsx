@@ -153,24 +153,18 @@ export function PresetManager({
           return (
             <div
               key={preset.id}
-              role="button"
-              tabIndex={0}
-              aria-label={`Aplicar preset ${preset.name}`}
-              onClick={() => onApplyPreset(preset)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onApplyPreset(preset);
-                }
-              }}
-              className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all duration-150 flex flex-col justify-between gap-3 group relative overflow-hidden bg-gradient-to-br ${gradient} ${
+              className={`p-3.5 rounded-2xl border text-left transition-all duration-150 flex flex-col justify-between gap-3 group relative overflow-hidden bg-gradient-to-br ${gradient} ${
                 isSelected
                   ? 'border-[#c25e38] ring-2 ring-[#c25e38] shadow-md shadow-orange-500/10'
                   : 'border-stone-200/90 hover:border-stone-300 hover:shadow-xs'
               }`}
             >
               <div className="flex items-start justify-between gap-2.5">
-                <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                <button
+                  type="button"
+                  onClick={() => onApplyPreset(preset)}
+                  className="flex items-start gap-2.5 min-w-0 flex-1 text-left cursor-pointer group/btn"
+                >
                   <div
                     className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-white shadow-2xs mt-0.5"
                     style={{ backgroundColor: color }}
@@ -178,14 +172,14 @@ export function PresetManager({
                     <span className="material-symbols-outlined text-[19px]">{icon}</span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h4 className={`text-xs font-bold leading-snug break-words ${isSelected ? 'text-[#c25e38]' : 'text-stone-900'}`}>
+                    <h4 className={`text-xs font-bold leading-snug break-words ${isSelected ? 'text-[#c25e38]' : 'text-stone-900 group-hover/btn:text-[#c25e38]'}`}>
                       {preset.name}
                     </h4>
                     <p className="text-[10px] text-stone-600 mt-0.5 leading-tight break-words">
                       {styleName} • {cameraName}
                     </p>
                   </div>
-                </div>
+                </button>
 
                 <div className="flex items-center gap-1 shrink-0">
                   <button
@@ -193,6 +187,7 @@ export function PresetManager({
                     onClick={(e) => handleExportJson(e, preset)}
                     className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-black/5 rounded-lg cursor-pointer transition"
                     title="Exportar archivo JSON"
+                    aria-label={`Exportar preset ${preset.name} a JSON`}
                   >
                     <span className="material-symbols-outlined text-[16px]">download</span>
                   </button>
@@ -205,6 +200,7 @@ export function PresetManager({
                       }}
                       className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition"
                       title="Eliminar preset"
+                      aria-label={`Eliminar preset ${preset.name}`}
                     >
                       <span className="material-symbols-outlined text-[16px]">close</span>
                     </button>
@@ -213,7 +209,11 @@ export function PresetManager({
               </div>
 
               {/* Indicador de activo & resumen de calidades */}
-              <div className="flex items-center justify-between pt-2 border-t border-stone-200/60 text-[10px] gap-2">
+              <button
+                type="button"
+                onClick={() => onApplyPreset(preset)}
+                className="flex items-center justify-between pt-2 border-t border-stone-200/60 text-[10px] gap-2 text-left cursor-pointer w-full"
+              >
                 <span className="text-stone-600 font-medium leading-tight break-words">
                   {floorName} • {lightName}
                 </span>
@@ -223,7 +223,7 @@ export function PresetManager({
                     Activo
                   </span>
                 )}
-              </div>
+              </button>
             </div>
           );
         })}

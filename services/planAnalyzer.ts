@@ -52,8 +52,13 @@ INSTRUCCIONES CLAVE:
    8º Pasillo / Distribuidor
    9º Terraza (o Terraza 1, Terraza 2 si hay varias)
    Si no hay 3 dormitorios, el Baño pasa a la posición 4 y así sucesivamente de forma natural.
-6. DETECCIÓN DE TEXTOS PARA ELIMINACIÓN:
-   Detecta las cajas de delimitación [ymin, xmin, ymax, xmax] en escala 0-1000 de TODOS los textos rotulados dentro de las habitaciones (nombres de estancias como 'Salón', 'Dormitorio', 'Baño', 'Aseo', 'Vestíbulo', 'Pasillo', 'Distribuidor', 'Terraza' y números de superficie m2 como '30.74', '10.43', '4.14', etc.). Devuélvelos en el array 'textBoxes'.
+6. MÁXIMA DE ORO: DETECCIÓN EXHAUSTIVA DE TODO TEXTO Y NÚMERO PARA SU BORRADO TOTAL:
+   Es una MÁXIMA IMPERATIVA ABSOLUTA borrar y eliminar el 100% de los textos y números del plano.
+   Detecta con precisión MILIMÉTRICA las cajas de delimitación [ymin, xmin, ymax, xmax] en escala 0-1000 de ABSOLUTAMENTE TODOS los textos, letras, títulos, rótulos, cotas, abreviaturas y números presentes en el plano:
+   - TODOS los nombres de estancias (ejemplo: 'Salón', 'Comedor', 'Cocina', 'Dormitorio 1', 'Dormitorio 2', 'Dormitorio 3', 'Baño', 'Aseo', 'Vestíbulo', 'Pasillo', 'Distribuidor', 'Terraza', 'Tendedero', 'Lavadero', etc.).
+   - TODAS las cifras de metros cuadrados y superficies útiles (ejemplo: '30.74', '10.43', '4.14', 'm2', 'm²', 'm.u.', etc.).
+   - TODAS las cotas de distancia, números de puertas o armarios, indicaciones técnicas y leyendas.
+   Cada texto debe tener su caja delimitadora [ymin, xmin, ymax, xmax] en el array 'textBoxes' para que nuestro motor gráfico pueda parcharlo y eliminarlo por completo con el color del suelo.
 7. DETECCIÓN Y AISLAMIENTO DEL PLANO (BLUEPRINT BOUNDING BOX):
    Detecta la caja delimitadora [ymin, xmin, ymax, xmax] en escala 0-1000 que encuadra EXCLUSIVAMENTE los muros exteriores y el perímetro de la vivienda / plano arquitectónico ('blueprintBoundingBox').
    REGLA ESTRICTA DE EXCLUSIÓN: Si la imagen contiene columnas de texto externas, listados de precios (ejemplo: '5º B 250.000', '4º B 245.000', listas de importes), logotipos, leyendas, márgenes vacíos o dibujos secundarios fuera de la vivienda: EXCLÚYELOS de la caja. El 'blueprintBoundingBox' debe encuadrar ÚNICA Y EXCLUSIVAMENTE el plano de la vivienda.

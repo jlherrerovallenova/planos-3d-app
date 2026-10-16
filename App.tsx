@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   RenderConfig,
   PresetConfig,
   RenderHistoryItem,
-  RoomMarker
+  RoomMarker,
+  DefectMark
 } from './types';
 import {
   DEFAULT_PRESETS,
@@ -46,6 +47,12 @@ export function App() {
     mediaId?: string;
   } | null>(null);
 
+  // Referencia sincronizada al sourceImage para garantizar acceso a la versión más reciente limpia de textos
+  const latestSourceImageRef = useRef(sourceImage);
+  useEffect(() => {
+    latestSourceImageRef.current = sourceImage;
+  }, [sourceImage]);
+
   // Imagen original sin recortar (permite alternar entre plano aislado y original)
   const originalSourceImageRef = useRef<{
     base64: string;
@@ -65,6 +72,7 @@ export function App() {
   const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
   const [isPinningMode, setIsPinningMode] = useState<boolean>(false);
   const [isAnalyzingPlan, setIsAnalyzingPlan] = useState<boolean>(false);
+  const isAnalyzingPlanRef = useRef<boolean>(false);
 
   // 4. Estados de Generación y Descarga
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -81,6 +89,7 @@ export function App() {
   const [isSidebarWide, setIsSidebarWide] = useState<boolean>(true);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const isGeneratingBusyRef = useRef<boolean>(false);
 
   // Soporte para archivos PDF y paginación
   const [isConvertingPdf, setIsConvertingPdf] = useState<boolean>(false);
@@ -100,6 +109,7 @@ export function App() {
 
   // Análisis automático de estancias, aislamiento de plano y superficies útiles con Gemini Vision
   const triggerPlanAnalysis = async (imgBase64: string, mime: string) => {
+    isAnalyzingPlanRef.current = true;
     setIsAnalyzingPlan(true);
     setGenerationError(null);
     try {
@@ -142,6 +152,7 @@ export function App() {
     } catch (err: any) {
       console.warn('Auto-análisis con Gemini:', err);
     } finally {
+      isAnalyzingPlanRef.current = false;
       setIsAnalyzingPlan(false);
     }
   };
@@ -152,6 +163,7 @@ export function App() {
       setGenerationError('Carga primero una imagen del plano para analizarla.');
       return;
     }
+    isAnalyzingPlanRef.current = true;
     setIsAnalyzingPlan(true);
     setGenerationError(null);
     setGenerationSuccessMessage(null);
@@ -196,6 +208,7 @@ export function App() {
     } catch (err: any) {
       setGenerationError(`Error al analizar el plano: ${err?.message || err}`);
     } finally {
+      isAnalyzingPlanRef.current = false;
       setIsAnalyzingPlan(false);
     }
   };
@@ -523,12 +536,27 @@ export function App() {
 
   // Generación con IA
   const handleGenerate = async () => {
-    if (isGenerating) return;
-    if (!sourceImage) {
+    if (isGenerating || isGeneratingBusyRef.current) return;
+
+    // Si la limpieza automática de texto o detección está ejecutándose, esperar a que termine
+    // para asegurar que Gemini NUNCA reciba un plano con nombres o superficies ("Máxima de Oro").
+    if (isAnalyzingPlanRef.current) {
+      setGenerationSuccessMessage('Finalizando eliminación de textos y estancias del plano...');
+      let attempts = 0;
+      while (isAnalyzingPlanRef.current && attempts < 40) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        attempts++;
+      }
+      setGenerationSuccessMessage(null);
+    }
+
+    const currentImg = latestSourceImageRef.current || sourceImage;
+    if (!currentImg) {
       setGenerationError('Por favor, selecciona o sube un plano 2D antes de generar la maqueta.');
       return;
     }
 
+    isGeneratingBusyRef.current = true;
     setIsGenerating(true);
     setGenerationError(null);
     setGenerationSuccessMessage(null);
@@ -538,7 +566,7 @@ export function App() {
     try {
       // 1. Si Flow SDK está disponible
       if (flowSdk && typeof flowSdk.generate?.image === 'function') {
-        const refIds = sourceImage.mediaId ? [sourceImage.mediaId] : [];
+        const refIds = currentImg.mediaId ? [currentImg.mediaId] : [];
         let genRes: any = null;
 
         try {
@@ -611,11 +639,11 @@ export function App() {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
           const parts: any[] = [];
 
-          if (sourceImage && sourceImage.base64) {
-            const { cleanBase64, mimeType } = cleanBase64Data(sourceImage.base64);
+          if (currentImg && currentImg.base64) {
+            const { cleanBase64, mimeType } = cleanBase64Data(currentImg.base64);
             parts.push({
               inlineData: {
-                mimeType: sourceImage.mimeType || mimeType || 'image/jpeg',
+                mimeType: currentImg.mimeType || mimeType || 'image/jpeg',
                 data: cleanBase64
               }
             });
@@ -623,6 +651,7 @@ export function App() {
 
           parts.push({ text: currentPrompt });
 
+          // react-doctor-disable-next-line react-doctor/no-async-event-handler-without-reentry-guard
           const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -690,12 +719,17 @@ export function App() {
       console.error('Error al generar render:', err);
       setGenerationError(err?.message || 'Error durante la generación de la imagen.');
     } finally {
+      isGeneratingBusyRef.current = false;
       setIsGenerating(false);
     }
   };
 
   // 4.1 Corrección puntual con IA (Image-to-Image sobre el render actual preservando el resto)
-  const handleApplyTargetedCorrection = async (instruction: string) => {
+  const handleApplyTargetedCorrection = async (
+    instruction: string,
+    defectMark?: DefectMark | null
+  ) => {
+    if (isGenerating || isGeneratingBusyRef.current) return;
     if (!instruction.trim()) return;
 
     if (!sourceImage && !renderedResult) {
@@ -703,6 +737,7 @@ export function App() {
       return;
     }
 
+    isGeneratingBusyRef.current = true;
     setIsGenerating(true);
     setGenerationError(null);
     setGenerationSuccessMessage(null);
@@ -730,7 +765,8 @@ export function App() {
       config,
       instruction,
       detection.matchedMarker,
-      detection.roomIndex
+      detection.roomIndex,
+      defectMark
     );
 
     const nextVersion = (history.length > 0 ? (history[0].versionNumber || history.length) : 1) + 1;
@@ -773,7 +809,8 @@ export function App() {
             config: { ...config, roomMarkers: updatedMarkers },
             timestamp: Date.now(),
             versionNumber: nextVersion,
-            appliedInstruction: instruction
+            appliedInstruction: instruction,
+            defectMark: defectMark || null
           };
           setHistory((prev) => [historyItem, ...prev]);
           setGenerationSuccessMessage(`¡Corrección aplicada con éxito! (Versión v${nextVersion} guardada)`);
@@ -825,6 +862,7 @@ export function App() {
       for (const model of candidateModels) {
         try {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          // react-doctor-disable-next-line react-doctor/no-async-event-handler-without-reentry-guard
           const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -872,7 +910,8 @@ export function App() {
           timestamp: Date.now(),
           versionNumber: nextVersion,
           appliedInstruction: instruction,
-          usedEngine: usedEngineName
+          usedEngine: usedEngineName,
+          defectMark: defectMark || null
         };
         setHistory((prev) => [historyItem, ...prev]);
         setGenerationSuccessMessage(
@@ -889,6 +928,7 @@ export function App() {
       console.error('Error al aplicar corrección puntual:', err);
       setGenerationError(err?.message || 'Error durante la corrección del render.');
     } finally {
+      isGeneratingBusyRef.current = false;
       setIsGenerating(false);
     }
   };
@@ -1165,6 +1205,8 @@ export function App() {
               onChangePromotionLogo={(logo) => setConfig((prev) => ({ ...prev, promotionLogo: logo || undefined }))}
               commercialAgencyLogo={config.commercialAgencyLogo || DEFAULT_AGENCY_LOGO}
               onChangeCommercialAgencyLogo={(logo) => setConfig((prev) => ({ ...prev, commercialAgencyLogo: logo || undefined }))}
+              unitIdentifier={config.unitIdentifier}
+              onChangeUnitIdentifier={(val) => setConfig((prev) => ({ ...prev, unitIdentifier: val }))}
               isometricOrientation={config.isometricOrientation}
               isometricRotationAngle={config.isometricRotationAngle}
               onChangeIsometricOrientation={(orientation, angle) => setConfig((prev) => ({ ...prev, isometricOrientation: orientation, isometricRotationAngle: angle }))}

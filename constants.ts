@@ -963,6 +963,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       markerBadgeColor: '#0F2C59',
       promotionLogo: DEFAULT_PROMOTION_LOGO,
       commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
+      unitIdentifier: 'PORTAL 1 - 1º A',
       extraDetails: '',
       strictBlueprintFidelity: true,
       renderEngine: 'auto'

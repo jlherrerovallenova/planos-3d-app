@@ -62,7 +62,7 @@ export function SurfaceScheduleTable({
             const numFormatted = String(index + 1).padStart(2, '0') + '.';
             return (
               <div
-                key={marker.id || `${marker.name}-${marker.areaSqMeters ?? index}`}
+                key={marker.id || `room-${marker.name}`}
                 className="flex items-baseline justify-between gap-2 py-0.5"
               >
                 <div className="flex items-baseline gap-2 min-w-0">
@@ -123,7 +123,7 @@ export function SurfaceScheduleTable({
                   String(schedule.interiorRooms.length + idx + 1).padStart(2, '0') + '.';
                 return (
                   <div
-                    key={marker.id || `${marker.name}-${marker.areaSqMeters ?? idx}`}
+                    key={marker.id || `ext-${marker.name}`}
                     className="flex items-baseline justify-between gap-2 py-0.5"
                   >
                     <div className="flex items-baseline gap-2 min-w-0">

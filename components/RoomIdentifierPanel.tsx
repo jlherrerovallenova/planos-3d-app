@@ -413,23 +413,18 @@ export function RoomIdentifierPanel({
               return (
                 <div
                   key={marker.id}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Seleccionar estancia #${idx + 1} ${marker.name}`}
-                  onClick={() => onSelectMarker(marker.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onSelectMarker(marker.id);
-                    }
-                  }}
-                  className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                  className={`p-2 rounded-xl border transition-all flex items-center justify-between gap-2 ${
                     isSelected
                       ? 'border-[#c25e38] bg-orange-50/70 shadow-xs ring-1 ring-[#c25e38]'
                       : 'border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50'
                   }`}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => onSelectMarker(marker.id)}
+                    aria-label={`Seleccionar estancia #${idx + 1} ${marker.name}`}
+                    className="flex items-center gap-2 min-w-0 text-left flex-1 cursor-pointer"
+                  >
                     <span
                       className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 text-white text-[11px] font-bold"
                       style={{ backgroundColor: cat?.color || '#D97706' }}
@@ -449,7 +444,7 @@ export function RoomIdentifierPanel({
                         </p>
                       )}
                     </div>
-                  </div>
+                  </button>
 
                   <div className="flex items-center gap-1.5 shrink-0">
                     {marker.areaSqMeters !== undefined && (
@@ -465,6 +460,7 @@ export function RoomIdentifierPanel({
                       }}
                       className="p-1 text-stone-400 hover:text-stone-700 rounded cursor-pointer"
                       title="Editar estancia"
+                      aria-label={`Editar estancia ${marker.name}`}
                     >
                       <span className="material-symbols-outlined text-[16px]">edit</span>
                     </button>
@@ -476,6 +472,7 @@ export function RoomIdentifierPanel({
                       }}
                       className="p-1 text-stone-400 hover:text-red-600 rounded cursor-pointer"
                       title="Eliminar estancia"
+                      aria-label={`Eliminar estancia ${marker.name}`}
                     >
                       <span className="material-symbols-outlined text-[16px]">delete</span>
                     </button>

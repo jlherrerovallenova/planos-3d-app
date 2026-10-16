@@ -1,4 +1,4 @@
-import { RenderConfig, RoomMarker } from '../types';
+import { RenderConfig, RoomMarker, DefectMark } from '../types';
 import {
   COLOR_PALETTE_SCHEMES,
   INTERIOR_STYLES,
@@ -47,13 +47,13 @@ In all kitchens and open-plan kitchen areas (in both 2D floor plans and 3D cutaw
 3. Underneath the countertop there are only clean, seamless base cabinetry units.
 STRICT MANDATE: In kitchens, ONLY the vitrocerámica and the fregadero are visible; the rest is strictly bare, clean countertop surface with zero other appliances and zero clutter.`;
 
-  // DIRECTIVA ESTRICTA: NUNCA DIBUJAR TEXTO, NOMBRES DE ESTANCIA, SUBTÍTULOS EN INGLÉS NI SUPERFICIES (m²) DENTRO DE LAS ESTANCIAS
-  const strictNoTextInRoomsDirective = `ABSOLUTE PROHIBITION OF TEXT, LABELS, ENGLISH SUBTITLES, ROOM NAMES, AND SQUARE METERS INSIDE THE PLAN:
-1. DO NOT paint, write, print, or render ANY text, letters, words, subtitles (especially NO English subtitles or words like "Living Room", "Bedroom", "Master Bedroom", "Kitchen", "Bathroom", "Toilet", "Terrace", "Balcony", "Hallway", "Corridor", "Floor Plan", "Dollhouse", etc.), nor Spanish names ("DORMITORIO", "SALON", "COCINA", "BAÑO", "ASEO", "TERRAZA", "DISTRIBUIDOR", etc.), nor dimensions, nor square meter measurements ("m²", "sqm", numbers) inside any room or anywhere on the floor plan.
-2. Completely clean, erase, and eliminate all blueprint text, annotations, callout labels, and area numbers from the reference blueprint image.
-3. The floor surfaces inside all rooms must be 100% CLEAN of text: ONLY pure architectural flooring materials, walls, and furniture.
-4. Each room is identified strictly by an external number badge, NEVER by printed text, English subtitles, or surface numbers in the image.
-STRICT RULE: ZERO text, ZERO English subtitles, ZERO room names, ZERO square meter numbers inside the rooms or on the floor.`;
+  // MÁXIMA DE ORO ABSOLUTA: PROHIBICIÓN TOTAL DE TEXTO, NOMBRES DE ESTANCIAS, NÚMEROS Y MEDIDAS (m²)
+  const strictNoTextInRoomsDirective = `CRITICAL IMPERATIVE MANDATE (MÁXIMA DE ORO ABSOLUTA: SIEMPRE BORRAR Y ELIMINAR TODO TEXTO Y NÚMEROS):
+1. MANDATORY TOTAL TEXT DELETION: You MUST completely wipe, erase, cover, and eliminate ALL typography, room names, text labels, words, acronyms, letters, dimensions, and numbers from the blueprint.
+2. ZERO PRINTED CHARACTERS: The generated output MUST CONTAIN STRICTLY ZERO WRITTEN TEXT, ZERO LETTERS, ZERO NUMBERS, ZERO LABELS, and ZERO AREA MEASUREMENTS (no "m²", no "m2", no "sqm", no numbers, no digits).
+3. 100% CLEAN ARCHITECTURAL FLOORS: Every room floor surface must be completely continuous, pristine, bare architectural flooring material (herringbone parquet, marble, or microcement) with furniture only. Absolutely no text printed, stamped, or overlaid anywhere on the floors or walls.
+4. Any room name or square meter figure on the input blueprint MUST BE COMPLETELY COVERED AND OVERPAINTED with the clean architectural floor material of that space.
+5. STRICT RULE: ZERO text, ZERO room titles, ZERO surface area numbers in the entire image. Always clean, pure architectural drawing.`;
 
   // DIRECTIVA ESTRICTA: AISLAR Y EXTRAER EXCLUSIVAMENTE EL PLANO (PROHIBICIÓN TOTAL DE PRECIOS, TEXTOS EXTERNOS Y DIBUJOS MARGINALES)
   const strictExtractOnlyPlanDirective = `MANDATORY EXTRACTION RULE — ISOLATE ONLY THE ARCHITECTURAL FLOOR PLAN:
@@ -85,9 +85,9 @@ STRICT RULE: ZERO text, ZERO English subtitles, ZERO room names, ZERO square met
       const kitchenConstraint = isKitchen
         ? ' (STRICT KITCHEN MANDATE: ONLY the ceramic/induction cooktop and the sink are visible; the rest is 100% bare clean countertop with zero other appliances, zero refrigerators, and zero clutter).'
         : '';
-      return `Space #${idx + 1} located at ${hPos}, ${vPos}: strictly furnish and layout as a ${cat?.promptDesc || 'functional room'}${specificNotes}${kitchenConstraint}. (CRITICAL: DO NOT write "${marker.name}" or any text or surface area numbers inside this space).`;
+      return `Space #${idx + 1} located at ${hPos}, ${vPos}: strictly furnish and layout as a ${cat?.promptDesc || 'functional room'}${specificNotes}${kitchenConstraint}. (MANDATORY: DO NOT render any text label, room name, letters, or numbers inside this space; keep floor 100% clean and unwritten).`;
     }).join(' ');
-    roomsIdentificationClause = `INTERIOR FURNISHING LAYOUT (NO TEXT IN ROOMS): ${roomDescriptions} Ensure each room is furnished according to its layout, but keep all room floors 100% clean and free of room names, text labels, or area measurements.`;
+    roomsIdentificationClause = `INTERIOR FURNISHING LAYOUT (ZERO TEXT IN ROOMS): ${roomDescriptions} Ensure each room is furnished according to its layout, but keep all room floors 100% clean, pristine, and completely free of room names, text labels, or area measurements.`;
   }
   const is2D = config.cameraAngle === 'plan_2d_furnished';
 
@@ -117,6 +117,7 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
 
   if (is2D) {
     return [
+      `MÁXIMA IMPERATIVA ABSOLUTA: TOTAL TEXT ELIMINATION. Completely wipe and erase all room names, numbers, labels, dimensions, and text from the reference blueprint. The output image must be 100% devoid of any text, words, letters, or numbers.`,
       `Clean top-down 2D colored architectural floor plan rendered strictly from the reference blueprint layout.`,
       `Zero perspective distortion, completely flat 2D graphic catalog floor plan with furniture symbols placed in top view.`,
       strictSinglePlanMandate,
@@ -145,7 +146,7 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
       strictSinglePlanMandate,
       strictFramingAndOccupancyDirective,
       kitchenMinimalistRule,
-      `Crisp architectural drawing lines, completely clean floors with zero text and zero surface numbers, strictly only vitrocerámica and sink visible in kitchens with the rest clean bare countertop, professional marketing presentation.`
+      `MÁXIMA DE ORO FINAL: ZERO text, ZERO room titles, ZERO square meter numbers, ZERO dimensions anywhere in the image. Every room floor must be completely clean, continuous architectural material with furniture only.`
     ].filter(Boolean).join(' ');
   }
   // Vista 3D Dollhouse
@@ -180,6 +181,7 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
     angleDesc = `3D isometric cutaway dollhouse maquette view (45-degree axonometric angle, ${directionStr})`;
   }
   return [
+    `MÁXIMA IMPERATIVA ABSOLUTA: TOTAL TEXT ELIMINATION. Completely erase and remove all room names, numbers, labels, dimensions, and text from the blueprint. The output 3D render must be 100% devoid of any text, words, letters, or numbers.`,
     `Transform this blueprint into an ultra-realistic ${angleDesc}.`,
     `Strictly follow the room boundaries and wall positions of the reference blueprint without adding extra rooms.`,
     strictSinglePlanMandate,
@@ -205,7 +207,8 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
     cleanedExtraDetails ? `Client details: ${cleanedExtraDetails}.` : '',
     strictExtractOnlyPlanDirective,
     kitchenMinimalistRule,
-    `Unreal Engine 5 archviz render quality, crisp geometry, clean photorealistic textures, zero text and zero surface numbers inside rooms, kitchens strictly showing solely the ceramic cooktop and sink with bare pristine countertops.`
+    strictNoTextInRoomsDirective,
+    `Unreal Engine 5 archviz render quality, crisp geometry, clean photorealistic textures, MÁXIMA DE ORO: STRICTLY ZERO text and ZERO surface numbers inside rooms or on floors, kitchens strictly showing solely the ceramic cooktop and sink with bare pristine countertops.`
   ].filter(Boolean).join(' ');
 }
 
@@ -289,7 +292,8 @@ export function buildTargetedCorrectionPrompt(
   config: RenderConfig,
   correctionInstruction: string,
   matchedMarker?: RoomMarker | null,
-  roomIndex?: number | null
+  roomIndex?: number | null,
+  defectMark?: DefectMark | null
 ): string {
   let roomContext = '';
   if (matchedMarker && typeof roomIndex === 'number') {
@@ -308,17 +312,29 @@ export function buildTargetedCorrectionPrompt(
     roomContext = `CRITICAL FOCUS: The targeted area is Space #${roomIndex + 1} ("${matchedMarker.name}") located at the ${hPos}, ${vPos} of the layout.`;
   }
 
+  let defectLocationClause = '';
+  if (defectMark) {
+    const xRound = Math.round(defectMark.x);
+    const yRound = Math.round(defectMark.y);
+    const hPos = xRound < 35 ? 'left / west section' : xRound > 65 ? 'right / east section' : 'central horizontal section';
+    const vPos = yRound < 35 ? 'upper / north section' : yRound > 65 ? 'lower / south section' : 'middle vertical section';
+    const roomDesc = defectMark.roomName ? ` inside/near "${defectMark.roomName}"` : '';
+    defectLocationClause = `CRITICAL DEFECT LOCATION (VISUALLY MARKED BY USER): The user has pointed out a flaw/defect at coordinates horizontal: ${xRound}%, vertical: ${yRound}% (${hPos}, ${vPos})${roomDesc}. FOCUS THE CORRECTION ON THIS EXACT SPOT.`;
+  }
+
   return [
     `IMAGE-TO-IMAGE TARGETED ARCHITECTURAL RETOUCH AND EDITING:`,
+    `MÁXIMA IMPERATIVA ABSOLUTA: ZERO TEXT, ZERO ROOM NAMES, ZERO SURFACE NUMBERS. The output image must have completely clean, pristine floors devoid of any text.`,
     `You are editing the provided architectural 3D render image.`,
+    defectLocationClause,
     `USER MODIFICATION COMMAND (MUST BE APPLIED CLEARLY): "${correctionInstruction}".`,
     roomContext,
     `ABSOLUTE PRESERVATION MANDATE: Strictly preserve 100% of the existing camera angle, lighting, 1.2m cutaway wall heights, structural layout, and the flooring, partitions, and furniture in ALL OTHER ROOMS of the house that are not mentioned. Do NOT re-imagine or alter unrelated areas.`,
     `Seamlessly integrate the requested change into the interior style (${config.interiorStyle || 'contemporary'}) with high archviz realism.`,
     `KITCHEN STANDARD: In all kitchens, strictly ensure ONLY the ceramic cooktop (vitrocerámica) and the sink (fregadero) are visible, and the rest is strictly bare, clean countertop with zero other appliances, zero refrigerators, and zero clutter.`,
-    `ABSOLUTE PROHIBITION OF TEXT: DO NOT render, write, or print ANY text, room names, English subtitles, or area numbers inside the rooms or on the floor surfaces. Keep floors 100% clean of text.`,
+    `MÁXIMA DE ORO: ABSOLUTE PROHIBITION OF TEXT. DO NOT render, write, or print ANY text, room names, English subtitles, dimensions, or area numbers anywhere inside the rooms or on the floor surfaces. Completely erase any lingering text. Keep all floors 100% clean of text.`,
     `CAMERA & CANVAS OCCUPANCY: Maintain the exact same close-up architectural framing where the floor plan occupies at least 75% to 85% of the frame.`,
-    `Photorealistic archviz quality, crisp geometry, clean textures, Unreal Engine 5 rendering fidelity.`
+    `Photorealistic archviz quality, crisp geometry, clean textures, Unreal Engine 5 rendering fidelity, 100% text-free floors.`
   ]
     .filter(Boolean)
     .join(' ');

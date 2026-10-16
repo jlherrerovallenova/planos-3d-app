@@ -15,6 +15,7 @@ interface PdfExportModalProps {
   markerBadgeColor?: string;
   promotionLogo?: string | null;
   agencyLogo?: string | null;
+  unitIdentifier?: string;
 }
 
 export function PdfExportModal({
@@ -25,7 +26,8 @@ export function PdfExportModal({
   markers,
   markerBadgeColor,
   promotionLogo,
-  agencyLogo
+  agencyLogo,
+  unitIdentifier
 }: PdfExportModalProps) {
   const [selectedFormat, setSelectedFormat] = useState<'brochure_a4' | 'plan_a4' | 'plan_a3' | 'brochure_png'>('brochure_a4');
   const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -49,6 +51,7 @@ export function PdfExportModal({
           markerBadgeColor,
           promotionLogo,
           agencyLogo,
+          unitIdentifier,
           filename: `ficha_vectorial_${safeTitle.toLowerCase().replace(/[^\w]/g, '_')}.pdf`
         });
       } else if (selectedFormat === 'plan_a4') {
@@ -81,6 +84,7 @@ export function PdfExportModal({
           markerBadgeColor,
           promotionLogo,
           agencyLogo,
+          unitIdentifier,
           filename: `ficha_comercial_hd_${safeTitle.toLowerCase().replace(/[^\w]/g, '_')}.png`
         });
       }
@@ -129,7 +133,10 @@ export function PdfExportModal({
             <div className="flex items-center gap-2.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
               <div>
-                <p className="text-xs font-bold text-stone-800">Membrete Oficial en Ficha y PDF</p>
+                <p className="text-xs font-bold text-stone-800">
+                  Membrete Oficial en Ficha y PDF
+                  {unitIdentifier && <span className="ml-2 font-mono text-[11px] text-[#0F2C59] bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">[{unitIdentifier}]</span>}
+                </p>
                 <p className="text-[10px] text-stone-500">Comercializa: Terravall • Promueve: Lubens Arroyo</p>
               </div>
             </div>

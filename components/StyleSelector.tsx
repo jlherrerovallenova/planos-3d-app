@@ -54,7 +54,7 @@ interface StyleSelectorProps {
   onToggleWide?: () => void;
 }
 
-type TabMode = 'presets' | 'camera' | 'rooms' | 'flooring' | 'carpentry' | 'corrections';
+type TabMode = 'presets' | 'camera' | 'rooms' | 'calidades' | 'config' | 'corrections' | 'flooring' | 'carpentry';
 
 export function StyleSelector({
   config,
@@ -82,7 +82,20 @@ export function StyleSelector({
   onToggleWide
 }: StyleSelectorProps) {
   const [activeTab, setActiveTab] = useState<TabMode>('presets');
+  const [calidadesSubTab, setCalidadesSubTab] = useState<'flooring' | 'carpentry'>('flooring');
   const [panelCorrectionInput, setPanelCorrectionInput] = useState<string>('');
+
+  const handleSelectTab = (tab: TabMode) => {
+    if (tab === 'flooring') {
+      setActiveTab('calidades');
+      setCalidadesSubTab('flooring');
+    } else if (tab === 'carpentry') {
+      setActiveTab('calidades');
+      setCalidadesSubTab('carpentry');
+    } else {
+      setActiveTab(tab);
+    }
+  };
 
   const updateField = <K extends keyof RenderConfig>(field: K, value: RenderConfig[K]) => {
     onChangeConfig({
@@ -188,7 +201,7 @@ export function StyleSelector({
         <div className="grid grid-cols-3 gap-1.5 bg-stone-100/90 p-1.5 rounded-2xl border border-stone-200/80">
           <button
             type="button"
-            onClick={() => setActiveTab('presets')}
+            onClick={() => handleSelectTab('presets')}
             className={`px-2 py-2 rounded-xl text-[11px] font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center ${
               activeTab === 'presets'
                 ? 'bg-white text-stone-900 shadow-xs border border-stone-200 font-bold'
@@ -197,12 +210,12 @@ export function StyleSelector({
             title="Estilos de interiorismo y paletas de color"
           >
             <span className="material-symbols-outlined text-[16px] text-[#c25e38]">palette</span>
-            <span className="truncate">Estilos</span>
+            <span className="truncate">1. Estilos</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('camera')}
+            onClick={() => handleSelectTab('camera')}
             className={`px-2 py-2 rounded-xl text-[11px] font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center ${
               activeTab === 'camera'
                 ? 'bg-white text-stone-900 shadow-xs border border-stone-200 font-bold'
@@ -211,12 +224,12 @@ export function StyleSelector({
             title="Punto de vista, ángulo de cámara, luz y motor Gemini"
           >
             <span className="material-symbols-outlined text-[16px] text-sky-600">videocam</span>
-            <span className="truncate">Cámara & Motor</span>
+            <span className="truncate">2. Cámara</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('rooms')}
+            onClick={() => handleSelectTab('rooms')}
             className={`px-2 py-2 rounded-xl text-[11px] font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center ${
               activeTab === 'rooms'
                 ? 'bg-white text-stone-900 shadow-xs border border-stone-200 font-bold'
@@ -225,7 +238,7 @@ export function StyleSelector({
             title="Identificador de estancias y pins"
           >
             <span className="material-symbols-outlined text-[16px] text-amber-600">pin_drop</span>
-            <span className="truncate">Estancias</span>
+            <span className="truncate">3. Estancias</span>
             {markersCount > 0 && (
               <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#c25e38] text-white">
                 {markersCount}
@@ -235,35 +248,35 @@ export function StyleSelector({
 
           <button
             type="button"
-            onClick={() => setActiveTab('flooring')}
+            onClick={() => handleSelectTab('calidades')}
             className={`px-2 py-2 rounded-xl text-[11px] font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center ${
-              activeTab === 'flooring'
+              activeTab === 'calidades' || activeTab === 'flooring' || activeTab === 'carpentry'
                 ? 'bg-white text-amber-900 shadow-xs border border-amber-300 font-bold ring-1 ring-amber-400/40'
                 : 'text-stone-700 hover:text-stone-900 hover:bg-stone-200/60'
             }`}
-            title="Suelos de salón, dormitorios, baños 60x60, cocina y terrazas"
+            title="Suelos de salón, baños 60x60, cocina, puertas y ventanas"
           >
             <span className="material-symbols-outlined text-[16px] text-amber-700">texture</span>
-            <span className="truncate font-bold">Suelos & Baños</span>
+            <span className="truncate font-bold">4. Calidades</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('carpentry')}
+            onClick={() => handleSelectTab('config')}
             className={`px-2 py-2 rounded-xl text-[11px] font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center ${
-              activeTab === 'carpentry'
-                ? 'bg-white text-emerald-950 shadow-xs border border-emerald-300 font-bold ring-1 ring-emerald-400/40'
+              activeTab === 'config'
+                ? 'bg-white text-[#0F2C59] shadow-xs border border-blue-300 font-bold ring-1 ring-[#0F2C59]/30'
                 : 'text-stone-700 hover:text-stone-900 hover:bg-stone-200/60'
             }`}
-            title="Tipo de ventanas, puertas de paso, armarios y muros"
+            title="Logotipos oficiales, identificador de vivienda y ficha comercial"
           >
-            <span className="material-symbols-outlined text-[16px] text-emerald-700">door_front</span>
-            <span className="truncate font-bold">Puertas & Ventanas</span>
+            <span className="material-symbols-outlined text-[16px] text-[#0F2C59]">settings</span>
+            <span className="truncate font-bold">5. Configuración</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('corrections')}
+            onClick={() => handleSelectTab('corrections')}
             className={`px-2 py-2 rounded-xl text-[11px] font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center ${
               activeTab === 'corrections'
                 ? 'bg-[#c25e38] text-white shadow-xs font-bold'
@@ -274,7 +287,7 @@ export function StyleSelector({
             <span className={`material-symbols-outlined text-[16px] ${activeTab === 'corrections' ? 'text-white' : 'text-[#c25e38]'}`}>
               auto_fix_high
             </span>
-            <span className="truncate">Correcciones</span>
+            <span className="truncate">6. Correcciones</span>
             {history && history.length > 0 && (
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                 activeTab === 'corrections' ? 'bg-black/25 text-white' : 'bg-[#c25e38] text-white'
@@ -329,7 +342,7 @@ export function StyleSelector({
                 {/* Suelo vivienda */}
                 <button
                   type="button"
-                  onClick={() => setActiveTab('flooring')}
+                  onClick={() => handleSelectTab('flooring')}
                   className="p-2.5 rounded-xl bg-white border border-amber-200 hover:border-[#c25e38] text-left transition flex items-center justify-between gap-2 group cursor-pointer shadow-2xs hover:shadow-xs"
                 >
                   <div className="min-w-0">
@@ -348,7 +361,7 @@ export function StyleSelector({
                 {/* Suelo baños */}
                 <button
                   type="button"
-                  onClick={() => setActiveTab('flooring')}
+                  onClick={() => handleSelectTab('flooring')}
                   className="p-2.5 rounded-xl bg-white border border-amber-200 hover:border-[#c25e38] text-left transition flex items-center justify-between gap-2 group cursor-pointer shadow-2xs hover:shadow-xs"
                 >
                   <div className="min-w-0">
@@ -367,7 +380,7 @@ export function StyleSelector({
                 {/* Ventanas */}
                 <button
                   type="button"
-                  onClick={() => setActiveTab('carpentry')}
+                  onClick={() => handleSelectTab('carpentry')}
                   className="p-2.5 rounded-xl bg-white border border-amber-200 hover:border-[#c25e38] text-left transition flex items-center justify-between gap-2 group cursor-pointer shadow-2xs hover:shadow-xs"
                 >
                   <div className="min-w-0">
@@ -386,7 +399,7 @@ export function StyleSelector({
                 {/* Puertas */}
                 <button
                   type="button"
-                  onClick={() => setActiveTab('carpentry')}
+                  onClick={() => handleSelectTab('carpentry')}
                   className="p-2.5 rounded-xl bg-white border border-amber-200 hover:border-[#c25e38] text-left transition flex items-center justify-between gap-2 group cursor-pointer shadow-2xs hover:shadow-xs"
                 >
                   <div className="min-w-0">
@@ -453,155 +466,6 @@ export function StyleSelector({
                     </button>
                   );
                 })}
-              </div>
-            </div>
-
-            {/* Logo de la Promoción para Fichas Comerciales */}
-            <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200/90 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[16px] text-[#c25e38]">apartment</span>
-                  <span>Logo de la Promoción (Fichas Comerciales)</span>
-                </span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-stone-200 text-stone-700 font-mono">
-                  LUBENS
-                </span>
-              </div>
-
-              {/* Vista previa del logo actual */}
-              <div className="bg-white rounded-xl p-3 flex items-center justify-center min-h-[50px]">
-                {config.promotionLogo ? (
-                  <img
-                    src={config.promotionLogo}
-                    alt="Logo de la promoción"
-                    className="max-h-10 w-auto max-w-full object-contain"
-                  />
-                ) : (
-                  <span className="text-xs text-stone-400 italic">Sin logo configurado</span>
-                )}
-              </div>
-
-              {/* Botones de acción */}
-              <div className="flex items-center gap-2">
-                <label className="flex-1 px-3 py-1.5 bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer">
-                  <span className="material-symbols-outlined text-[15px] text-[#c25e38]">upload</span>
-                  <span>Subir otro logo</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (evt) => {
-                          if (typeof evt.target?.result === 'string') {
-                            updateField('promotionLogo', evt.target.result);
-                          }
-                        };
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                  />
-                </label>
-
-                {config.promotionLogo !== DEFAULT_PROMOTION_LOGO && (
-                  <button
-                    type="button"
-                    onClick={() => updateField('promotionLogo', DEFAULT_PROMOTION_LOGO)}
-                    className="px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 rounded-xl text-xs font-medium transition cursor-pointer"
-                    title="Restablecer logo oficial Lubens"
-                  >
-                    Restablecer
-                  </button>
-                )}
-
-                {config.promotionLogo && (
-                  <button
-                    type="button"
-                    onClick={() => updateField('promotionLogo', undefined)}
-                    className="p-1.5 text-stone-400 hover:text-red-600 rounded-xl transition cursor-pointer"
-                    title="Quitar logo"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">delete</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Logo de la Comercializadora con fondo blanco y rótulo COMERCIALIZA */}
-            <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200/90 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[16px] text-[#991B1B]">storefront</span>
-                  <span>Logo Comercializadora (COMERCIALIZA)</span>
-                </span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-mono font-bold">
-                  TERRAVALL
-                </span>
-              </div>
-
-              {/* Vista previa en caja blanca oficial COMERCIALIZA */}
-              <div className="bg-white rounded-xl p-2.5 flex flex-col items-center justify-center min-h-[64px]">
-                <span className="text-[9px] font-black text-[#991B1B] tracking-wider uppercase mb-1">
-                  COMERCIALIZA
-                </span>
-                {config.commercialAgencyLogo ? (
-                  <img
-                    src={config.commercialAgencyLogo}
-                    alt="Logo de la Comercializadora"
-                    className="max-h-9 w-auto max-w-full object-contain"
-                  />
-                ) : (
-                  <span className="text-xs text-stone-400 italic">Sin logo comercializadora</span>
-                )}
-              </div>
-
-              {/* Botones de acción */}
-              <div className="flex items-center gap-2">
-                <label className="flex-1 px-3 py-1.5 bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer">
-                  <span className="material-symbols-outlined text-[15px] text-[#991B1B]">upload</span>
-                  <span>Subir otro logo</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (evt) => {
-                          if (typeof evt.target?.result === 'string') {
-                            updateField('commercialAgencyLogo', evt.target.result);
-                          }
-                        };
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                  />
-                </label>
-
-                {config.commercialAgencyLogo !== DEFAULT_AGENCY_LOGO && (
-                  <button
-                    type="button"
-                    onClick={() => updateField('commercialAgencyLogo', DEFAULT_AGENCY_LOGO)}
-                    className="px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 rounded-xl text-xs font-medium transition cursor-pointer"
-                    title="Restablecer logo oficial Terravall"
-                  >
-                    Restablecer
-                  </button>
-                )}
-
-                {config.commercialAgencyLogo && (
-                  <button
-                    type="button"
-                    onClick={() => updateField('commercialAgencyLogo', undefined)}
-                    className="p-1.5 text-stone-400 hover:text-red-600 rounded-xl transition cursor-pointer"
-                    title="Quitar logo"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">delete</span>
-                  </button>
-                )}
               </div>
             </div>
           </div>
@@ -979,10 +843,40 @@ export function StyleSelector({
         )}
 
         {/* ============================================================== */}
-        {/* PESTAÑA 4: PAVIMENTOS & SUELOS */}
+        {/* PESTAÑA 4: CALIDADES (PAVIMENTOS & CARPINTERÍA) */}
         {/* ============================================================== */}
-        {activeTab === 'flooring' && (
+        {(activeTab === 'calidades' || activeTab === 'flooring' || activeTab === 'carpentry') && (
           <div className="space-y-4 animate-fadeIn">
+            {/* Sub-selector de Calidades: Pavimentos / Carpintería */}
+            <div className="flex items-center bg-stone-100 p-1 rounded-2xl border border-stone-200">
+              <button
+                type="button"
+                onClick={() => setCalidadesSubTab('flooring')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  calidadesSubTab === 'flooring'
+                    ? 'bg-white text-amber-900 shadow-xs border border-amber-200'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px] text-amber-700">texture</span>
+                <span>Pavimentos & Baños</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCalidadesSubTab('carpentry')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  calidadesSubTab === 'carpentry'
+                    ? 'bg-white text-emerald-950 shadow-xs border border-emerald-200'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px] text-emerald-700">door_front</span>
+                <span>Puertas, Ventanas & Muros</span>
+              </button>
+            </div>
+
+            {calidadesSubTab === 'flooring' && (
+              <div className="space-y-4 animate-fadeIn">
             {/* Salón y Habitaciones */}
             <div className="space-y-2">
               <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
@@ -1214,10 +1108,7 @@ export function StyleSelector({
           </div>
         )}
 
-        {/* ============================================================== */}
-        {/* PESTAÑA 5: CARPINTERÍA & MUROS */}
-        {/* ============================================================== */}
-        {activeTab === 'carpentry' && (
+        {calidadesSubTab === 'carpentry' && (
           <div className="space-y-4 animate-fadeIn">
             {/* A. Sistema y Tipo de Ventanas */}
             <div className="space-y-2">
@@ -1455,9 +1346,256 @@ export function StyleSelector({
             </div>
           </div>
         )}
+      </div>
+    )}
 
         {/* ============================================================== */}
-        {/* PESTAÑA 5: CORRECCIONES PUNTUALES Y CONTROL DE VERSIONES */}
+        {/* PESTAÑA 5: CONFIGURACIÓN CORPORATIVA & FICHA COMERCIAL */}
+        {/* ============================================================== */}
+        {activeTab === 'config' && (
+          <div className="space-y-4 animate-fadeIn">
+            <div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-200">
+                    <span className="material-symbols-outlined text-[18px] text-[#0F2C59]">settings</span>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-stone-900">5. Configuración & Membrete Oficial</h3>
+                    <p className="text-xs text-stone-500">Logotipos corporativos, identificador de vivienda y ficha comercial</p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-[#0F2C59] font-mono">
+                  FICHA COMERCIAL
+                </span>
+              </div>
+            </div>
+
+            {/* Logo de la Promoción para Fichas Comerciales */}
+            <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200/90 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[16px] text-[#c25e38]">apartment</span>
+                  <span>Logo de la Promoción (Fichas Comerciales)</span>
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-stone-200 text-stone-700 font-mono">
+                  LUBENS
+                </span>
+              </div>
+
+              {/* Vista previa del logo actual */}
+              <div className="bg-white rounded-xl p-3 flex items-center justify-center min-h-[50px] border border-stone-200/60">
+                {config.promotionLogo ? (
+                  <img
+                    src={config.promotionLogo}
+                    alt="Logo de la promoción"
+                    className="max-h-10 w-auto max-w-full object-contain"
+                  />
+                ) : (
+                  <span className="text-xs text-stone-400 italic">Sin logo configurado</span>
+                )}
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex items-center gap-2">
+                <label className="flex-1 px-3 py-1.5 bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer">
+                  <span className="material-symbols-outlined text-[15px] text-[#c25e38]">upload</span>
+                  <span>Subir otro logo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                          if (typeof evt.target?.result === 'string') {
+                            updateField('promotionLogo', evt.target.result);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+
+                {config.promotionLogo !== DEFAULT_PROMOTION_LOGO && (
+                  <button
+                    type="button"
+                    onClick={() => updateField('promotionLogo', DEFAULT_PROMOTION_LOGO)}
+                    className="px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 rounded-xl text-xs font-medium transition cursor-pointer"
+                    title="Restablecer logo oficial Lubens"
+                  >
+                    Restablecer
+                  </button>
+                )}
+
+                {config.promotionLogo && (
+                  <button
+                    type="button"
+                    onClick={() => updateField('promotionLogo', undefined)}
+                    className="p-1.5 text-stone-400 hover:text-red-600 rounded-xl transition cursor-pointer"
+                    title="Quitar logo"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Logo de la Comercializadora con fondo blanco y rótulo COMERCIALIZA */}
+            <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200/90 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[16px] text-[#991B1B]">storefront</span>
+                  <span>Logo Comercializadora (COMERCIALIZA)</span>
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-mono font-bold">
+                  TERRAVALL
+                </span>
+              </div>
+
+              {/* Vista previa en caja blanca oficial COMERCIALIZA */}
+              <div className="bg-white rounded-xl p-2.5 flex flex-col items-center justify-center min-h-[64px] border border-stone-200/60">
+                <span className="text-[9px] font-black text-[#991B1B] tracking-wider uppercase mb-1">
+                  COMERCIALIZA
+                </span>
+                {config.commercialAgencyLogo ? (
+                  <img
+                    src={config.commercialAgencyLogo}
+                    alt="Logo de la Comercializadora"
+                    className="max-h-9 w-auto max-w-full object-contain"
+                  />
+                ) : (
+                  <span className="text-xs text-stone-400 italic">Sin logo comercializadora</span>
+                )}
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex items-center gap-2">
+                <label className="flex-1 px-3 py-1.5 bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer">
+                  <span className="material-symbols-outlined text-[15px] text-[#991B1B]">upload</span>
+                  <span>Subir otro logo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                          if (typeof evt.target?.result === 'string') {
+                            updateField('commercialAgencyLogo', evt.target.result);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+
+                {config.commercialAgencyLogo !== DEFAULT_AGENCY_LOGO && (
+                  <button
+                    type="button"
+                    onClick={() => updateField('commercialAgencyLogo', DEFAULT_AGENCY_LOGO)}
+                    className="px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 rounded-xl text-xs font-medium transition cursor-pointer"
+                    title="Restablecer logo oficial Terravall"
+                  >
+                    Restablecer
+                  </button>
+                )}
+
+                {config.commercialAgencyLogo && (
+                  <button
+                    type="button"
+                    onClick={() => updateField('commercialAgencyLogo', undefined)}
+                    className="p-1.5 text-stone-400 hover:text-red-600 rounded-xl transition cursor-pointer"
+                    title="Quitar logo"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Identificador de Vivienda: PORTAL - PISO - LETRA */}
+            <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200/90 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[16px] text-[#0F2C59]">home</span>
+                  <span>Identificador de Vivienda (PORTAL - PISO - LETRA)</span>
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-stone-200 text-stone-700 font-mono">
+                  FICHA
+                </span>
+              </div>
+              <p className="text-[11px] text-stone-500">
+                Se rotula en el encabezado de la ficha comercial y documentos PDF vectoriales (ej: PORTAL 1 - 2º B).
+              </p>
+              <div className="flex items-center bg-white border border-stone-300 focus-within:border-[#0F2C59] focus-within:ring-2 focus-within:ring-[#0F2C59]/20 rounded-xl px-3 py-2 gap-2 shadow-2xs transition">
+                <span className="material-symbols-outlined text-[18px] text-stone-400">domain</span>
+                <label htmlFor="config-tab-unit-id-input" className="sr-only">
+                  Portal, Piso y Letra de la vivienda
+                </label>
+                <input
+                  id="config-tab-unit-id-input"
+                  type="text"
+                  value={config.unitIdentifier || 'PORTAL 1 - 1º A'}
+                  onChange={(e) => updateField('unitIdentifier', e.target.value.toUpperCase())}
+                  placeholder="PORTAL 1 - 1º A"
+                  className="bg-transparent border-none outline-none text-xs font-mono font-bold text-stone-900 placeholder:text-stone-400 w-full uppercase"
+                />
+              </div>
+            </div>
+
+            {/* Color de Fondo de los Puntos Identificadores */}
+            <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200/90 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[16px] text-[#0F2C59]">palette</span>
+                  <span>Color de Puntos Identificadores (Estancias)</span>
+                </span>
+                <div
+                  className="w-5 h-5 rounded-full border border-stone-300 shadow-2xs"
+                  style={{ backgroundColor: config.markerBadgeColor || '#0F2C59' }}
+                  title={config.markerBadgeColor || '#0F2C59'}
+                />
+              </div>
+              <p className="text-[11px] text-stone-500">
+                Tonalidad corporativa de los círculos numerados sobre el plano y las tablas comerciales.
+              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                {[
+                  { label: 'Azul Marino', hex: '#0F2C59' },
+                  { label: 'Azul Noche', hex: '#0E3B64' },
+                  { label: 'Terracota', hex: '#C25E38' },
+                  { label: 'Verde Esmeralda', hex: '#166534' },
+                  { label: 'Grafito', hex: '#334155' },
+                  { label: 'Borgoña', hex: '#991B1B' }
+                ].map((c) => (
+                  <button
+                    key={c.hex}
+                    type="button"
+                    onClick={() => updateField('markerBadgeColor', c.hex)}
+                    className={`px-2.5 py-1 rounded-xl text-xs font-medium border flex items-center gap-1.5 transition cursor-pointer ${
+                      (config.markerBadgeColor || '#0F2C59') === c.hex
+                        ? 'border-[#0F2C59] bg-blue-50 font-bold text-[#0F2C59] ring-1 ring-[#0F2C59]/30'
+                        : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300'
+                    }`}
+                  >
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: c.hex }} />
+                    <span>{c.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* PESTAÑA 6: CORRECCIONES PUNTUALES Y CONTROL DE VERSIONES */}
         {/* ============================================================== */}
         {activeTab === 'corrections' && (
           <div className="space-y-4 animate-fadeIn">
@@ -1611,7 +1749,7 @@ export function StyleSelector({
         <div className="min-w-0 flex-1 flex flex-wrap items-center gap-1.5 text-[11px] text-stone-600">
           <button
             type="button"
-            onClick={() => setActiveTab('presets')}
+            onClick={() => handleSelectTab('presets')}
             className="font-bold text-stone-900 px-2 py-0.5 rounded-md bg-stone-200/80 hover:bg-stone-300 transition cursor-pointer"
             title="Ver/cambiar estilo y presets"
           >
@@ -1619,7 +1757,7 @@ export function StyleSelector({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('camera')}
+            onClick={() => handleSelectTab('camera')}
             className="px-2 py-0.5 rounded-md bg-stone-100 border border-stone-200 font-medium hover:bg-stone-200 transition cursor-pointer"
             title="Ver/cambiar cámara y punto de vista"
           >
@@ -1627,7 +1765,7 @@ export function StyleSelector({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('flooring')}
+            onClick={() => handleSelectTab('flooring')}
             className="px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 hover:border-amber-400 text-amber-900 font-bold transition cursor-pointer"
             title="Ver/cambiar suelos y baños"
           >
@@ -1635,7 +1773,7 @@ export function StyleSelector({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('carpentry')}
+            onClick={() => handleSelectTab('carpentry')}
             className="px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 hover:border-emerald-400 text-emerald-900 font-bold transition cursor-pointer"
             title="Ver/cambiar puertas y ventanas"
           >
@@ -1644,13 +1782,21 @@ export function StyleSelector({
           {markersCount > 0 && (
             <button
               type="button"
-              onClick={() => setActiveTab('rooms')}
+              onClick={() => handleSelectTab('rooms')}
               className="font-bold text-[#c25e38] px-2 py-0.5 rounded-md bg-orange-100/60 border border-orange-200 hover:bg-orange-200 transition cursor-pointer"
               title="Ver estancias identificadas"
             >
               📍 {markersCount} estancias
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => handleSelectTab('config')}
+            className="px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 hover:border-blue-300 text-[#0F2C59] font-bold transition cursor-pointer"
+            title="Ver/cambiar logotipos y datos de la ficha comercial"
+          >
+            🏢 Logos & Ficha
+          </button>
         </div>
 
         {/* Botón principal de generar si se pasa como prop */}

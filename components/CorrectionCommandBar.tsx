@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RoomMarker } from '../types';
+import { RoomMarker, DefectMark } from '../types';
 import { parseTargetedRoomFromText } from '../services/promptBuilder';
 
 interface CorrectionCommandBarProps {
   roomMarkers: RoomMarker[];
   activeMarkerId: string | null;
-  onApplyCorrection: (instruction: string) => Promise<void>;
+  onApplyCorrection: (instruction: string, defectMark?: DefectMark | null) => Promise<void>;
   isGenerating: boolean;
   hasRender: boolean;
   currentVersion: number;
@@ -13,6 +13,10 @@ interface CorrectionCommandBarProps {
   canUndo?: boolean;
   externalPrefillText?: string | null;
   onClearPrefill?: () => void;
+  activeDefectMark?: DefectMark | null;
+  onClearDefectMark?: () => void;
+  isAnnotationMode?: boolean;
+  onToggleAnnotationMode?: () => void;
 }
 
 export function CorrectionCommandBar({
@@ -25,7 +29,11 @@ export function CorrectionCommandBar({
   onUndoToPreviousVersion,
   canUndo = false,
   externalPrefillText,
-  onClearPrefill
+  onClearPrefill,
+  activeDefectMark,
+  onClearDefectMark,
+  isAnnotationMode = false,
+  onToggleAnnotationMode
 }: CorrectionCommandBarProps) {
   const [commandText, setCommandText] = useState<string>('');
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
@@ -63,8 +71,11 @@ export function CorrectionCommandBar({
     try {
       setIsSubmitting(true);
       setFeedbackMessage(null);
-      await onApplyCorrection(textToSubmit);
+      await onApplyCorrection(textToSubmit, activeDefectMark);
       setCommandText('');
+      if (onClearDefectMark) {
+        onClearDefectMark();
+      }
       setFeedbackMessage(`✓ Modificación aplicada con éxito en la versión v${currentVersion + 1}`);
       setTimeout(() => setFeedbackMessage(null), 4500);
     } catch {
@@ -124,6 +135,25 @@ export function CorrectionCommandBar({
           </div>
 
           <div className="flex items-center gap-1.5">
+            {/* Botón para Señalar / Pintar Error en el Render */}
+            {onToggleAnnotationMode && (
+              <button
+                type="button"
+                onClick={onToggleAnnotationMode}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer border ${
+                  isAnnotationMode
+                    ? 'bg-rose-600 text-white border-rose-500 shadow-md animate-pulse'
+                    : 'bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white border-stone-700'
+                }`}
+                title={isAnnotationMode ? 'Salir del modo señalar error' : 'Pintar o marcar un fallo directamente sobre el render'}
+              >
+                <span className="material-symbols-outlined text-[14px]">
+                  {isAnnotationMode ? 'draw' : 'edit_location_alt'}
+                </span>
+                <span>{isAnnotationMode ? 'Pintando error...' : 'Señalar en render'}</span>
+              </button>
+            )}
+
             {canUndo && onUndoToPreviousVersion && (
               <button
                 type="button"
@@ -153,6 +183,38 @@ export function CorrectionCommandBar({
         {/* Input de comandos */}
         {isExpanded && (
           <form onSubmit={handleSubmit} className="space-y-2">
+            {/* Banner de Defecto Marcado en el Render */}
+            {activeDefectMark && (
+              <div className="flex items-center justify-between px-3 py-1.5 bg-rose-950/90 border border-rose-500/70 rounded-xl text-xs text-rose-200 animate-fadeIn shadow-inner">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-rose-600 text-white shadow-xs animate-pulse">
+                    <span className="material-symbols-outlined text-[13px]">my_location</span>
+                  </span>
+                  <span className="font-bold text-white">
+                    Fallo señalado:
+                  </span>
+                  <span className="bg-rose-900/80 px-2 py-0.5 rounded-md border border-rose-600/60 font-mono text-[11px] text-rose-200 font-semibold">
+                    {activeDefectMark.roomName ? `${activeDefectMark.roomName} ` : ''}({Math.round(activeDefectMark.x)}%, {Math.round(activeDefectMark.y)}%)
+                  </span>
+                  {activeDefectMark.type === 'brush' && (
+                    <span className="text-[10px] text-rose-300/80 hidden sm:inline italic">
+                      (Área pintada)
+                    </span>
+                  )}
+                </div>
+                {onClearDefectMark && (
+                  <button
+                    type="button"
+                    onClick={onClearDefectMark}
+                    className="px-2 py-0.5 bg-rose-900/60 hover:bg-rose-800 text-rose-200 hover:text-white rounded-md text-[11px] font-semibold transition cursor-pointer flex items-center gap-1 border border-rose-700"
+                    title="Eliminar marca de corrección"
+                  >
+                    <span>✕ Quitar marca</span>
+                  </button>
+                )}
+              </div>
+            )}
+
             {feedbackMessage && (
               <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-950/70 border border-emerald-500/40 rounded-lg text-[11px] text-emerald-300 font-medium animate-fadeIn">
                 <span className="material-symbols-outlined text-[14px] text-emerald-400">check_circle</span>
@@ -169,6 +231,8 @@ export function CorrectionCommandBar({
                 placeholder={
                   isBusy
                     ? 'Aplicando modificación con IA sobre el render...'
+                    : activeDefectMark
+                    ? `Describe qué está mal en ${activeDefectMark.roomName ? `(${activeDefectMark.roomName})` : 'el área señalada'} (ej: quitar esta mesa, cambiar azulejo)...`
                     : activeMarker
                     ? `Ej: El suelo de la estancia ${activeMarkerIdx + 1} es de parquet, o cambia mobiliario...`
                     : 'Ej: El suelo de la estancia 8 es de parquet, o añade isla en cocina...'

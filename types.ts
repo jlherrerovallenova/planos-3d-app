@@ -127,6 +127,24 @@ export interface RoomMarker {
   /** Superficie útil en metros cuadrados (m²) */
   areaSqMeters?: number;
 }
+export interface DefectMark {
+  id: string;
+  type: 'pin' | 'brush';
+  /** Coordenada X porcentual (0 a 100) */
+  x: number;
+  /** Coordenada Y porcentual (0 a 100) */
+  y: number;
+  /** Trazo a mano alzada para rodear o pintar el área con fallo */
+  path?: { x: number; y: number }[];
+  /** Color visual de la marca/pincel */
+  color?: string;
+  /** Nombre de la estancia más cercana si se detecta */
+  roomName?: string;
+  /** Índice de estancia (1-indexado para mostrar #N) */
+  roomIndex?: number;
+  /** Descripción del fallo asociada a este punto */
+  notes?: string;
+}
 export interface RenderConfig {
   // 1. General
   cameraAngle: CameraAngle;
@@ -156,6 +174,7 @@ export interface RenderConfig {
   markerBadgeColor?: string;             // Color de fondo libre para los puntos identificadores (por defecto #0F2C59)
   promotionLogo?: string;                // Logo de la promoción para las fichas comerciales (base64 o URL)
   commercialAgencyLogo?: string;         // Logo de la comercializadora con etiqueta COMERCIALIZA (base64 o URL)
+  unitIdentifier?: string;               // Identificador de la vivienda (PORTAL - PISO - LETRA)
   // Ajustes auxiliares
   extraDetails: string;
   strictBlueprintFidelity: boolean;
@@ -179,4 +198,5 @@ export interface RenderHistoryItem {
   versionNumber?: number;
   appliedInstruction?: string;
   usedEngine?: string;
+  defectMark?: DefectMark | null;
 }

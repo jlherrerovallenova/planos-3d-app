@@ -110,9 +110,9 @@ export async function cleanPlanTextsFromBoxes(
           const rawW = ((xmax - xmin) / 1000) * imgW;
           const rawH = ((ymax - ymin) / 1000) * imgH;
 
-          // Margen de seguridad (padding) para cubrir tildes, rabillos y sombras tipográficas
-          const padX = Math.max(3, rawW * 0.08);
-          const padY = Math.max(3, rawH * 0.15);
+          // Margen de seguridad generoso para garantizar cobertura total de tildes, rabillos y unidades (m²)
+          const padX = Math.max(6, rawW * 0.16);
+          const padY = Math.max(5, rawH * 0.28);
 
           const patchX = Math.max(0, rawX - padX);
           const patchY = Math.max(0, rawY - padY);
