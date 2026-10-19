@@ -15,6 +15,8 @@ interface PresetManagerProps {
   onApplyPreset: (preset: PresetConfig) => void;
   onSavePreset: (name: string, config: RenderConfig) => void;
   onDeletePreset: (id: string) => void;
+  onImportPresetJson?: (presetOrConfig: any, filename?: string) => void;
+  onSetDefaultConfig?: (config: RenderConfig) => void;
   disabled?: boolean;
 }
 
@@ -25,10 +27,14 @@ export function PresetManager({
   onApplyPreset,
   onSavePreset,
   onDeletePreset,
+  onImportPresetJson,
+  onSetDefaultConfig,
   disabled
 }: PresetManagerProps) {
   const [isSavingNew, setIsSavingNew] = useState(false);
   const [presetNameInput, setPresetNameInput] = useState('');
+  const [isDraggingJson, setIsDraggingJson] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +47,36 @@ export function PresetManager({
   const handleExportJson = (e: React.MouseEvent, preset: PresetConfig) => {
     e.stopPropagation();
     downloadJsonConfig(preset, `${preset.name.toLowerCase().replace(/\s+/g, '_')}_preset.json`);
+  };
+
+  const handleExportCurrentJson = () => {
+    downloadJsonConfig(currentConfig, 'configuracion_render_plano_3d.json');
+  };
+
+  const processJsonFile = (file: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        const parsed = JSON.parse(text);
+        if (onImportPresetJson) {
+          onImportPresetJson(parsed, file.name);
+        }
+      } catch (err: any) {
+        alert(`No se pudo leer el archivo JSON: ${err?.message || 'Formato no válido'}`);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processJsonFile(file);
+    }
+    // Resetear valor para permitir cargar el mismo archivo varias veces si se desea
+    e.target.value = '';
   };
 
   // Helper labels en español legible para evitar identificadores técnicos truncados
@@ -86,25 +122,104 @@ export function PresetManager({
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
+    <div
+      className={`space-y-3 relative transition-all rounded-2xl ${
+        isDraggingJson ? 'ring-2 ring-[#c25e38] bg-orange-50/50' : ''
+      }`}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setIsDraggingJson(true);
+      }}
+      onDragLeave={(e) => {
+        e.preventDefault();
+        setIsDraggingJson(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsDraggingJson(false);
+        const file = e.dataTransfer?.files?.[0];
+        if (file && (file.name.endsWith('.json') || file.type.includes('json'))) {
+          processJsonFile(file);
+        }
+      }}
+    >
+      {/* Input oculto para cargar archivos JSON */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json,application/json"
+        className="hidden"
+        onChange={handleFileInputChange}
+      />
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <span className="text-xs font-bold text-stone-700 uppercase tracking-wider flex items-center gap-1.5">
           <span className="material-symbols-outlined text-[16px] text-[#c25e38]">bookmarks</span>
-          <span>Plantillas de Estilo Disponibles</span>
+          <span>Plantillas y Memoria de Calidades</span>
         </span>
 
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => setIsSavingNew(!isSavingNew)}
-          className="text-xs font-bold text-[#c25e38] hover:text-[#a84d2b] transition flex items-center gap-1 cursor-pointer shrink-0"
-        >
-          <span className="material-symbols-outlined text-[15px]">
-            {isSavingNew ? 'close' : 'add'}
-          </span>
-          <span>{isSavingNew ? 'Cancelar' : 'Guardar Memoria Actual'}</span>
-        </button>
+        {/* Barra de acciones JSON y Guardado */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Botón CARGAR JSON */}
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => fileInputRef.current?.click()}
+            className="px-2.5 py-1.5 bg-[#0F2C59] hover:bg-[#081B38] text-white rounded-xl text-[11px] font-bold cursor-pointer transition shadow-xs flex items-center gap-1"
+            title="Cargar y aplicar archivo .json de configuración"
+          >
+            <span className="material-symbols-outlined text-[15px]">upload_file</span>
+            <span>Cargar .JSON</span>
+          </button>
+
+          {/* Botón GUARDAR JSON ACTUAL */}
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={handleExportCurrentJson}
+            className="px-2.5 py-1.5 bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 rounded-xl text-[11px] font-semibold cursor-pointer transition shadow-2xs flex items-center gap-1"
+            title="Descargar la configuración actual en un archivo .json"
+          >
+            <span className="material-symbols-outlined text-[15px] text-stone-500">download</span>
+            <span>Guardar .JSON</span>
+          </button>
+
+          {/* Botón FIJAR COMO POR DEFECTO */}
+          {onSetDefaultConfig && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => onSetDefaultConfig(currentConfig)}
+              className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-[11px] font-semibold cursor-pointer transition flex items-center gap-1"
+              title="Fijar esta configuración para que se cargue siempre al abrir la aplicación"
+            >
+              <span className="material-symbols-outlined text-[15px] text-amber-600">push_pin</span>
+              <span className="hidden sm:inline">Siempre por Defecto</span>
+            </button>
+          )}
+
+          {/* Botón GUARDAR PRESET LOCAL */}
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => setIsSavingNew(!isSavingNew)}
+            className="px-2 py-1.5 text-xs font-bold text-[#c25e38] hover:text-[#a84d2b] transition flex items-center gap-1 cursor-pointer shrink-0"
+            title="Guardar como plantilla con nombre propio"
+          >
+            <span className="material-symbols-outlined text-[15px]">
+              {isSavingNew ? 'close' : 'add'}
+            </span>
+            <span>{isSavingNew ? 'Cancelar' : 'Nueva Plantilla'}</span>
+          </button>
+        </div>
       </div>
+
+      {/* Indicador de arrastre */}
+      {isDraggingJson && (
+        <div className="p-3 bg-orange-100 border-2 border-dashed border-[#c25e38] rounded-2xl text-center text-xs font-bold text-[#c25e38] animate-pulse">
+          Suelta tu archivo .JSON aquí para cargarlo automáticamente
+        </div>
+      )}
 
       {/* Formulario guardar nuevo preset */}
       {isSavingNew && (
@@ -182,6 +297,20 @@ export function PresetManager({
                 </button>
 
                 <div className="flex items-center gap-1 shrink-0">
+                  {onSetDefaultConfig && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSetDefaultConfig(preset.config);
+                      }}
+                      className="p-1.5 text-stone-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg cursor-pointer transition"
+                      title="Fijar esta plantilla como predeterminada al arrancar la app"
+                      aria-label={`Fijar preset ${preset.name} por defecto`}
+                    >
+                      <span className="material-symbols-outlined text-[16px]">push_pin</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={(e) => handleExportJson(e, preset)}

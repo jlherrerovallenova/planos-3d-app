@@ -14,7 +14,9 @@ interface PdfExportModalProps {
   markers: RoomMarker[];
   markerBadgeColor?: string;
   promotionLogo?: string | null;
+  promotorLogo?: string | null;
   agencyLogo?: string | null;
+  agencyPhone?: string | null;
   unitIdentifier?: string;
   customTotalUsefulArea?: number;
 }
@@ -27,7 +29,9 @@ export function PdfExportModal({
   markers,
   markerBadgeColor,
   promotionLogo,
+  promotorLogo,
   agencyLogo,
+  agencyPhone = '983 34 21 32',
   unitIdentifier,
   customTotalUsefulArea
 }: PdfExportModalProps) {
@@ -52,7 +56,9 @@ export function PdfExportModal({
           markers,
           markerBadgeColor,
           promotionLogo,
+          promotorLogo,
           agencyLogo,
+          agencyPhone,
           unitIdentifier,
           customTotalUsefulArea,
           filename: `ficha_vectorial_${safeTitle.toLowerCase().replace(/[^\w]/g, '_')}.pdf`
@@ -86,7 +92,9 @@ export function PdfExportModal({
           markers,
           markerBadgeColor,
           promotionLogo,
+          promotorLogo,
           agencyLogo,
+          agencyPhone,
           unitIdentifier,
           customTotalUsefulArea,
           filename: `ficha_comercial_hd_${safeTitle.toLowerCase().replace(/[^\w]/g, '_')}.png`

@@ -173,7 +173,9 @@ export interface RenderConfig {
   roomMarkers: RoomMarker[];
   markerBadgeColor?: string;             // Color de fondo libre para los puntos identificadores (por defecto #0F2C59)
   promotionLogo?: string;                // Logo de la promoción para las fichas comerciales (base64 o URL)
+  promotorLogo?: string;                 // Logo de quien promueve (ej. LUBENS Proyecto S.L.)
   commercialAgencyLogo?: string;         // Logo de la comercializadora con etiqueta COMERCIALIZA (base64 o URL)
+  agencyPhone?: string;                  // Teléfono de contacto de la comercializadora (por defecto "983 34 21 32")
   unitIdentifier?: string;               // Identificador de la vivienda (PORTAL - PISO - LETRA)
   customTotalUsefulArea?: number;        // Superficie útil total personalizada / manual (si no se define, se calcula sumando las estancias)
   // Ajustes auxiliares

@@ -234,47 +234,88 @@ export async function autoTrimWhitespace(
         const rowThreshold = Math.max(6, Math.floor(w * 0.008));
         const colThreshold = Math.max(6, Math.floor(h * 0.008));
 
+        // Escanear desde los 4 extremos hacia el centro para hallar con precisión el perímetro de la vivienda
+        // 1. Escanear de arriba hacia abajo para minY
         for (let y = padEdgeY; y < h - padEdgeY; y += 2) {
           let count = 0;
           for (let x = padEdgeX; x < w - padEdgeX; x += 2) {
             if (isContent(x, y)) {
               count++;
               if (count >= rowThreshold) {
-                if (y < minY) minY = y;
-                if (y > maxY) maxY = y;
+                minY = y;
                 contentFound = true;
                 break;
               }
             }
           }
+          if (contentFound) break;
         }
 
-        if (!contentFound || minY >= maxY) {
+        // 2. Escanear de abajo hacia arriba para maxY (asegurar que NUNCA se corte la parte inferior)
+        let foundBottom = false;
+        for (let y = h - padEdgeY; y >= padEdgeY; y -= 2) {
+          let count = 0;
+          for (let x = padEdgeX; x < w - padEdgeX; x += 2) {
+            if (isContent(x, y)) {
+              count++;
+              if (count >= rowThreshold) {
+                maxY = y;
+                foundBottom = true;
+                break;
+              }
+            }
+          }
+          if (foundBottom) break;
+        }
+
+        if (!contentFound || !foundBottom || minY >= maxY) {
           resolve({ trimmedDataUrl: imageSrc, markers: markers || [], wasTrimmed: false });
           return;
         }
 
+        // 3. Escanear de izquierda a derecha para minX
+        let foundLeft = false;
         for (let x = padEdgeX; x < w - padEdgeX; x += 2) {
           let count = 0;
           for (let y = minY; y <= maxY; y += 2) {
             if (isContent(x, y)) {
               count++;
               if (count >= colThreshold) {
-                if (x < minX) minX = x;
-                if (x > maxX) maxX = x;
+                minX = x;
+                foundLeft = true;
                 break;
               }
             }
           }
+          if (foundLeft) break;
         }
 
-        if (minX >= maxX) {
+        // 4. Escanear de derecha a izquierda para maxX
+        let foundRight = false;
+        for (let x = w - padEdgeX; x >= padEdgeX; x -= 2) {
+          let count = 0;
+          for (let y = minY; y <= maxY; y += 2) {
+            if (isContent(x, y)) {
+              count++;
+              if (count >= colThreshold) {
+                maxX = x;
+                foundRight = true;
+                break;
+              }
+            }
+          }
+          if (foundRight) break;
+        }
+
+        if (!foundLeft || !foundRight || minX >= maxX) {
           resolve({ trimmedDataUrl: imageSrc, markers: markers || [], wasTrimmed: false });
           return;
         }
 
-        const padX = Math.max(12, Math.round(w * (paddingPercent / 100)));
-        const padY = Math.max(12, Math.round(h * (paddingPercent / 100)));
+        // Margen de seguridad generoso (mínimo 3.5%) para jamás recortar muros ni estancias perimetrales
+        const effectivePadding = Math.max(3.5, paddingPercent);
+        const padX = Math.max(20, Math.round(w * (effectivePadding / 100)));
+        const padY = Math.max(20, Math.round(h * (effectivePadding / 100)));
 
         const cropX = Math.max(0, minX - padX);
         const cropY = Math.max(0, minY - padY);

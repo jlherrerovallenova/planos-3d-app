@@ -23,6 +23,7 @@ import {
 
 import { DEFAULT_PROMOTION_LOGO } from './services/defaultPromotionLogo';
 import { DEFAULT_AGENCY_LOGO } from './services/defaultAgencyLogo';
+import { DEFAULT_PROMUEVE_LOGO } from './services/defaultPromueveLogo';
 import { PlanCanvasPreview } from './components/PlanCanvasPreview';
 import { StyleSelector } from './components/StyleSelector';
 import { IntroModal } from './components/IntroModal';
@@ -81,9 +82,48 @@ export function App() {
 
   // 1. Título y Configuración de renderizado
   const [projectTitle, setProjectTitle] = useState<string>('Proyecto residencial de 140 viviendas');
-  const [presets, setPresets] = useState<PresetConfig[]>(DEFAULT_PRESETS);
-  const [activePresetId, setActivePresetId] = useState<string | null>(DEFAULT_PRESETS[0].id);
-  const [config, setConfig] = useState<RenderConfig>(DEFAULT_PRESETS[0].config);
+  const [presets, setPresets] = useState<PresetConfig[]>(() => {
+    try {
+      const saved = localStorage.getItem('planos3d_custom_presets');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return DEFAULT_PRESETS;
+  });
+  const [activePresetId, setActivePresetId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('planos3d_active_preset_id') || DEFAULT_PRESETS[0].id;
+    } catch {
+      return DEFAULT_PRESETS[0].id;
+    }
+  });
+  const [config, setConfig] = useState<RenderConfig>(() => {
+    try {
+      const saved = localStorage.getItem('planos3d_default_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch {}
+    return DEFAULT_PRESETS[0].config;
+  });
+
+  // Persistir presets y preset activo en localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('planos3d_custom_presets', JSON.stringify(presets));
+    } catch {}
+  }, [presets]);
+
+  useEffect(() => {
+    try {
+      if (activePresetId) {
+        localStorage.setItem('planos3d_active_preset_id', activePresetId);
+      }
+    } catch {}
+  }, [activePresetId]);
 
   // 2. Estados de Imagen y Canvas
   const [sourceImage, setSourceImage] = useState<{
@@ -914,6 +954,71 @@ export function App() {
   const handleDeletePreset = (id: string) => {
     setPresets((prev) => prev.filter((p) => p.id !== id));
     if (activePresetId === id) setActivePresetId(null);
+  };
+
+  const handleImportPresetJson = (importedData: any, filename?: string) => {
+    try {
+      let targetConfig: RenderConfig | null = null;
+      let presetName = filename ? filename.replace(/\.json$/i, '').replace(/_/g, ' ') : 'Configuración Importada';
+
+      if (importedData && typeof importedData === 'object') {
+        if (importedData.config && typeof importedData.config === 'object') {
+          // Archivo exportado como PresetConfig
+          targetConfig = importedData.config;
+          if (importedData.name) presetName = importedData.name;
+        } else if (
+          importedData.cameraAngle ||
+          importedData.interiorStyle ||
+          importedData.flooringLiving ||
+          importedData.kitchenCountertop ||
+          importedData.windowFrames
+        ) {
+          // Archivo con estructura directa de RenderConfig
+          targetConfig = importedData as RenderConfig;
+        }
+      }
+
+      if (!targetConfig) {
+        setGenerationError('El archivo JSON seleccionado no contiene una configuración o preset válido.');
+        return;
+      }
+
+      // Combinar configuración preservando marcadores de plano actuales si existen
+      const finalConfig: RenderConfig = {
+        ...targetConfig,
+        roomMarkers: config.roomMarkers?.length ? config.roomMarkers : (targetConfig.roomMarkers || [])
+      };
+
+      const newPreset: PresetConfig = {
+        id: `preset_import_${Date.now()}`,
+        name: presetName,
+        createdAt: Date.now(),
+        config: finalConfig
+      };
+
+      setPresets((prev) => [newPreset, ...prev.filter((p) => p.name !== newPreset.name)]);
+      setActivePresetId(newPreset.id);
+      setConfig(finalConfig);
+
+      // Fijar automáticamente en localStorage para que siempre persista como la activa
+      try {
+        localStorage.setItem('planos3d_default_config', JSON.stringify(finalConfig));
+        localStorage.setItem('planos3d_active_preset_id', newPreset.id);
+      } catch {}
+
+      setGenerationSuccessMessage(`Configuración "${presetName}" cargada correctamente. Todos los renders se realizarán con estas características.`);
+    } catch (err: any) {
+      setGenerationError(`Error al procesar el archivo JSON: ${err?.message || 'Formato no válido'}`);
+    }
+  };
+
+  const handleSetDefaultConfig = (cfgToDefault: RenderConfig) => {
+    try {
+      localStorage.setItem('planos3d_default_config', JSON.stringify(cfgToDefault));
+      setGenerationSuccessMessage('Esta configuración ha quedado guardada como predeterminada: la aplicación se iniciará siempre con ella.');
+    } catch (err: any) {
+      console.warn('Error guardando en localStorage:', err);
+    }
   };
 
   // Generación con IA
@@ -1786,8 +1891,12 @@ export function App() {
               onChangeMarkerBadgeColor={(color) => setConfig((prev) => ({ ...prev, markerBadgeColor: color }))}
               promotionLogo={config.promotionLogo || DEFAULT_PROMOTION_LOGO}
               onChangePromotionLogo={(logo) => setConfig((prev) => ({ ...prev, promotionLogo: logo || undefined }))}
+              promotorLogo={config.promotorLogo || DEFAULT_PROMUEVE_LOGO}
+              onChangePromotorLogo={(logo) => setConfig((prev) => ({ ...prev, promotorLogo: logo || undefined }))}
               commercialAgencyLogo={config.commercialAgencyLogo || DEFAULT_AGENCY_LOGO}
               onChangeCommercialAgencyLogo={(logo) => setConfig((prev) => ({ ...prev, commercialAgencyLogo: logo || undefined }))}
+              agencyPhone={config.agencyPhone || '983 34 21 32'}
+              onChangeAgencyPhone={(phone) => setConfig((prev) => ({ ...prev, agencyPhone: phone || undefined }))}
               unitIdentifier={config.unitIdentifier}
               onChangeUnitIdentifier={(val) => setConfig((prev) => ({ ...prev, unitIdentifier: val }))}
               isometricOrientation={config.isometricOrientation}
@@ -1863,6 +1972,8 @@ export function App() {
               onApplyPreset={handleApplyPreset}
               onSavePreset={handleSavePreset}
               onDeletePreset={handleDeletePreset}
+              onImportPresetJson={handleImportPresetJson}
+              onSetDefaultConfig={handleSetDefaultConfig}
               activeMarkerId={activeMarkerId}
               onSelectMarker={setActiveMarkerId}
               isPinningMode={isPinningMode}

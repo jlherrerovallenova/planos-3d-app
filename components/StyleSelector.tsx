@@ -33,6 +33,8 @@ interface StyleSelectorProps {
   onApplyPreset: (preset: PresetConfig) => void;
   onSavePreset: (name: string, config: RenderConfig) => void;
   onDeletePreset: (id: string) => void;
+  onImportPresetJson?: (presetOrConfig: any, filename?: string) => void;
+  onSetDefaultConfig?: (config: RenderConfig) => void;
   // Manejo de marcadores de estancias
   activeMarkerId: string | null;
   onSelectMarker: (id: string | null) => void;
@@ -68,6 +70,8 @@ export function StyleSelector({
   onApplyPreset,
   onSavePreset,
   onDeletePreset,
+  onImportPresetJson,
+  onSetDefaultConfig,
   activeMarkerId,
   onSelectMarker,
   isPinningMode,
@@ -329,6 +333,8 @@ export function StyleSelector({
               onApplyPreset={onApplyPreset}
               onSavePreset={onSavePreset}
               onDeletePreset={onDeletePreset}
+              onImportPresetJson={onImportPresetJson}
+              onSetDefaultConfig={onSetDefaultConfig}
               disabled={disabled}
             />
 

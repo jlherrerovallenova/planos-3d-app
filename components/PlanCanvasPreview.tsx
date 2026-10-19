@@ -4,7 +4,9 @@ import { ROOM_CATEGORIES, SAMPLE_PLANS, ISOMETRIC_ORIENTATIONS } from '../consta
 import { SurfaceScheduleTable } from './SurfaceScheduleTable';
 import { PdfExportModal } from './PdfExportModal';
 import { sortRoomMarkers } from '../services/roomSorter';
+import { DEFAULT_PROMOTION_LOGO } from '../services/defaultPromotionLogo';
 import { DEFAULT_AGENCY_LOGO } from '../services/defaultAgencyLogo';
+import { DEFAULT_PROMUEVE_LOGO } from '../services/defaultPromueveLogo';
 import {
   exportCommercialBrochureImage,
   exportCommercialBrochurePDF,
@@ -59,9 +61,15 @@ interface PlanCanvasPreviewProps {
   // Logo de la promoción para fichas comerciales
   promotionLogo?: string | null;
   onChangePromotionLogo?: (logo: string | null) => void;
+  // Logo de quien promueve (LUBENS Proyecto S.L.)
+  promotorLogo?: string | null;
+  onChangePromotorLogo?: (logo: string | null) => void;
   // Logo de la comercializadora con fondo blanco y COMERCIALIZA
   commercialAgencyLogo?: string | null;
   onChangeCommercialAgencyLogo?: (logo: string | null) => void;
+  // Teléfono de la comercializadora
+  agencyPhone?: string | null;
+  onChangeAgencyPhone?: (phone: string | null) => void;
   // Orientación y rotación isométrica (360°)
   isometricOrientation?: IsometricOrientation;
   isometricRotationAngle?: number;
@@ -115,8 +123,12 @@ export function PlanCanvasPreview({
   onChangeMarkerBadgeColor,
   promotionLogo,
   onChangePromotionLogo,
+  promotorLogo,
+  onChangePromotorLogo,
   commercialAgencyLogo,
   onChangeCommercialAgencyLogo,
+  agencyPhone = '983 34 21 32',
+  onChangeAgencyPhone,
   unitIdentifier,
   onChangeUnitIdentifier,
   isometricOrientation,
@@ -180,7 +192,7 @@ export function PlanCanvasPreview({
   const [isExportingPDF, setIsExportingPDF] = useState<boolean>(false);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
-  const [planOccupancyPercent, setPlanOccupancyPercent] = useState<number>(75);
+  const [planOccupancyPercent, setPlanOccupancyPercent] = useState<number | 'fit'>('fit');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
 
@@ -569,7 +581,9 @@ export function PlanCanvasPreview({
       markers: sortedMarkers,
       markerBadgeColor: badgeBg,
       promotionLogo: promotionLogo || undefined,
+      promotorLogo: promotorLogo || undefined,
       agencyLogo: commercialAgencyLogo || undefined,
+      agencyPhone: agencyPhone || undefined,
       unitIdentifier: activeUnitId,
       filename: `ficha_comercial_${activeUnitId.toLowerCase().replace(/[\s\W]+/g, '_')}_${projectTitle.toLowerCase().replace(/[^\w]/g, '_')}.png`
     });
@@ -1552,118 +1566,25 @@ export function PlanCanvasPreview({
             <div className="w-full max-w-none mx-auto bg-white text-stone-900 rounded-none sm:rounded-sm shadow-xl border border-stone-200/90 p-5 sm:p-7 flex flex-col justify-between max-h-[86vh] overflow-y-auto animate-fadeIn select-text">
               {/* Encabezado Comercial */}
               <div className="border-b border-stone-200 pb-3 mb-4 flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-3.5 flex-wrap">
-                  {/* Tarjeta COMERCIALIZA sin borde */}
-                  {(commercialAgencyLogo || DEFAULT_AGENCY_LOGO) && (
-                    <div className="px-2 py-0.5 flex flex-col items-center justify-center shrink-0">
-                      <span className="text-[7.5px] font-black text-[#991B1B] uppercase tracking-wider leading-none mb-0.5">
-                        COMERCIALIZA
-                      </span>
-                      <img
-                        src={commercialAgencyLogo || DEFAULT_AGENCY_LOGO}
-                        alt="Comercializa Terravall"
-                        className="h-6 sm:h-7 w-auto max-w-[120px] object-contain"
-                      />
-                    </div>
-                  )}
-
-                  {/* Logo de la Promoción Lubens sin borde */}
-                  {promotionLogo && (
-                    <div className="p-1 flex items-center justify-center shrink-0">
-                      <img
-                        src={promotionLogo}
-                        alt="Logo de la Promoción"
-                        className="h-8 sm:h-10 w-auto max-w-[170px] object-contain"
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: badgeBg }} />
-                      <h2 className="text-base sm:text-lg font-black tracking-tight uppercase font-sans" style={{ color: badgeBg }}>
-                        {projectTitle || 'Vivienda Residencial'}
-                      </h2>
-                    </div>
-                    <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mt-0.5">
-                      FICHA COMERCIAL • PLANO AMUEBLADO Y CUADRO DE SUPERFICIES ÚTILES
-                    </p>
-                  </div>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-black tracking-tight uppercase font-sans text-[#0F2C59]">
+                    {projectTitle || 'PROYECTO RESIDENCIAL DE 140 VIVIENDAS'}
+                  </h2>
+                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mt-0.5">
+                    FICHA COMERCIAL ARQUITECTÓNICA • PLANO AMUEBLADO Y CUADRO DE SUPERFICIES ÚTILES
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                  {/* Selector / Editor de Identificador de Vivienda (PORTAL - PISO - LETRA) */}
-                  <div
-                    className="flex items-center bg-stone-100 hover:bg-stone-200/80 focus-within:bg-white border border-stone-300 focus-within:border-[#0F2C59] focus-within:ring-2 focus-within:ring-[#0F2C59]/20 rounded-lg px-2.5 py-1 gap-1.5 shadow-xs transition group"
-                    title="Identificador de la vivienda (Portal, Planta y Puerta)"
-                  >
-                    <span className="material-symbols-outlined text-[15px] text-stone-500 group-focus-within:text-[#0F2C59]">home</span>
-                    <label htmlFor="plan-unit-identifier-input" className="sr-only">
-                      Portal, Piso y Letra
-                    </label>
-                    <input
-                      id="plan-unit-identifier-input"
-                      type="text"
-                      value={activeUnitId}
-                      onChange={(e) => handleUnitIdentifierChange(e.target.value.toUpperCase())}
-                      placeholder="PORTAL - PISO - LETRA"
-                      className="bg-transparent border-none outline-none text-xs font-mono font-bold text-stone-900 focus:text-[#0F2C59] placeholder:text-stone-400 w-44 uppercase"
-                      title="Introduce Portal, Piso y Letra de la vivienda (ej: PORTAL 1 - 2º B)"
-                    />
-                  </div>
-
-                  {onChangeCommercialAgencyLogo && (
-                    <label
-                      className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow-xs cursor-pointer"
-                      title="Cambiar logo comercializadora"
-                    >
-                      <span className="material-symbols-outlined text-[15px] text-[#991B1B]">storefront</span>
-                      <span>Comercializa</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (evt) => {
-                              if (typeof evt.target?.result === 'string') {
-                                onChangeCommercialAgencyLogo(evt.target.result);
-                              }
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
+                <div className="flex items-center gap-3 flex-wrap">
+                  {/* Logo de la Promoción Lubens Arroyo en la esquina superior derecha */}
+                  {(promotionLogo || DEFAULT_PROMOTION_LOGO) && (
+                    <div className="p-1 flex items-center justify-center shrink-0">
+                      <img
+                        src={promotionLogo || DEFAULT_PROMOTION_LOGO}
+                        alt="Logo de la Promoción"
+                        className="h-10 sm:h-12 w-auto max-w-[220px] object-contain"
                       />
-                    </label>
-                  )}
-
-                  {onChangePromotionLogo && (
-                    <label
-                      className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow-xs cursor-pointer"
-                      title="Cambiar o subir logo de la promoción"
-                    >
-                      <span className="material-symbols-outlined text-[15px]">add_photo_alternate</span>
-                      <span>Promoción</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (evt) => {
-                              if (typeof evt.target?.result === 'string') {
-                                onChangePromotionLogo(evt.target.result);
-                              }
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                      />
-                    </label>
+                    </div>
                   )}
 
                   <button
@@ -1691,7 +1612,7 @@ export function PlanCanvasPreview({
               {/* Cuerpo de la Ficha: Plano a la Izquierda (75% del ancho) y Cuadro de Superficies a la Derecha (25%) */}
               <div className="grid grid-cols-1 md:grid-cols-12 lg:grid-cols-12 gap-5 items-center flex-1 my-auto">
                 {/* Columna Izquierda / Central: Plano Renderizado o Base (Ocupa al menos el 75% con 9 de 12 columnas) */}
-                <div className="md:col-span-8 lg:col-span-9 flex flex-col items-center justify-center bg-white p-2 sm:p-4 min-h-[480px] max-h-[85vh] w-full overflow-hidden">
+                <div className="md:col-span-8 lg:col-span-9 flex flex-col items-center justify-center bg-white p-2 sm:p-3 min-h-[350px] w-full overflow-hidden">
                   {renderDataUrl || sourceDataUrl ? (
                     <>
                       <div
@@ -1704,21 +1625,27 @@ export function PlanCanvasPreview({
                           if (e.key === 'Enter') handleImageClick(e as any, fichaPlanRef.current);
                         }}
                         style={{
-                          width: planOccupancyPercent === 100 ? '100%' : `${planOccupancyPercent}%`,
+                          width: planOccupancyPercent === 'fit' ? '100%' : `${planOccupancyPercent}%`,
                           maxWidth: '100%',
-                          maxHeight: '78vh',
+                          maxHeight: planOccupancyPercent === 'fit' ? '65vh' : `${Math.round(planOccupancyPercent * 0.85)}vh`,
                           transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : undefined,
                           transformOrigin: 'center center',
-                          transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                          transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
                         }}
-                        className={`relative inline-block max-h-[78vh] select-none ${
+                        className={`relative flex items-center justify-center select-none ${
                           isEraserMode ? 'cursor-crosshair ring-2 ring-rose-500' : ''
                         }`}
                       >
                         <img
                           src={renderDataUrl || sourceDataUrl!}
                           alt="Plano Ficha Comercial"
-                          className="w-full h-auto max-h-[78vh] object-contain block pointer-events-none select-none rounded-sm"
+                          style={{
+                            maxHeight: planOccupancyPercent === 'fit' ? '65vh' : `${Math.round(planOccupancyPercent * 0.85)}vh`,
+                            maxWidth: '100%',
+                            width: 'auto',
+                            height: 'auto'
+                          }}
+                          className="object-contain block pointer-events-none select-none rounded-sm"
                         />
 
                         {/* Capa interactiva de marcado y pintura de defectos */}
@@ -1764,26 +1691,38 @@ export function PlanCanvasPreview({
                         })}
                       </div>
 
-                      {/* Barra de control: Fijación de puntos y selector de ocupación del plano (70% - 75% - 85% - 100%) */}
+                      {/* Barra de control: Fijación de puntos y selector de ocupación del plano */}
                       <div className="mt-3 flex items-center justify-between w-full max-w-2xl px-1 flex-wrap gap-2.5">
                         <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl border border-stone-200 select-none shadow-2xs">
-                          <span className="text-[11px] font-bold text-stone-600 px-1.5 flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[14px] text-[#0F2C59]">aspect_ratio</span>
-                            <span>Ocupación del plano:</span>
-                          </span>
-                          {[70, 75, 85, 100].map((pct) => (
+                          <button
+                            type="button"
+                            onClick={() => setPlanOccupancyPercent('fit')}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                              planOccupancyPercent === 'fit'
+                                ? 'bg-[#0F2C59] text-white shadow-xs'
+                                : 'text-stone-700 hover:text-stone-900 hover:bg-stone-200/80'
+                            }`}
+                            title="Ajustar automáticamente todo el plano dentro del área de trabajo disponible sin cortarse"
+                          >
+                            <span className="material-symbols-outlined text-[15px]">fit_screen</span>
+                            <span>Ajustar al área</span>
+                          </button>
+
+                          <div className="h-4 w-px bg-stone-300 mx-0.5" />
+
+                          {[50, 60, 70, 85, 100].map((pct) => (
                             <button
                               key={pct}
                               type="button"
                               onClick={() => setPlanOccupancyPercent(pct)}
-                              className={`px-2.5 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                              className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                                 planOccupancyPercent === pct
                                   ? 'bg-[#0F2C59] text-white shadow-xs'
                                   : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200/80'
                               }`}
-                              title={`Ajustar para que el plano ocupe el ${pct}% de la zona del plano`}
+                              title={`Ajustar escala manual al ${pct}%`}
                             >
-                              {pct}%{pct === 75 ? ' ★' : ''}
+                              {pct}%
                             </button>
                           ))}
                         </div>
@@ -1838,8 +1777,21 @@ export function PlanCanvasPreview({
                   )}
                 </div>
 
-                {/* Columna Derecha: Cuadro de Superficies Útiles (25% del ancho) */}
-                <div className="md:col-span-4 lg:col-span-3 flex flex-col justify-center items-center lg:items-end w-full">
+                {/* Columna Derecha: Identificador, Cuadro de Superficies Útiles y Entidades */}
+                <div className="md:col-span-4 lg:col-span-3 flex flex-col justify-start items-start w-full">
+                  {/* Identificador de Vivienda (ej. PORTAL XX LETRA X) en color azul marino */}
+                  <div className="w-full mb-3">
+                    <input
+                      id="plan-unit-identifier-input"
+                      type="text"
+                      value={activeUnitId}
+                      onChange={(e) => handleUnitIdentifierChange(e.target.value.toUpperCase())}
+                      placeholder="PORTAL XX LETRA X"
+                      className="bg-transparent border-b border-transparent hover:border-stone-300 focus:border-[#0E3B64] outline-none text-xl sm:text-2xl font-black text-[#0E3B64] uppercase w-full tracking-tight transition"
+                      title="Haz clic para editar el Portal, Piso o Letra de la vivienda"
+                    />
+                  </div>
+
                   {onDetectWithAI && (
                     <div className="w-full mb-3 flex flex-col gap-2">
                       <button
@@ -1907,6 +1859,7 @@ export function PlanCanvasPreview({
                       </button>
                     </div>
                   )}
+
                   <SurfaceScheduleTable
                     markers={sortedMarkers}
                     markerBadgeColor={badgeBg}
@@ -1916,19 +1869,54 @@ export function PlanCanvasPreview({
                     customTotalUsefulArea={customTotalUsefulArea}
                     onChangeCustomTotalUsefulArea={onChangeCustomTotalUsefulArea}
                   />
+
+                  {/* Bloque inferior: PROMUEVE, COMERCIALIZA y TELÉFONO */}
+                  <div className="w-full mt-7 pt-4 flex flex-col gap-4 text-left">
+                    {/* PROMUEVE */}
+                    <div>
+                      <span className="text-[11px] font-black tracking-wider text-[#0E3B64] uppercase block mb-1">
+                        PROMUEVE:
+                      </span>
+                      <div className="flex items-center">
+                        <img
+                          src={promotorLogo || DEFAULT_PROMUEVE_LOGO}
+                          alt="LUBENS Proyecto S.L."
+                          className="h-9 sm:h-10 w-auto max-w-[240px] object-contain"
+                        />
+                      </div>
+                    </div>
+
+                    {/* COMERCIALIZA */}
+                    <div>
+                      <span className="text-[11px] font-black tracking-wider text-[#991B1B] uppercase block mb-1">
+                        COMERCIALIZA:
+                      </span>
+                      <div className="flex items-center">
+                        <img
+                          src={commercialAgencyLogo || DEFAULT_AGENCY_LOGO}
+                          alt="TERRAVALL Servicios Inmobiliarios"
+                          className="h-10 sm:h-11 w-auto max-w-[240px] object-contain"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Teléfono */}
+                    <div className="pt-1">
+                      <a
+                        href={`tel:${(agencyPhone || '983342132').replace(/\s+/g, '')}`}
+                        className="text-2xl sm:text-3xl font-black text-[#991B1B] tracking-tight hover:underline block"
+                        title="Llamar a Comercializadora"
+                      >
+                        {agencyPhone || '983 34 21 32'}
+                      </a>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Pie de Ficha con Cláusula Legal y Entidades */}
-              <div className="mt-4 pt-3 border-t border-stone-200 flex items-center justify-between text-[10px] text-stone-500 flex-wrap gap-2">
-                <span>
-                  Documento con carácter comercial y orientativo. Las superficies corresponden a superficie útil interior estimada.
-                </span>
-                <div className="flex items-center gap-2 font-medium">
-                  <span className="text-[#991B1B] font-bold">COMERCIALIZA: TERRAVALL</span>
-                  <span className="text-stone-300">•</span>
-                  <span className="text-stone-700 font-bold">PROMUEVE: LUBENS ARROYO</span>
-                </div>
+              {/* Pie de Ficha con Cláusula Legal */}
+              <div className="mt-4 pt-3 border-t border-stone-200 text-[10px] text-stone-400">
+                Documento comercial no vinculante. Las superficies corresponden a superficie útil interior estimada y pueden variar durante la ejecución de obra.
               </div>
             </div>
           ) : activeTab === 'split' && sourceDataUrl && renderDataUrl ? (
@@ -2391,7 +2379,9 @@ export function PlanCanvasPreview({
           markers={sortedMarkers}
           markerBadgeColor={badgeBg}
           promotionLogo={promotionLogo}
+          promotorLogo={promotorLogo}
           agencyLogo={commercialAgencyLogo}
+          agencyPhone={agencyPhone}
           unitIdentifier={activeUnitId}
           customTotalUsefulArea={customTotalUsefulArea}
         />

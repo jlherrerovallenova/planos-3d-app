@@ -19,6 +19,7 @@ import {
 } from './types';
 import { DEFAULT_PROMOTION_LOGO } from './services/defaultPromotionLogo';
 import { DEFAULT_AGENCY_LOGO } from './services/defaultAgencyLogo';
+import { DEFAULT_PROMUEVE_LOGO } from './services/defaultPromueveLogo';
 // Categorías de Estancias para el Identificador
 export const ROOM_CATEGORIES: {
   id: RoomCategory;
@@ -962,7 +963,9 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       roomMarkers: [],
       markerBadgeColor: '#0F2C59',
       promotionLogo: DEFAULT_PROMOTION_LOGO,
+      promotorLogo: DEFAULT_PROMUEVE_LOGO,
       commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
+      agencyPhone: '983 34 21 32',
       unitIdentifier: 'PORTAL 1 - 1º A',
       extraDetails: '',
       strictBlueprintFidelity: true,
@@ -996,7 +999,9 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       roomMarkers: [],
       markerBadgeColor: '#0F2C59',
       promotionLogo: DEFAULT_PROMOTION_LOGO,
+      promotorLogo: DEFAULT_PROMUEVE_LOGO,
       commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
+      agencyPhone: '983 34 21 32',
       extraDetails: '',
       strictBlueprintFidelity: true
     }
@@ -1028,7 +1033,9 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       roomMarkers: [],
       markerBadgeColor: '#0F2C59',
       promotionLogo: DEFAULT_PROMOTION_LOGO,
+      promotorLogo: DEFAULT_PROMUEVE_LOGO,
       commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
+      agencyPhone: '983 34 21 32',
       extraDetails: 'Vigas vistas y lino natural',
       strictBlueprintFidelity: true
     }
@@ -1060,7 +1067,9 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       roomMarkers: [],
       markerBadgeColor: '#0F2C59',
       promotionLogo: DEFAULT_PROMOTION_LOGO,
+      promotorLogo: DEFAULT_PROMUEVE_LOGO,
       commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
+      agencyPhone: '983 34 21 32',
       extraDetails: 'Líneas limpias y mobiliario bajo',
       strictBlueprintFidelity: true
     }
@@ -1092,7 +1101,9 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       roomMarkers: [],
       markerBadgeColor: '#0F2C59',
       promotionLogo: DEFAULT_PROMOTION_LOGO,
+      promotorLogo: DEFAULT_PROMUEVE_LOGO,
       commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
+      agencyPhone: '983 34 21 32',
       extraDetails: '',
       strictBlueprintFidelity: true
     }

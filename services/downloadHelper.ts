@@ -8,6 +8,7 @@ import { sortRoomMarkers, categorizeRoomsForSchedule } from './roomSorter';
 import { autoTrimWhitespace } from './planCropper';
 import { DEFAULT_PROMOTION_LOGO } from './defaultPromotionLogo';
 import { DEFAULT_AGENCY_LOGO } from './defaultAgencyLogo';
+import { DEFAULT_PROMUEVE_LOGO } from './defaultPromueveLogo';
 
 export function sanitizeFilename(filename: string): string {
   // Mantener solo caracteres alfanuméricos, guiones y puntos
@@ -125,8 +126,10 @@ export async function generateBrochureCanvas({
   markers,
   markerBadgeColor = '#0F2C59',
   promotionLogo = DEFAULT_PROMOTION_LOGO,
+  promotorLogo = DEFAULT_PROMUEVE_LOGO,
   agencyLogo = DEFAULT_AGENCY_LOGO,
-  unitIdentifier = 'PORTAL 1 - 1º A',
+  agencyPhone = '983 34 21 32',
+  unitIdentifier = 'PORTAL XX LETRA X',
   customTotalUsefulArea,
   width = 2480,
   height = 1754
@@ -136,7 +139,9 @@ export async function generateBrochureCanvas({
   markers: Array<{ id: string; name: string; areaSqMeters?: number }>;
   markerBadgeColor?: string;
   promotionLogo?: string | null;
+  promotorLogo?: string | null;
   agencyLogo?: string | null;
+  agencyPhone?: string | null;
   unitIdentifier?: string;
   customTotalUsefulArea?: number;
   width?: number;
@@ -176,14 +181,14 @@ export async function generateBrochureCanvas({
         // 2. Encabezado comercial
         const headerMarginX = 60 * scale;
         ctx.fillStyle = '#0F2C59';
-        ctx.font = `bold ${Math.round(36 * scale)}px sans-serif`;
-        ctx.fillText(projectTitle.toUpperCase(), headerMarginX, 72 * scale);
+        ctx.font = `bold ${Math.round(34 * scale)}px sans-serif`;
+        ctx.fillText(projectTitle.toUpperCase(), headerMarginX, 68 * scale);
 
         ctx.fillStyle = '#64748B';
-        ctx.font = `600 ${Math.round(15 * scale)}px sans-serif`;
-        ctx.fillText('FICHA COMERCIAL • PLANO AMUEBLADO Y CUADRO DE SUPERFICIES ÚTILES', headerMarginX, 104 * scale);
+        ctx.font = `600 ${Math.round(14 * scale)}px sans-serif`;
+        ctx.fillText('FICHA COMERCIAL ARQUITECTÓNICA • PLANO AMUEBLADO Y CUADRO DE SUPERFICIES ÚTILES', headerMarginX, 98 * scale);
 
-        // Si hay logo de la promoción (LUBENS ARROYO), dibujarlo en la esquina superior derecha
+        // Logo de la promoción (LUBENS ARROYO) en la esquina superior derecha
         let promoLogoW = 0;
         const effectivePromo = promotionLogo || DEFAULT_PROMOTION_LOGO;
         if (effectivePromo) {
@@ -193,8 +198,8 @@ export async function generateBrochureCanvas({
               logoImg.crossOrigin = 'anonymous';
               logoImg.onload = () => {
                 const logoAspect = logoImg.width / logoImg.height;
-                const maxLogoH = 68 * scale;
-                const maxLogoW = 300 * scale;
+                const maxLogoH = 75 * scale;
+                const maxLogoW = 320 * scale;
                 let drawLogoH = maxLogoH;
                 let drawLogoW = drawLogoH * logoAspect;
                 if (drawLogoW > maxLogoW) {
@@ -203,7 +208,7 @@ export async function generateBrochureCanvas({
                 }
                 promoLogoW = drawLogoW;
                 const logoX = width - headerMarginX - drawLogoW;
-                const logoY = 26 * scale + (maxLogoH - drawLogoH) / 2;
+                const logoY = 22 * scale + (maxLogoH - drawLogoH) / 2;
                 ctx.drawImage(logoImg, logoX, logoY, drawLogoW, drawLogoH);
                 resolveLogo();
               };
@@ -215,83 +220,19 @@ export async function generateBrochureCanvas({
           }
         }
 
-        // Si hay logo de comercializadora (Terravall), dibujarlo en una caja con fondo blanco que ponga: COMERCIALIZA
-        const effectiveAgency = agencyLogo || DEFAULT_AGENCY_LOGO;
-        if (effectiveAgency) {
-          try {
-            await new Promise<void>((resolveAgency) => {
-              const agencyImg = new Image();
-              agencyImg.crossOrigin = 'anonymous';
-              agencyImg.onload = () => {
-                const cardH = 80 * scale;
-                const cardW = 270 * scale;
-                const cardX = width - headerMarginX - (promoLogoW > 0 ? promoLogoW + 24 * scale : 0) - cardW;
-                const cardY = 22 * scale;
-
-                // Fondo blanco sin borde
-                ctx.fillStyle = '#FFFFFF';
-                ctx.beginPath();
-                if (typeof ctx.roundRect === 'function') {
-                  ctx.roundRect(cardX, cardY, cardW, cardH, 8 * scale);
-                } else {
-                  ctx.rect(cardX, cardY, cardW, cardH);
-                }
-                ctx.fill();
-
-                // Rótulo COMERCIALIZA
-                ctx.fillStyle = '#991B1B';
-                ctx.font = `bold ${Math.round(12 * scale)}px sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.fillText('COMERCIALIZA', cardX + cardW / 2, cardY + 20 * scale);
-
-                // Logo Terravall
-                const maxImgH = 46 * scale;
-                const maxImgW = 230 * scale;
-                const imgAspect = agencyImg.width / agencyImg.height;
-                let drawImgW = maxImgH * imgAspect;
-                let drawImgH = maxImgH;
-                if (drawImgW > maxImgW) {
-                  drawImgW = maxImgW;
-                  drawImgH = drawImgW / imgAspect;
-                }
-                const imgX = cardX + (cardW - drawImgW) / 2;
-                const imgY = cardY + 24 * scale + (maxImgH - drawImgH) / 2;
-                ctx.drawImage(agencyImg, imgX, imgY, drawImgW, drawImgH);
-                ctx.textAlign = 'left';
-                resolveAgency();
-              };
-              agencyImg.onerror = () => resolveAgency();
-              agencyImg.src = effectiveAgency;
-            });
-          } catch (e) {
-            console.warn('Error dibujando logo comercializadora:', e);
-          }
-        }
-
-        // Identificador de vivienda (PORTAL - PISO - LETRA) a la izquierda de los logos
-        if (unitIdentifier) {
-          const displayUnit = unitIdentifier.toUpperCase().trim();
-          ctx.fillStyle = '#0F2C59';
-          ctx.font = `bold ${Math.round(15 * scale)}px monospace`;
-          ctx.textAlign = 'right';
-          const rightOffset = width - headerMarginX - (promoLogoW > 0 ? promoLogoW + 24 * scale : 0) - (effectiveAgency ? 285 * scale : 0);
-          ctx.fillText(displayUnit, rightOffset - 12 * scale, 64 * scale);
-          ctx.textAlign = 'left';
-        }
-
         // Línea divisoria superior
         ctx.strokeStyle = '#E2E8F0';
         ctx.lineWidth = 2 * scale;
         ctx.beginPath();
-        ctx.moveTo(headerMarginX, 122 * scale);
-        ctx.lineTo(width - headerMarginX, 122 * scale);
+        ctx.moveTo(headerMarginX, 116 * scale);
+        ctx.lineTo(width - headerMarginX, 116 * scale);
         ctx.stroke();
 
-        // 3. Distribución: Plano a la izquierda (máximo espacio) y Cuadro a la derecha
-        const tableW = 430 * scale;
+        // 3. Distribución: Plano a la izquierda (máximo espacio) y Cuadro + Entidades a la derecha
+        const tableW = 440 * scale;
         const tableX = width - headerMarginX - tableW;
         const planAreaX = headerMarginX;
-        const planAreaY = 138 * scale;
+        const planAreaY = 130 * scale;
         const planAreaW = tableX - planAreaX - 35 * scale;
         const planAreaH = height - planAreaY - 45 * scale;
 
@@ -337,28 +278,28 @@ export async function generateBrochureCanvas({
         ctx.textAlign = 'left';
         ctx.textBaseline = 'alphabetic';
 
-        // 4. Cuadro de Superficies Útiles (Diseño y Tipografía Arquitectónica de Referencia)
-        const rowHeight = 36 * scale;
-        const hasExt = schedule.hasExterior;
-        const totalRows = schedule.interiorRooms.length + schedule.exteriorRooms.length;
-        const subtotalH = hasExt ? 75 * scale : 0;
-        const tableCardH = 90 * scale + totalRows * rowHeight + subtotalH + 75 * scale + 15 * scale;
+        // 4. Columna Derecha:
+        // 4.1 Identificador de Vivienda (ej: PORTAL XX LETRA X) arriba del cuadro
+        let rightColumnY = planAreaY + 45 * scale;
+        const activeUnitText = (unitIdentifier || 'PORTAL XX LETRA X').toUpperCase().trim();
+        ctx.fillStyle = '#0E3B64';
+        ctx.font = `900 ${Math.round(28 * scale)}px sans-serif`;
+        ctx.fillText(activeUnitText, tableX + 8 * scale, rightColumnY);
+        rightColumnY += 50 * scale;
 
-        // Fondo limpio del cuadro (sin marco azul ni bordes redondeados)
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(tableX, planAreaY, tableW, tableCardH);
-
-        // Título exacto en Azul Marino
+        // 4.2 Título CUADRO DE SUPERFICIES ÚTILES
         ctx.fillStyle = primaryNavy;
-        ctx.font = `900 ${Math.round(20 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
-        ctx.fillText('CUADRO DE SUPERFICIES ÚTILES', tableX + 28 * scale, planAreaY + 44 * scale);
+        ctx.font = `900 ${Math.round(18 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
+        ctx.fillText('CUADRO DE SUPERFICIES ÚTILES', tableX + 8 * scale, rightColumnY);
+        rightColumnY += 12 * scale;
 
         // Franja azul marino gruesa continua
         ctx.fillStyle = primaryNavy;
-        ctx.fillRect(tableX + 28 * scale, planAreaY + 56 * scale, tableW - 56 * scale, 4.5 * scale);
+        ctx.fillRect(tableX + 8 * scale, rightColumnY, tableW - 16 * scale, 3.5 * scale);
+        rightColumnY += 32 * scale;
 
-        // Estancias Interiores
-        let currentY = planAreaY + 98 * scale;
+        // Filas de estancias interiores
+        const rowHeight = 32 * scale;
         schedule.interiorRooms.forEach((marker, idx) => {
           const numStr = String(idx + 1).padStart(2, '0') + '.';
           const area = marker.areaSqMeters || 0;
@@ -368,51 +309,51 @@ export async function generateBrochureCanvas({
 
           // Número
           ctx.fillStyle = primaryNavy;
-          ctx.font = `bold ${Math.round(17 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
-          ctx.fillText(numStr, tableX + 28 * scale, currentY);
+          ctx.font = `bold ${Math.round(16 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
+          ctx.fillText(numStr, tableX + 8 * scale, rightColumnY);
 
           // Nombre
           ctx.fillStyle = textDarkNavy;
-          ctx.font = `600 ${Math.round(16 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
-          ctx.fillText(marker.name.toUpperCase(), tableX + 68 * scale, currentY);
+          ctx.font = `600 ${Math.round(15 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
+          ctx.fillText(marker.name.toUpperCase(), tableX + 46 * scale, rightColumnY);
 
           // Superficie m²
           ctx.fillStyle = primaryNavy;
-          ctx.font = `bold ${Math.round(17 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
+          ctx.font = `bold ${Math.round(16 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
           ctx.textAlign = 'right';
-          ctx.fillText(areaStr, tableX + tableW - 28 * scale, currentY);
+          ctx.fillText(areaStr, tableX + tableW - 8 * scale, rightColumnY);
           ctx.textAlign = 'left';
 
-          currentY += rowHeight;
+          rightColumnY += rowHeight;
         });
 
         // Subtotal Interior si hay exteriores
-        if (hasExt) {
-          currentY += 4 * scale;
+        if (schedule.hasExterior) {
+          rightColumnY += 4 * scale;
           ctx.strokeStyle = `${primaryNavy}90`;
           ctx.lineWidth = 1 * scale;
           ctx.beginPath();
-          ctx.moveTo(tableX + 28 * scale, currentY - 10 * scale);
-          ctx.lineTo(tableX + tableW - 28 * scale, currentY - 10 * scale);
+          ctx.moveTo(tableX + 8 * scale, rightColumnY - 8 * scale);
+          ctx.lineTo(tableX + tableW - 8 * scale, rightColumnY - 8 * scale);
           ctx.stroke();
 
           ctx.fillStyle = primaryNavy;
-          ctx.font = `bold ${Math.round(17 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
-          ctx.fillText('ÚTIL TOTAL INTERIOR', tableX + 28 * scale, currentY + 14 * scale);
+          ctx.font = `bold ${Math.round(16 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
+          ctx.fillText('ÚTIL TOTAL INTERIOR', tableX + 8 * scale, rightColumnY + 12 * scale);
 
           const intAreaStr = schedule.interiorTotal > 0
             ? schedule.interiorTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' m²'
             : '—';
           ctx.textAlign = 'right';
-          ctx.fillText(intAreaStr, tableX + tableW - 28 * scale, currentY + 14 * scale);
+          ctx.fillText(intAreaStr, tableX + tableW - 8 * scale, rightColumnY + 12 * scale);
           ctx.textAlign = 'left';
 
-          currentY += 30 * scale;
+          rightColumnY += 26 * scale;
           ctx.beginPath();
-          ctx.moveTo(tableX + 28 * scale, currentY - 6 * scale);
-          ctx.lineTo(tableX + tableW - 28 * scale, currentY - 6 * scale);
+          ctx.moveTo(tableX + 8 * scale, rightColumnY - 6 * scale);
+          ctx.lineTo(tableX + tableW - 8 * scale, rightColumnY - 6 * scale);
           ctx.stroke();
-          currentY += 12 * scale;
+          rightColumnY += 10 * scale;
 
           // Estancias Exteriores
           schedule.exteriorRooms.forEach((marker, idx) => {
@@ -423,56 +364,142 @@ export async function generateBrochureCanvas({
               : '—';
 
             ctx.fillStyle = primaryNavy;
-            ctx.font = `bold ${Math.round(17 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
-            ctx.fillText(numStr, tableX + 28 * scale, currentY);
+            ctx.font = `bold ${Math.round(16 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
+            ctx.fillText(numStr, tableX + 8 * scale, rightColumnY);
 
             ctx.fillStyle = textDarkNavy;
-            ctx.font = `600 ${Math.round(16 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
-            ctx.fillText(marker.name.toUpperCase(), tableX + 68 * scale, currentY);
+            ctx.font = `600 ${Math.round(15 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
+            ctx.fillText(marker.name.toUpperCase(), tableX + 46 * scale, rightColumnY);
 
             ctx.fillStyle = primaryNavy;
-            ctx.font = `bold ${Math.round(17 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
+            ctx.font = `bold ${Math.round(16 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
             ctx.textAlign = 'right';
-            ctx.fillText(areaStr, tableX + tableW - 28 * scale, currentY);
+            ctx.fillText(areaStr, tableX + tableW - 8 * scale, rightColumnY);
             ctx.textAlign = 'left';
 
-            currentY += rowHeight;
+            rightColumnY += rowHeight;
           });
         }
 
         // Línea previa al Total
-        currentY += 6 * scale;
+        rightColumnY += 4 * scale;
         ctx.strokeStyle = primaryNavy;
         ctx.lineWidth = 1.8 * scale;
         ctx.beginPath();
-        ctx.moveTo(tableX + 28 * scale, currentY - 8 * scale);
-        ctx.lineTo(tableX + tableW - 28 * scale, currentY - 8 * scale);
+        ctx.moveTo(tableX + 8 * scale, rightColumnY - 6 * scale);
+        ctx.lineTo(tableX + tableW - 8 * scale, rightColumnY - 6 * scale);
         ctx.stroke();
 
         // Total
         ctx.fillStyle = primaryNavy;
-        ctx.font = `900 ${Math.round(18 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
-        ctx.fillText('SUPERFICIE ÚTIL TOTAL', tableX + 28 * scale, currentY + 18 * scale);
+        ctx.font = `900 ${Math.round(17 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
+        ctx.fillText('SUPERFICIE ÚTIL TOTAL', tableX + 8 * scale, rightColumnY + 16 * scale);
 
-        ctx.font = `900 ${Math.round(20 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
+        ctx.font = `900 ${Math.round(19 * scale)}px 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif`;
         ctx.textAlign = 'right';
         const totalStr = schedule.grandTotal > 0
           ? schedule.grandTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' m²'
           : '—';
-        ctx.fillText(totalStr, tableX + tableW - 28 * scale, currentY + 18 * scale);
+        ctx.fillText(totalStr, tableX + tableW - 8 * scale, rightColumnY + 16 * scale);
         ctx.textAlign = 'left';
 
         // Franja decorativa celeste / azul cielo inferior
         ctx.fillStyle = skyBlueBar;
-        ctx.fillRect(tableX + 28 * scale, currentY + 34 * scale, tableW - 56 * scale, 6 * scale);
+        ctx.fillRect(tableX + 8 * scale, rightColumnY + 28 * scale, tableW - 16 * scale, 5 * scale);
+        rightColumnY += 65 * scale;
 
-        // 5. Pie de página con aviso legal
+        // 4.3 Sección PROMUEVE:
+        ctx.fillStyle = '#0E3B64';
+        ctx.font = `900 ${Math.round(14 * scale)}px sans-serif`;
+        ctx.fillText('PROMUEVE:', tableX + 8 * scale, rightColumnY);
+        rightColumnY += 12 * scale;
+
+        const effectivePromotor = promotorLogo || DEFAULT_PROMUEVE_LOGO;
+        if (effectivePromotor) {
+          try {
+            await new Promise<void>((resolvePromotor) => {
+              const promImg = new Image();
+              promImg.crossOrigin = 'anonymous';
+              promImg.onload = () => {
+                const maxH = 50 * scale;
+                const maxW = 320 * scale;
+                const aspect = promImg.width / promImg.height;
+                let w = maxH * aspect;
+                let h = maxH;
+                if (w > maxW) {
+                  w = maxW;
+                  h = w / aspect;
+                }
+                ctx.drawImage(promImg, tableX + 8 * scale, rightColumnY, w, h);
+                rightColumnY += h + 28 * scale;
+                resolvePromotor();
+              };
+              promImg.onerror = () => {
+                rightColumnY += 35 * scale;
+                resolvePromotor();
+              };
+              promImg.src = effectivePromotor;
+            });
+          } catch {
+            rightColumnY += 35 * scale;
+          }
+        } else {
+          rightColumnY += 35 * scale;
+        }
+
+        // 4.4 Sección COMERCIALIZA:
+        ctx.fillStyle = '#991B1B';
+        ctx.font = `900 ${Math.round(14 * scale)}px sans-serif`;
+        ctx.fillText('COMERCIALIZA:', tableX + 8 * scale, rightColumnY);
+        rightColumnY += 14 * scale;
+
+        const effectiveAgency = agencyLogo || DEFAULT_AGENCY_LOGO;
+        if (effectiveAgency) {
+          try {
+            await new Promise<void>((resolveAg) => {
+              const agImg = new Image();
+              agImg.crossOrigin = 'anonymous';
+              agImg.onload = () => {
+                const maxH = 56 * scale;
+                const maxW = 320 * scale;
+                const aspect = agImg.width / agImg.height;
+                let w = maxH * aspect;
+                let h = maxH;
+                if (w > maxW) {
+                  w = maxW;
+                  h = w / aspect;
+                }
+                ctx.drawImage(agImg, tableX + 8 * scale, rightColumnY, w, h);
+                rightColumnY += h + 32 * scale;
+                resolveAg();
+              };
+              agImg.onerror = () => {
+                rightColumnY += 45 * scale;
+                resolveAg();
+              };
+              agImg.src = effectiveAgency;
+            });
+          } catch {
+            rightColumnY += 45 * scale;
+          }
+        } else {
+          rightColumnY += 45 * scale;
+        }
+
+        // 4.5 Teléfono destacado (ej. 983 34 21 32)
+        if (agencyPhone) {
+          ctx.fillStyle = '#991B1B';
+          ctx.font = `900 ${Math.round(40 * scale)}px sans-serif`;
+          ctx.fillText(agencyPhone, tableX + 8 * scale, rightColumnY);
+        }
+
+        // 5. Pie de página legal
         ctx.fillStyle = '#94A3B8';
-        ctx.font = `${Math.round(12 * scale)}px sans-serif`;
+        ctx.font = `${Math.round(11 * scale)}px sans-serif`;
         ctx.fillText(
           'Documento comercial no vinculante. Las superficies corresponden a superficie útil interior estimada y pueden variar durante la ejecución de obra.',
           headerMarginX,
-          height - 22 * scale
+          height - 24 * scale
         );
 
         ctx.textAlign = 'right';
@@ -498,8 +525,10 @@ export async function exportCommercialBrochureImage({
   markers,
   markerBadgeColor,
   promotionLogo = DEFAULT_PROMOTION_LOGO,
+  promotorLogo = DEFAULT_PROMUEVE_LOGO,
   agencyLogo = DEFAULT_AGENCY_LOGO,
-  unitIdentifier = 'PORTAL 1 - 1º A',
+  agencyPhone = '983 34 21 32',
+  unitIdentifier = 'PORTAL XX LETRA X',
   customTotalUsefulArea,
   filename = 'ficha_comercial_arquitectura.png'
 }: {
@@ -508,7 +537,9 @@ export async function exportCommercialBrochureImage({
   markers: Array<{ id: string; name: string; areaSqMeters?: number }>;
   markerBadgeColor?: string;
   promotionLogo?: string | null;
+  promotorLogo?: string | null;
   agencyLogo?: string | null;
+  agencyPhone?: string | null;
   unitIdentifier?: string;
   customTotalUsefulArea?: number;
   filename?: string;
@@ -519,7 +550,9 @@ export async function exportCommercialBrochureImage({
     markers,
     markerBadgeColor,
     promotionLogo,
+    promotorLogo,
     agencyLogo,
+    agencyPhone,
     unitIdentifier,
     customTotalUsefulArea,
     width: 2480,
@@ -543,8 +576,10 @@ export async function exportCommercialBrochurePDF({
   markers,
   markerBadgeColor = '#0E3B64',
   promotionLogo = DEFAULT_PROMOTION_LOGO,
+  promotorLogo = DEFAULT_PROMUEVE_LOGO,
   agencyLogo = DEFAULT_AGENCY_LOGO,
-  unitIdentifier = 'PORTAL 1 - 1º A',
+  agencyPhone = '983 34 21 32',
+  unitIdentifier = 'PORTAL XX LETRA X',
   customTotalUsefulArea,
   filename = 'ficha_comercial_plano.pdf'
 }: {
@@ -553,7 +588,9 @@ export async function exportCommercialBrochurePDF({
   markers: Array<{ id: string; name: string; areaSqMeters?: number }>;
   markerBadgeColor?: string;
   promotionLogo?: string | null;
+  promotorLogo?: string | null;
   agencyLogo?: string | null;
+  agencyPhone?: string | null;
   unitIdentifier?: string;
   customTotalUsefulArea?: number;
   filename?: string;
@@ -594,19 +631,17 @@ export async function exportCommercialBrochurePDF({
 
         // 2. Encabezado corporativo vectorial ultra-nítido
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(16);
+        doc.setFontSize(15);
         doc.setTextColor(15, 44, 89); // #0F2C59
-        const cleanTitle = (projectTitle || 'PROYECTO RESIDENCIAL').toUpperCase();
+        const cleanTitle = (projectTitle || 'PROYECTO RESIDENCIAL DE 140 VIVIENDAS').toUpperCase();
         doc.text(cleanTitle, margin, margin + 4.5);
 
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
+        doc.setFontSize(7.5);
         doc.setTextColor(100, 116, 139); // #64748B
-        doc.text('FICHA COMERCIAL ARQUITECTÓNICA • PLANO AMUEBLADO Y CUADRO DE SUPERFICIES ÚTILES', margin, margin + 9.5);
+        doc.text('FICHA COMERCIAL ARQUITECTÓNICA • PLANO AMUEBLADO Y CUADRO DE SUPERFICIES ÚTILES', margin, margin + 9);
 
-        // 1. Logo de la promoción (LUBENS ARROYO) a la derecha
-        let promoLogoW = 0;
-        let promoLogoX = pageWidth - margin;
+        // Logo de la promoción (LUBENS ARROYO) a la derecha
         const effectiveLogo = promotionLogo || DEFAULT_PROMOTION_LOGO;
         if (effectiveLogo) {
           try {
@@ -619,8 +654,7 @@ export async function exportCommercialBrochurePDF({
               drawLogoW = logoMaxW;
               drawLogoH = drawLogoW / logoAspect;
             }
-            promoLogoW = drawLogoW;
-            promoLogoX = pageWidth - margin - drawLogoW;
+            const promoLogoX = pageWidth - margin - drawLogoW;
             const logoY = margin + (11 - drawLogoH) / 2;
             const isPngLogo = effectiveLogo.startsWith('data:image/png') || !effectiveLogo.startsWith('data:image/jpeg');
             doc.addImage(effectiveLogo, isPngLogo ? 'PNG' : 'JPEG', promoLogoX, logoY, drawLogoW, drawLogoH, undefined, 'SLOW');
@@ -629,62 +663,15 @@ export async function exportCommercialBrochurePDF({
           }
         }
 
-        // 2. Logo comercializadora con fondo blanco que pone: COMERCIALIZA
-        const effectiveAgency = agencyLogo || DEFAULT_AGENCY_LOGO;
-        let agencyBoxX = promoLogoX;
-        if (effectiveAgency) {
-          try {
-            const boxW = 38; // mm
-            const boxH = 11; // mm
-            agencyBoxX = (promoLogoW > 0 ? promoLogoX : (pageWidth - margin)) - boxW - 3;
-            const boxY = margin + 0.3;
-
-            // Caja con fondo blanco puro sin borde
-            doc.setFillColor(255, 255, 255);
-            doc.roundedRect(agencyBoxX, boxY, boxW, boxH, 1.2, 1.2, 'F');
-
-            // Rótulo "COMERCIALIZA"
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(5.2);
-            doc.setTextColor(153, 27, 27); // #991B1B rojo/burdeos Terravall
-            doc.text('COMERCIALIZA', agencyBoxX + boxW / 2, boxY + 2.6, { align: 'center' });
-
-            // Logo Terravall (aspecto 3.76:1)
-            const maxImgH = 6.4;
-            const maxImgW = 32;
-            const imgAspect = 376 / 100;
-            let drawAgencyW = maxImgH * imgAspect;
-            let drawAgencyH = maxImgH;
-            if (drawAgencyW > maxImgW) {
-              drawAgencyW = maxImgW;
-              drawAgencyH = drawAgencyW / imgAspect;
-            }
-            const imgX = agencyBoxX + (boxW - drawAgencyW) / 2;
-            const imgY = boxY + 3.2;
-            const isPng = effectiveAgency.startsWith('data:image/png') || !effectiveAgency.startsWith('data:image/jpeg');
-            doc.addImage(effectiveAgency, isPng ? 'PNG' : 'JPEG', imgX, imgY, drawAgencyW, drawAgencyH, undefined, 'SLOW');
-          } catch (agencyErr) {
-            console.warn('Error insertando logo de comercializadora:', agencyErr);
-          }
-        }
-
-        // Identificador de vivienda (PORTAL - PISO - LETRA) a la izquierda de los logos
-        doc.setFont('courier', 'bold');
-        doc.setFontSize(8.5);
-        doc.setTextColor(15, 44, 89);
-        const refX = (effectiveAgency ? agencyBoxX : promoLogoX) - 4;
-        const displayIdentifier = unitIdentifier ? unitIdentifier.toUpperCase().trim() : 'PORTAL 1 - 1º A';
-        doc.text(displayIdentifier, refX, margin + 5.8, { align: 'right' });
-
         // Línea divisoria superior
         doc.setDrawColor(226, 232, 240); // #E2E8F0
         doc.setLineWidth(0.4);
         doc.line(margin, margin + 12, pageWidth - margin, margin + 12);
 
-        // 3. Distribución: Plano (Ocupa máximo espacio hasta 78% del ancho) y Cuadro de Superficies
+        // 3. Distribución: Plano y Cuadro de Superficies + Entidades
         const contentY = margin + 14;
         const contentHeight = pageHeight - contentY - 8;
-        const tableWidth = 62;
+        const tableWidth = 65;
         const tableX = pageWidth - margin - tableWidth;
         const planAreaW = tableX - margin - 6;
         const planAreaH = contentHeight;
@@ -704,30 +691,24 @@ export async function exportCommercialBrochurePDF({
         const imgX = margin + (planAreaW - imgW) / 2;
         const imgY = contentY + (planAreaH - imgH) / 2;
 
-        // Detectar formato de la imagen para máxima fidelidad
         const isPng = effectiveImageSrc.startsWith('data:image/png') || !effectiveImageSrc.startsWith('data:image/jpeg');
         const imgFormat = isPng ? 'PNG' : 'JPEG';
-
-        // Inserción con remuestreo de máxima calidad ('SLOW' bicúbico en jsPDF) sin marco redondeado
         doc.addImage(effectiveImageSrc, imgFormat, imgX, imgY, imgW, imgH, undefined, 'SLOW');
 
         // Señalizar cada estancia en el plano con círculo numerado
         if (schedule.sortedMarkers && schedule.sortedMarkers.length > 0) {
-          const circleRadius = 3.2; // mm (~6.4mm diámetro)
+          const circleRadius = 3.2; // mm
           schedule.sortedMarkers.forEach((m: any, idx: number) => {
             if (typeof m.x === 'number' && typeof m.y === 'number') {
               const markerX = imgX + (m.x / 100) * imgW;
               const markerY = imgY + (m.y / 100) * imgH;
 
-              // Anillo exterior blanco
               doc.setFillColor(255, 255, 255);
               doc.circle(markerX, markerY, circleRadius + 0.45, 'F');
 
-              // Círculo personalizado
               doc.setFillColor(badgeRgb.r, badgeRgb.g, badgeRgb.b);
               doc.circle(markerX, markerY, circleRadius, 'F');
 
-              // Número en color contrastante
               doc.setFont('helvetica', 'bold');
               doc.setFontSize(8);
               doc.setTextColor(textRgb.r, textRgb.g, textRgb.b);
@@ -736,29 +717,29 @@ export async function exportCommercialBrochurePDF({
           });
         }
 
-        // 4. Cuadro de Superficies Útiles (Diseño y Tipografía de Referencia Exacta)
-        const rowH = 4.8;
-        const hasExt = schedule.hasExterior;
-        const totalRows = schedule.interiorRooms.length + schedule.exteriorRooms.length;
-        const subtotalH = hasExt ? 11 : 0;
-        const tableCardH = 12 + totalRows * rowH + subtotalH + 11 + 3;
+        // 4. Columna Derecha:
+        // 4.1 Identificador de Vivienda en Azul Marino arriba del cuadro
+        let curY = contentY + 2;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(14, 59, 100);
+        const displayIdentifier = unitIdentifier ? unitIdentifier.toUpperCase().trim() : 'PORTAL XX LETRA X';
+        doc.text(displayIdentifier, tableX + 2, curY + 3);
+        curY += 10;
 
-        // Fondo limpio para el cuadro (sin marco ni bordes redondeados)
-        doc.setFillColor(255, 255, 255);
-        doc.rect(tableX, contentY, tableWidth, tableCardH, 'F');
-
-        // Título del Cuadro en Azul Marino
+        // 4.2 Título del Cuadro en Azul Marino
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(8.5);
         doc.setTextColor(14, 59, 100);
-        doc.text('CUADRO DE SUPERFICIES ÚTILES', tableX + 3.5, contentY + 6);
+        doc.text('CUADRO DE SUPERFICIES ÚTILES', tableX + 2, curY + 2);
 
         // Barra decorativa azul marino gruesa continua
         doc.setFillColor(14, 59, 100);
-        doc.rect(tableX + 3.5, contentY + 7.8, tableWidth - 7, 1.2, 'F');
+        doc.rect(tableX + 2, curY + 3.5, tableWidth - 4, 1.2, 'F');
+        curY += 8;
 
         // Filas de estancias interiores
-        let curY = contentY + 13.5;
+        const rowH = 4.4;
         schedule.interiorRooms.forEach((m, idx) => {
           const numStr = String(idx + 1).padStart(2, '0') + '.';
           const area = m.areaSqMeters || 0;
@@ -766,51 +747,48 @@ export async function exportCommercialBrochurePDF({
             ? area.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' m²'
             : '—';
 
-          // Número de orden (helvetica bold condensado, no monospace)
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.5);
-          doc.setTextColor(14, 59, 100);
-          doc.text(numStr, tableX + 3.5, curY);
-
-          // Nombre de la estancia
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(7.2);
+          doc.setTextColor(14, 59, 100);
+          doc.text(numStr, tableX + 2, curY);
+
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7);
           doc.setTextColor(30, 58, 95);
           const maxNameW = tableWidth - 25;
           const cleanName = doc.splitTextToSize(m.name.toUpperCase(), maxNameW)[0];
-          doc.text(cleanName, tableX + 10.5, curY);
+          doc.text(cleanName, tableX + 8.5, curY);
 
-          // Superficie útil
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.5);
+          doc.setFontSize(7.2);
           doc.setTextColor(14, 59, 100);
-          doc.text(areaStr, tableX + tableWidth - 3.5, curY, { align: 'right' });
+          doc.text(areaStr, tableX + tableWidth - 2, curY, { align: 'right' });
 
           curY += rowH;
         });
 
         // Subtotal Útil Interior si existen estancias exteriores
-        if (hasExt) {
+        if (schedule.hasExterior) {
           curY += 0.5;
           doc.setDrawColor(14, 59, 100);
           doc.setLineWidth(0.2);
-          doc.line(tableX + 3.5, curY - 1.5, tableX + tableWidth - 3.5, curY - 1.5);
+          doc.line(tableX + 2, curY - 1.5, tableX + tableWidth - 2, curY - 1.5);
 
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.5);
+          doc.setFontSize(7.2);
           doc.setTextColor(14, 59, 100);
-          doc.text('ÚTIL TOTAL INTERIOR', tableX + 3.5, curY + 2.5);
+          doc.text('ÚTIL TOTAL INTERIOR', tableX + 2, curY + 2.2);
 
           const intAreaStr = schedule.interiorTotal > 0
             ? schedule.interiorTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' m²'
             : '—';
-          doc.text(intAreaStr, tableX + tableWidth - 3.5, curY + 2.5, { align: 'right' });
+          doc.text(intAreaStr, tableX + tableWidth - 2, curY + 2.2, { align: 'right' });
 
-          curY += 5.5;
-          doc.line(tableX + 3.5, curY - 1.5, tableX + tableWidth - 3.5, curY - 1.5);
-          curY += 2;
+          curY += 5;
+          doc.line(tableX + 2, curY - 1.5, tableX + tableWidth - 2, curY - 1.5);
+          curY += 1.8;
 
-          // Estancias exteriores (Terraza, Tendedero, etc.)
+          // Estancias exteriores (Terraza, etc.)
           schedule.exteriorRooms.forEach((m, idx) => {
             const numStr = String(schedule.interiorRooms.length + idx + 1).padStart(2, '0') + '.';
             const area = m.areaSqMeters || 0;
@@ -819,21 +797,21 @@ export async function exportCommercialBrochurePDF({
               : '—';
 
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(7.5);
+            doc.setFontSize(7.2);
             doc.setTextColor(14, 59, 100);
-            doc.text(numStr, tableX + 3.5, curY);
+            doc.text(numStr, tableX + 2, curY);
 
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(7.2);
+            doc.setFontSize(7);
             doc.setTextColor(30, 58, 95);
             const maxNameW = tableWidth - 25;
             const cleanName = doc.splitTextToSize(m.name.toUpperCase(), maxNameW)[0];
-            doc.text(cleanName, tableX + 10.5, curY);
+            doc.text(cleanName, tableX + 8.5, curY);
 
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(7.5);
+            doc.setFontSize(7.2);
             doc.setTextColor(14, 59, 100);
-            doc.text(areaStr, tableX + tableWidth - 3.5, curY, { align: 'right' });
+            doc.text(areaStr, tableX + tableWidth - 2, curY, { align: 'right' });
 
             curY += rowH;
           });
@@ -843,23 +821,92 @@ export async function exportCommercialBrochurePDF({
         curY += 0.5;
         doc.setDrawColor(14, 59, 100);
         doc.setLineWidth(0.3);
-        doc.line(tableX + 3.5, curY - 1.5, tableX + tableWidth - 3.5, curY - 1.5);
+        doc.line(tableX + 2, curY - 1.5, tableX + tableWidth - 2, curY - 1.5);
 
         // Total Superficie Útil
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8);
+        doc.setFontSize(7.8);
         doc.setTextColor(14, 59, 100);
-        doc.text('SUPERFICIE ÚTIL TOTAL', tableX + 3.5, curY + 2.8);
+        doc.text('SUPERFICIE ÚTIL TOTAL', tableX + 2, curY + 2.5);
 
         const totalStr = schedule.grandTotal > 0
           ? schedule.grandTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' m²'
           : '—';
-        doc.setFontSize(8.5);
-        doc.text(totalStr, tableX + tableWidth - 3.5, curY + 2.8, { align: 'right' });
+        doc.setFontSize(8.2);
+        doc.text(totalStr, tableX + tableWidth - 2, curY + 2.5, { align: 'right' });
 
-        // Franja decorativa celeste / azul cielo inferior de la ficha (#A8D4F2)
+        // Franja decorativa celeste inferior (#A8D4F2)
         doc.setFillColor(168, 212, 242);
-        doc.rect(tableX + 3.5, curY + 5.5, tableWidth - 7, 1.6, 'F');
+        doc.rect(tableX + 2, curY + 4.8, tableWidth - 4, 1.4, 'F');
+        curY += 14;
+
+        // 4.3 Sección PROMUEVE:
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(14, 59, 100);
+        doc.text('PROMUEVE:', tableX + 2, curY);
+        curY += 2;
+
+        const effectivePromotor = promotorLogo || DEFAULT_PROMUEVE_LOGO;
+        if (effectivePromotor) {
+          try {
+            const promProps = doc.getImageProperties(effectivePromotor);
+            const promAspect = promProps.width / (promProps.height || 1);
+            const maxPromW = 46;
+            const maxPromH = 8.5;
+            let promW = maxPromH * promAspect;
+            let promH = maxPromH;
+            if (promW > maxPromW) {
+              promW = maxPromW;
+              promH = promW / promAspect;
+            }
+            const isPngProm = effectivePromotor.startsWith('data:image/png') || !effectivePromotor.startsWith('data:image/jpeg');
+            doc.addImage(effectivePromotor, isPngProm ? 'PNG' : 'JPEG', tableX + 2, curY, promW, promH, undefined, 'SLOW');
+            curY += promH + 5.5;
+          } catch {
+            curY += 7;
+          }
+        } else {
+          curY += 7;
+        }
+
+        // 4.4 Sección COMERCIALIZA:
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(153, 27, 27); // #991B1B
+        doc.text('COMERCIALIZA:', tableX + 2, curY);
+        curY += 2.2;
+
+        const effectiveAgency = agencyLogo || DEFAULT_AGENCY_LOGO;
+        if (effectiveAgency) {
+          try {
+            const agProps = doc.getImageProperties(effectiveAgency);
+            const agAspect = agProps.width / (agProps.height || 1);
+            const maxAgW = 46;
+            const maxAgH = 9.5;
+            let agW = maxAgH * agAspect;
+            let agH = maxAgH;
+            if (agW > maxAgW) {
+              agW = maxAgW;
+              agH = agW / agAspect;
+            }
+            const isPngAg = effectiveAgency.startsWith('data:image/png') || !effectiveAgency.startsWith('data:image/jpeg');
+            doc.addImage(effectiveAgency, isPngAg ? 'PNG' : 'JPEG', tableX + 2, curY, agW, agH, undefined, 'SLOW');
+            curY += agH + 6;
+          } catch {
+            curY += 8;
+          }
+        } else {
+          curY += 8;
+        }
+
+        // 4.5 Teléfono destacado (ej. 983 34 21 32)
+        if (agencyPhone) {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(16);
+          doc.setTextColor(153, 27, 27); // #991B1B
+          doc.text(agencyPhone, tableX + 2, curY + 2);
+        }
 
         // 5. Pie de página legal
         doc.setFont('helvetica', 'normal');
@@ -870,9 +917,6 @@ export async function exportCommercialBrochurePDF({
           margin,
           pageHeight - 5
         );
-
-        doc.setFont('helvetica', 'bold');
-        doc.text('LUBENS ARROYO • Arquitectura & Promociones Inmobiliarias', pageWidth - margin, pageHeight - 5, { align: 'right' });
 
         const sanitizedName = sanitizeFilename(filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`);
         doc.save(sanitizedName);
