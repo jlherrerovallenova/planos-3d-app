@@ -16,6 +16,7 @@ interface PdfExportModalProps {
   promotionLogo?: string | null;
   agencyLogo?: string | null;
   unitIdentifier?: string;
+  customTotalUsefulArea?: number;
 }
 
 export function PdfExportModal({
@@ -27,7 +28,8 @@ export function PdfExportModal({
   markerBadgeColor,
   promotionLogo,
   agencyLogo,
-  unitIdentifier
+  unitIdentifier,
+  customTotalUsefulArea
 }: PdfExportModalProps) {
   const [selectedFormat, setSelectedFormat] = useState<'brochure_a4' | 'plan_a4' | 'plan_a3' | 'brochure_png'>('brochure_a4');
   const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -52,6 +54,7 @@ export function PdfExportModal({
           promotionLogo,
           agencyLogo,
           unitIdentifier,
+          customTotalUsefulArea,
           filename: `ficha_vectorial_${safeTitle.toLowerCase().replace(/[^\w]/g, '_')}.pdf`
         });
       } else if (selectedFormat === 'plan_a4') {
@@ -85,6 +88,7 @@ export function PdfExportModal({
           promotionLogo,
           agencyLogo,
           unitIdentifier,
+          customTotalUsefulArea,
           filename: `ficha_comercial_hd_${safeTitle.toLowerCase().replace(/[^\w]/g, '_')}.png`
         });
       }

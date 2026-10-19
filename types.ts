@@ -175,6 +175,7 @@ export interface RenderConfig {
   promotionLogo?: string;                // Logo de la promoción para las fichas comerciales (base64 o URL)
   commercialAgencyLogo?: string;         // Logo de la comercializadora con etiqueta COMERCIALIZA (base64 o URL)
   unitIdentifier?: string;               // Identificador de la vivienda (PORTAL - PISO - LETRA)
+  customTotalUsefulArea?: number;        // Superficie útil total personalizada / manual (si no se define, se calcula sumando las estancias)
   // Ajustes auxiliares
   extraDetails: string;
   strictBlueprintFidelity: boolean;
@@ -199,4 +200,17 @@ export interface RenderHistoryItem {
   appliedInstruction?: string;
   usedEngine?: string;
   defectMark?: DefectMark | null;
+}
+
+export interface InteriorScene {
+  id: string;
+  roomId: string;
+  roomName: string;
+  roomCategory: RoomCategory;
+  roomIndex: number;
+  base64: string;
+  mimeType: string;
+  prompt: string;
+  timestamp: number;
+  engineUsed?: string;
 }

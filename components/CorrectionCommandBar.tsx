@@ -5,7 +5,8 @@ import { parseTargetedRoomFromText } from '../services/promptBuilder';
 interface CorrectionCommandBarProps {
   roomMarkers: RoomMarker[];
   activeMarkerId: string | null;
-  onApplyCorrection: (instruction: string, defectMark?: DefectMark | null) => Promise<void>;
+  onApplyCorrection: (instruction: string, defectMark?: DefectMark | null, maskBase64?: string | null) => Promise<void>;
+
   isGenerating: boolean;
   hasRender: boolean;
   currentVersion: number;

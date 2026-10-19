@@ -18,6 +18,11 @@ interface RoomIdentifierPanelProps {
   onDetectWithAI?: () => void;
   isDetectingWithAI?: boolean;
   hasSourceImage?: boolean;
+  onGenerateInterior?: (marker: RoomMarker, roomIndex: number) => void;
+  isGeneratingInterior?: boolean;
+  generatingRoomId?: string | null;
+  customTotalUsefulArea?: number;
+  onChangeCustomTotalUsefulArea?: (total: number | undefined) => void;
 }
 
 export function RoomIdentifierPanel({
@@ -35,11 +40,18 @@ export function RoomIdentifierPanel({
   disabled,
   onDetectWithAI,
   isDetectingWithAI = false,
-  hasSourceImage = false
+  hasSourceImage = false,
+  onGenerateInterior,
+  isGeneratingInterior = false,
+  generatingRoomId = null,
+  customTotalUsefulArea,
+  onChangeCustomTotalUsefulArea
 }: RoomIdentifierPanelProps) {
   const [customRoomName, setCustomRoomName] = useState<string>('');
   const [customArea, setCustomArea] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<RoomCategory>('salon_comedor');
+  const [isEditingTotalInPanel, setIsEditingTotalInPanel] = useState<boolean>(false);
+  const [tempTotalInPanel, setTempTotalInPanel] = useState<string>('');
 
   // Accesos directos a las estancias más comunes
   const quickCategories: { id: RoomCategory; label: string; icon: string }[] = [
@@ -148,91 +160,95 @@ export function RoomIdentifierPanel({
         </button>
       </div>
 
-      {/* 2. Chips de Adición Rápida en 1 clic */}
-      <div className="space-y-1.5">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500 block">
-          Añadir Estancia con 1 Clic:
-        </span>
-        <div className="flex flex-wrap gap-1.5">
+      {/* 2. Sección Manual para Planos Mudos (Sin Textos) */}
+      <div className="p-3 bg-blue-50/70 border border-blue-200/90 rounded-2xl space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[17px] text-blue-700">edit_square</span>
+            <span className="text-xs font-bold text-blue-950 uppercase tracking-wide">
+              Configuración Manual de Estancias
+            </span>
+          </div>
+          <span className="text-[10px] font-bold text-blue-800 bg-blue-100 px-1.5 py-0.5 rounded border border-blue-200">
+            Plano Mudo
+          </span>
+        </div>
+        <p className="text-[11px] text-blue-800/80 leading-tight">
+          Asigna los números, nombres y superficies (m²) manualmente. El total se calcula automáticamente sumando todas las estancias.
+        </p>
+
+        {/* Chips de Selección Rápida */}
+        <div className="flex flex-wrap gap-1">
           {quickCategories.map((q) => (
             <button
               key={q.id}
               type="button"
               disabled={disabled}
-              onClick={() => handleQuickAdd(q.id, q.label)}
-              className="px-2.5 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-200/90 text-stone-700 text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer hover:border-stone-300 active:scale-95 shadow-2xs"
+              onClick={() => {
+                setSelectedCategory(q.id);
+                setCustomRoomName(q.label);
+              }}
+              className={`px-2 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer flex items-center gap-1 ${
+                selectedCategory === q.id && customRoomName === q.label
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                  : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-100'
+              }`}
             >
-              <span className="material-symbols-outlined text-[15px] text-[#c25e38]">{q.icon}</span>
-              <span>+ {q.label}</span>
+              <span className="material-symbols-outlined text-[14px] text-[#c25e38]">{q.icon}</span>
+              <span>{q.label}</span>
             </button>
           ))}
         </div>
-      </div>
 
-      {/* 3. Formulario personalizado colapsable */}
-      <form onSubmit={handleCustomAdd} className="p-3 bg-stone-50 border border-stone-200 rounded-2xl space-y-2">
-        <div className="grid grid-cols-3 gap-2 text-xs">
-          <div>
-            <label htmlFor="custom-room-category-select" className="text-[10px] font-medium text-stone-500 block mb-0.5">
-              Categoría:
-            </label>
-            <select
-              id="custom-room-category-select"
-              aria-label="Categoría de estancia"
-              disabled={disabled}
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value as RoomCategory)}
-              className="w-full bg-white border border-stone-300 rounded-lg px-2 py-1.5 text-xs text-stone-800 focus:outline-none focus:border-[#c25e38]"
-            >
-              {ROOM_CATEGORIES.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.label}
-                </option>
-              ))}
-            </select>
+        {/* Formulario de Añadir Estancia con m² */}
+        <form onSubmit={handleCustomAdd} className="space-y-2 pt-1">
+          <div className="grid grid-cols-12 gap-2 text-xs">
+            <div className="col-span-7">
+              <label htmlFor="custom-room-name-input" className="text-[10px] font-semibold text-stone-600 block mb-0.5">
+                Nombre de la estancia:
+              </label>
+              <input
+                id="custom-room-name-input"
+                aria-label="Nombre de la estancia"
+                type="text"
+                disabled={disabled}
+                placeholder="Ej: Salón - Comedor"
+                value={customRoomName}
+                onChange={(e) => setCustomRoomName(e.target.value)}
+                className="w-full bg-white border border-stone-300 rounded-lg px-2 py-1.5 text-xs font-bold text-stone-800 uppercase focus:outline-none focus:border-blue-600"
+              />
+            </div>
+            <div className="col-span-5">
+              <label htmlFor="custom-room-area-input" className="text-[10px] font-semibold text-stone-600 block mb-0.5">
+                Superficie (m²):
+              </label>
+              <div className="relative">
+                <input
+                  id="custom-room-area-input"
+                  aria-label="Superficie en metros cuadrados"
+                  type="number"
+                  step="0.01"
+                  disabled={disabled}
+                  placeholder="Ej: 21.50"
+                  value={customArea}
+                  onChange={(e) => setCustomArea(e.target.value)}
+                  className="w-full bg-white border border-stone-300 rounded-lg px-2 py-1.5 text-xs font-mono font-bold text-stone-800 focus:outline-none focus:border-blue-600"
+                />
+                <span className="absolute right-2 top-1.5 text-[10px] font-bold text-stone-400 pointer-events-none">m²</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <label htmlFor="custom-room-name-input" className="text-[10px] font-medium text-stone-500 block mb-0.5">
-              Nombre libre:
-            </label>
-            <input
-              id="custom-room-name-input"
-              aria-label="Nombre libre de la estancia"
-              type="text"
-              disabled={disabled}
-              placeholder="Ej: Sala de Cine..."
-              value={customRoomName}
-              onChange={(e) => setCustomRoomName(e.target.value)}
-              className="w-full bg-white border border-stone-300 rounded-lg px-2 py-1.5 text-xs text-stone-800 focus:outline-none focus:border-[#c25e38]"
-            />
-          </div>
-          <div>
-            <label htmlFor="custom-room-area-input" className="text-[10px] font-medium text-stone-500 block mb-0.5">
-              Superficie (m²):
-            </label>
-            <input
-              id="custom-room-area-input"
-              aria-label="Superficie en metros cuadrados"
-              type="number"
-              step="0.01"
-              disabled={disabled}
-              placeholder="Ej: 14.50"
-              value={customArea}
-              onChange={(e) => setCustomArea(e.target.value)}
-              className="w-full bg-white border border-stone-300 rounded-lg px-2 py-1.5 text-xs text-stone-800 focus:outline-none focus:border-[#c25e38]"
-            />
-          </div>
-        </div>
-        <div className="flex justify-end">
+
           <button
             type="submit"
             disabled={disabled}
-            className="px-3 py-1 bg-[#c25e38] hover:bg-[#a84d2b] text-white rounded-lg text-xs font-semibold cursor-pointer transition shadow-2xs"
+            className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
           >
-            Añadir
+            <span className="material-symbols-outlined text-[16px]">add_circle</span>
+            <span>Añadir Estancia #{markers.length + 1} (Sumar al Total)</span>
           </button>
-        </div>
-      </form>
+        </form>
+      </div>
 
       {/* 4. Editor Contextual si hay un pin seleccionado */}
       {activeMarker && (
@@ -320,8 +336,30 @@ export function RoomIdentifierPanel({
               className="w-full mt-0.5 bg-white border border-stone-300 rounded-lg px-2 py-1 text-xs"
             />
           </div>
+
+          {onGenerateInterior && (
+            <button
+              type="button"
+              disabled={disabled || isGeneratingInterior || !hasSourceImage}
+              onClick={() => {
+                const idx = markers.findIndex((m) => m.id === activeMarker.id);
+                onGenerateInterior(activeMarker, idx >= 0 ? idx : 0);
+              }}
+              className="w-full mt-1.5 py-1.5 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className={`material-symbols-outlined text-[16px] ${generatingRoomId === activeMarker.id ? 'animate-spin' : ''}`}>
+                {generatingRoomId === activeMarker.id ? 'autorenew' : 'photo_camera'}
+              </span>
+              <span>
+                {generatingRoomId === activeMarker.id
+                  ? 'Generando perspectiva interior...'
+                  : `Generar Vista Interior 3D de ${activeMarker.name}`}
+              </span>
+            </button>
+          )}
         </div>
       )}
+
 
       {/* 4.5 Selector de Color de Fondo de los Puntos Identificadores */}
       <div className="p-2.5 bg-stone-50 border border-stone-200/90 rounded-2xl space-y-2">
@@ -452,6 +490,27 @@ export function RoomIdentifierPanel({
                         {marker.areaSqMeters.toLocaleString('es-ES', { minimumFractionDigits: 2 })} m²
                       </span>
                     )}
+                    {onGenerateInterior && (
+                      <button
+                        type="button"
+                        disabled={disabled || isGeneratingInterior || !hasSourceImage}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onGenerateInterior(marker, idx);
+                        }}
+                        className={`p-1 rounded cursor-pointer transition ${
+                          generatingRoomId === marker.id
+                            ? 'text-blue-600 bg-blue-100 animate-pulse'
+                            : 'text-stone-400 hover:text-blue-600 hover:bg-blue-50'
+                        }`}
+                        title={`Generar vista interior 3D de ${marker.name}`}
+                        aria-label={`Generar vista interior 3D de ${marker.name}`}
+                      >
+                        <span className={`material-symbols-outlined text-[16px] ${generatingRoomId === marker.id ? 'animate-spin' : ''}`}>
+                          {generatingRoomId === marker.id ? 'autorenew' : 'photo_camera'}
+                        </span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => {
@@ -464,6 +523,7 @@ export function RoomIdentifierPanel({
                     >
                       <span className="material-symbols-outlined text-[16px]">edit</span>
                     </button>
+
                     <button
                       type="button"
                       onClick={(e) => {
@@ -481,15 +541,102 @@ export function RoomIdentifierPanel({
               );
             })}
 
-            {markers.some((m) => m.areaSqMeters) && (
-              <div className="mt-2 pt-2 border-t border-stone-200 flex items-center justify-between text-xs px-1">
-                <span className="font-bold text-stone-600">Superficie Útil Total:</span>
-                <span className="font-black text-[#0F2C59] font-mono text-xs">
-                  {markers
-                    .reduce((acc, m) => acc + (m.areaSqMeters || 0), 0)
-                    .toLocaleString('es-ES', { minimumFractionDigits: 2 })}{' '}
-                  m²
-                </span>
+            {markers.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-stone-200 text-xs px-1">
+                {isEditingTotalInPanel ? (
+                  <div className="flex items-center gap-1.5 py-1 bg-amber-50 p-1.5 rounded-lg border border-amber-300">
+                    <span className="font-bold text-amber-950 text-[11px] shrink-0">Total m²:</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      aria-label="Superficie total útil manual"
+                      value={tempTotalInPanel}
+                      onChange={(e) => setTempTotalInPanel(e.target.value)}
+                      placeholder="Ej: 78.50"
+                      className="flex-1 bg-white border border-stone-300 rounded px-1.5 py-0.5 text-xs font-mono font-bold"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = tempTotalInPanel ? parseFloat(tempTotalInPanel) : undefined;
+                          onChangeCustomTotalUsefulArea?.(val);
+                          setIsEditingTotalInPanel(false);
+                        }
+                        if (e.key === 'Escape') {
+                          setIsEditingTotalInPanel(false);
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = tempTotalInPanel ? parseFloat(tempTotalInPanel) : undefined;
+                        onChangeCustomTotalUsefulArea?.(val);
+                        setIsEditingTotalInPanel(false);
+                      }}
+                      className="p-1 rounded bg-amber-600 hover:bg-amber-700 text-white cursor-pointer"
+                      title="Guardar total"
+                    >
+                      <span className="material-symbols-outlined text-[13px] block">check</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingTotalInPanel(false)}
+                      className="p-1 rounded bg-stone-200 text-stone-700 cursor-pointer"
+                      title="Cancelar"
+                    >
+                      <span className="material-symbols-outlined text-[13px] block">close</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-stone-700">Superficie Útil Total:</span>
+                      {typeof customTotalUsefulArea === 'number' && customTotalUsefulArea > 0 && (
+                        <span className="text-[9px] font-extrabold uppercase px-1 py-0.2 bg-amber-100 text-amber-900 border border-amber-300 rounded">
+                          Manual
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-black text-[#0F2C59] font-mono text-xs">
+                        {((typeof customTotalUsefulArea === 'number' && customTotalUsefulArea > 0)
+                          ? customTotalUsefulArea
+                          : markers.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0)
+                        ).toLocaleString('es-ES', { minimumFractionDigits: 2 })}{' '}
+                        m²
+                      </span>
+                      {onChangeCustomTotalUsefulArea && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTempTotalInPanel(
+                              String(
+                                (typeof customTotalUsefulArea === 'number' && customTotalUsefulArea > 0)
+                                  ? customTotalUsefulArea
+                                  : markers.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0) || ''
+                              )
+                            );
+                            setIsEditingTotalInPanel(true);
+                          }}
+                          className="p-0.5 text-stone-400 hover:text-amber-700 rounded cursor-pointer"
+                          title="Personalizar o editar la superficie útil total manualmente"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">edit</span>
+                        </button>
+                      )}
+                      {typeof customTotalUsefulArea === 'number' && customTotalUsefulArea > 0 && onChangeCustomTotalUsefulArea && (
+                        <button
+                          type="button"
+                          onClick={() => onChangeCustomTotalUsefulArea(undefined)}
+                          className="text-[9px] font-bold text-blue-700 hover:text-blue-900 hover:underline px-1 py-0.5 rounded bg-blue-50 border border-blue-200 cursor-pointer"
+                          title="Restablecer suma automática de estancias"
+                        >
+                          Auto
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -47,13 +47,8 @@ In all kitchens and open-plan kitchen areas (in both 2D floor plans and 3D cutaw
 3. Underneath the countertop there are only clean, seamless base cabinetry units.
 STRICT MANDATE: In kitchens, ONLY the vitrocerámica and the fregadero are visible; the rest is strictly bare, clean countertop surface with zero other appliances and zero clutter.`;
 
-  // MÁXIMA DE ORO ABSOLUTA: PROHIBICIÓN TOTAL DE TEXTO, NOMBRES DE ESTANCIAS, NÚMEROS Y MEDIDAS (m²)
-  const strictNoTextInRoomsDirective = `CRITICAL IMPERATIVE MANDATE (MÁXIMA DE ORO ABSOLUTA: SIEMPRE BORRAR Y ELIMINAR TODO TEXTO Y NÚMEROS):
-1. MANDATORY TOTAL TEXT DELETION: You MUST completely wipe, erase, cover, and eliminate ALL typography, room names, text labels, words, acronyms, letters, dimensions, and numbers from the blueprint.
-2. ZERO PRINTED CHARACTERS: The generated output MUST CONTAIN STRICTLY ZERO WRITTEN TEXT, ZERO LETTERS, ZERO NUMBERS, ZERO LABELS, and ZERO AREA MEASUREMENTS (no "m²", no "m2", no "sqm", no numbers, no digits).
-3. 100% CLEAN ARCHITECTURAL FLOORS: Every room floor surface must be completely continuous, pristine, bare architectural flooring material (herringbone parquet, marble, or microcement) with furniture only. Absolutely no text printed, stamped, or overlaid anywhere on the floors or walls.
-4. Any room name or square meter figure on the input blueprint MUST BE COMPLETELY COVERED AND OVERPAINTED with the clean architectural floor material of that space.
-5. STRICT RULE: ZERO text, ZERO room titles, ZERO surface area numbers in the entire image. Always clean, pure architectural drawing.`;
+  // DIRECTIVA ESTRICTA DE SUPERFICIES Y ACABADOS LIMPIOS
+  const strictNoTextInRoomsDirective = `ARCHITECTURAL SURFACE MANDATE: All floors throughout the residence must be completely continuous, pristine, seamless flooring material with interior furniture arranged on top. Completely clean, smooth, uniform floor surfaces without any typography, room names, or overlay labels.`;
 
   // DIRECTIVA ESTRICTA: AISLAR Y EXTRAER EXCLUSIVAMENTE EL PLANO (PROHIBICIÓN TOTAL DE PRECIOS, TEXTOS EXTERNOS Y DIBUJOS MARGINALES)
   const strictExtractOnlyPlanDirective = `MANDATORY EXTRACTION RULE — ISOLATE ONLY THE ARCHITECTURAL FLOOR PLAN:
@@ -77,17 +72,16 @@ STRICT MANDATE: In kitchens, ONLY the vitrocerámica and the fregadero are visib
   if (config.roomMarkers && config.roomMarkers.length > 0) {
     const roomDescriptions = config.roomMarkers.map((marker, idx) => {
       const cat = ROOM_CATEGORIES.find(c => c.id === marker.category);
-      // Ubicación cardinal aproximada según X e Y (0-100)
-      const hPos = marker.x < 35 ? 'left / west section' : marker.x > 65 ? 'right / east section' : 'central area';
-      const vPos = marker.y < 35 ? 'upper / north part' : marker.y > 65 ? 'lower / south part' : 'middle area';
+      const hPos = marker.x < 35 ? 'west' : marker.x > 65 ? 'east' : 'central';
+      const vPos = marker.y < 35 ? 'north' : marker.y > 65 ? 'south' : 'middle';
       const specificNotes = marker.notes ? ` with ${marker.notes}` : '';
       const isKitchen = marker.category === 'cocina' || marker.name.toLowerCase().includes('cocina');
       const kitchenConstraint = isKitchen
-        ? ' (STRICT KITCHEN MANDATE: ONLY the ceramic/induction cooktop and the sink are visible; the rest is 100% bare clean countertop with zero other appliances, zero refrigerators, and zero clutter).'
+        ? ' (strictly bare clean countertop with solely induction cooktop and sink visible)'
         : '';
-      return `Space #${idx + 1} located at ${hPos}, ${vPos}: strictly furnish and layout as a ${cat?.promptDesc || 'functional room'}${specificNotes}${kitchenConstraint}. (MANDATORY: DO NOT render any text label, room name, letters, or numbers inside this space; keep floor 100% clean and unwritten).`;
+      return `Space #${idx + 1} (${hPos}-${vPos}): layout as ${cat?.promptDesc || 'functional room'}${specificNotes}${kitchenConstraint}.`;
     }).join(' ');
-    roomsIdentificationClause = `INTERIOR FURNISHING LAYOUT (ZERO TEXT IN ROOMS): ${roomDescriptions} Ensure each room is furnished according to its layout, but keep all room floors 100% clean, pristine, and completely free of room names, text labels, or area measurements.`;
+    roomsIdentificationClause = `Interior furnishing layout: ${roomDescriptions} All floors are clean, continuous architectural materials with furniture only.`;
   }
   const is2D = config.cameraAngle === 'plan_2d_furnished';
 
@@ -117,8 +111,7 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
 
   if (is2D) {
     return [
-      `MÁXIMA IMPERATIVA ABSOLUTA: TOTAL TEXT ELIMINATION. Completely wipe and erase all room names, numbers, labels, dimensions, and text from the reference blueprint. The output image must be 100% devoid of any text, words, letters, or numbers.`,
-      `Clean top-down 2D colored architectural floor plan rendered strictly from the reference blueprint layout.`,
+      `Clean top-down 2D architectural presentation floor plan rendered strictly from the reference blueprint layout.`,
       `Zero perspective distortion, completely flat 2D graphic catalog floor plan with furniture symbols placed in top view.`,
       strictSinglePlanMandate,
       strictExtractOnlyPlanDirective,
@@ -141,12 +134,11 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
       `Color scheme: ${selectedPalette.promptKeyword}.`,
       cleanedExtraDetails ? `Extra notes: ${cleanedExtraDetails}.` : '',
       strictNoTablesDirective,
-      strictNoTextInRoomsDirective,
       strictExtractOnlyPlanDirective,
       strictSinglePlanMandate,
       strictFramingAndOccupancyDirective,
       kitchenMinimalistRule,
-      `MÁXIMA DE ORO FINAL: ZERO text, ZERO room titles, ZERO square meter numbers, ZERO dimensions anywhere in the image. Every room floor must be completely clean, continuous architectural material with furniture only.`
+      `High-end architectural presentation graphics with clean, pristine, unbroken floor surfaces and top-view furniture.`
     ].filter(Boolean).join(' ');
   }
   // Vista 3D Dollhouse
@@ -181,8 +173,7 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
     angleDesc = `3D isometric cutaway dollhouse maquette view (45-degree axonometric angle, ${directionStr})`;
   }
   return [
-    `MÁXIMA IMPERATIVA ABSOLUTA: TOTAL TEXT ELIMINATION. Completely erase and remove all room names, numbers, labels, dimensions, and text from the blueprint. The output 3D render must be 100% devoid of any text, words, letters, or numbers.`,
-    `Transform this blueprint into an ultra-realistic ${angleDesc}.`,
+    `Transform this clean architectural blueprint into an ultra-realistic ${angleDesc}.`,
     `Strictly follow the room boundaries and wall positions of the reference blueprint without adding extra rooms.`,
     strictSinglePlanMandate,
     strictExtractOnlyPlanDirective,
@@ -208,7 +199,7 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
     strictExtractOnlyPlanDirective,
     kitchenMinimalistRule,
     strictNoTextInRoomsDirective,
-    `Unreal Engine 5 archviz render quality, crisp geometry, clean photorealistic textures, MÁXIMA DE ORO: STRICTLY ZERO text and ZERO surface numbers inside rooms or on floors, kitchens strictly showing solely the ceramic cooktop and sink with bare pristine countertops.`
+    `Unreal Engine 5 archviz render quality, crisp geometry, clean photorealistic textures, unbroken seamless floors with furniture only, kitchens strictly showing solely the ceramic cooktop and sink with bare pristine countertops.`
   ].filter(Boolean).join(' ');
 }
 
@@ -293,7 +284,8 @@ export function buildTargetedCorrectionPrompt(
   correctionInstruction: string,
   matchedMarker?: RoomMarker | null,
   roomIndex?: number | null,
-  defectMark?: DefectMark | null
+  defectMark?: DefectMark | null,
+  hasBinaryMask?: boolean
 ): string {
   let roomContext = '';
   if (matchedMarker && typeof roomIndex === 'number') {
@@ -322,20 +314,189 @@ export function buildTargetedCorrectionPrompt(
     defectLocationClause = `CRITICAL DEFECT LOCATION (VISUALLY MARKED BY USER): The user has pointed out a flaw/defect at coordinates horizontal: ${xRound}%, vertical: ${yRound}% (${hPos}, ${vPos})${roomDesc}. FOCUS THE CORRECTION ON THIS EXACT SPOT.`;
   }
 
+  let maskClause = '';
+  if (hasBinaryMask) {
+    maskClause = `CRITICAL BINARY MASK INSTRUCTIONS (PRECISE INPAINTING): You are provided with a black-and-white MASK image alongside the BASE RENDER image. TASK: Apply the requested modification ("${correctionInstruction}") STRICTLY AND EXCLUSIVELY inside the WHITE areas of the mask. The BLACK areas of the mask are 100% PROTECTED AND MUST REMAIN COMPLETELY UNCHANGED, preserving their exact walls, colors, furniture, and lighting. Seamlessly blend the modified white region into the surrounding black areas.`;
+  }
+
   return [
     `IMAGE-TO-IMAGE TARGETED ARCHITECTURAL RETOUCH AND EDITING:`,
-    `MÁXIMA IMPERATIVA ABSOLUTA: ZERO TEXT, ZERO ROOM NAMES, ZERO SURFACE NUMBERS. The output image must have completely clean, pristine floors devoid of any text.`,
     `You are editing the provided architectural 3D render image.`,
+    maskClause,
     defectLocationClause,
     `USER MODIFICATION COMMAND (MUST BE APPLIED CLEARLY): "${correctionInstruction}".`,
     roomContext,
     `ABSOLUTE PRESERVATION MANDATE: Strictly preserve 100% of the existing camera angle, lighting, 1.2m cutaway wall heights, structural layout, and the flooring, partitions, and furniture in ALL OTHER ROOMS of the house that are not mentioned. Do NOT re-imagine or alter unrelated areas.`,
     `Seamlessly integrate the requested change into the interior style (${config.interiorStyle || 'contemporary'}) with high archviz realism.`,
     `KITCHEN STANDARD: In all kitchens, strictly ensure ONLY the ceramic cooktop (vitrocerámica) and the sink (fregadero) are visible, and the rest is strictly bare, clean countertop with zero other appliances, zero refrigerators, and zero clutter.`,
-    `MÁXIMA DE ORO: ABSOLUTE PROHIBITION OF TEXT. DO NOT render, write, or print ANY text, room names, English subtitles, dimensions, or area numbers anywhere inside the rooms or on the floor surfaces. Completely erase any lingering text. Keep all floors 100% clean of text.`,
+    `SURFACE FINISHES: All room floors are seamless, continuous, pristine surfaces with furniture only. No typography or printed labels anywhere on the floor surfaces.`,
     `CAMERA & CANVAS OCCUPANCY: Maintain the exact same close-up architectural framing where the floor plan occupies at least 75% to 85% of the frame.`,
-    `Photorealistic archviz quality, crisp geometry, clean textures, Unreal Engine 5 rendering fidelity, 100% text-free floors.`
+    `Photorealistic archviz quality, crisp geometry, clean textures, Unreal Engine 5 rendering fidelity.`
   ]
     .filter(Boolean)
     .join(' ');
 }
+
+/**
+ * Añade una pequeña variación de entropía y token temporal para evitar respuestas cacheadas en Gemini
+ */
+export function appendPromptVariation(basePrompt: string): string {
+  const variations = [
+    '',
+    ' Render with pristine crisp clarity.',
+    ' Ensure distinctive architectural refinement.',
+    ' Focus on razor-sharp geometric alignment.',
+    ' Achieve ultra-clean material textures.'
+  ];
+  const randomSuffix = variations[Math.floor(Math.random() * variations.length)];
+  return `${basePrompt}${randomSuffix} [ref_${Date.now().toString(36)}]`;
+}
+
+
+/**
+ * Genera el prompt para un render en primera persona (a pie de habitación)
+ * desde el punto de vista de la estancia seleccionada.
+ */
+export function buildFirstPersonInteriorPrompt(
+  config: RenderConfig,
+  marker: RoomMarker,
+  roomIndex: number
+): string {
+  const selectedPalette = COLOR_PALETTE_SCHEMES.find(p => p.id === config.colorPalette) || COLOR_PALETTE_SCHEMES[0];
+  const selectedStyle = INTERIOR_STYLES.find(s => s.id === config.interiorStyle) || INTERIOR_STYLES[0];
+  const selectedLivingFloor = FLOORING_LIVING_OPTIONS.find(f => f.id === config.flooringLiving) || FLOORING_LIVING_OPTIONS[0];
+  const selectedKitchenFloor = KITCHEN_FLOORING_OPTIONS.find(k => k.id === config.flooringKitchen) || KITCHEN_FLOORING_OPTIONS[0];
+  const selectedKitchenGresColor = KITCHEN_GRES_COLORS.find(c => c.id === config.kitchenGresColor) || KITCHEN_GRES_COLORS[0];
+  const selectedBathGres60 = BATHROOM_GRES_60X60_TONES.find(b => b.id === config.flooringBathroomGres60) || BATHROOM_GRES_60X60_TONES[0];
+  const selectedTerraceFloor = TERRACE_FLOORING_OPTIONS.find(t => t.id === config.flooringTerrace) || TERRACE_FLOORING_OPTIONS[0];
+  const selectedWindowType = WINDOW_TYPE_OPTIONS.find(w => w.id === config.windowType) || WINDOW_TYPE_OPTIONS[0];
+  const selectedWindowFinish = WINDOW_FRAME_OPTIONS.find(w => w.id === config.windowFrames) || WINDOW_FRAME_OPTIONS[0];
+  const selectedDoor = DOOR_FINISH_OPTIONS.find(d => d.id === config.doorFinish) || DOOR_FINISH_OPTIONS[0];
+  const selectedInteriorWall = WALL_COLOR_OPTIONS.find(w => w.id === config.interiorWallColor) || WALL_COLOR_OPTIONS[0];
+  const selectedCountertop = KITCHEN_COUNTERTOP_OPTIONS.find(c => c.id === config.kitchenCountertop) || KITCHEN_COUNTERTOP_OPTIONS[0];
+
+  const isKitchen = marker.category === 'cocina' || marker.name.toLowerCase().includes('cocina');
+  const isBathroom = marker.category === 'bano_principal' || marker.category === 'aseo_cortesia' || marker.name.toLowerCase().includes('baño') || marker.name.toLowerCase().includes('aseo');
+  const isTerrace = marker.category === 'terraza_balcon' || marker.name.toLowerCase().includes('terraza');
+
+  let roomMaterialSpecs = '';
+  if (isKitchen) {
+    const kitchenFloor = (config.flooringKitchen === 'gres_porcelanico_cocina' || config.flooringKitchen === 'porcelain_gres_kitchen')
+      ? selectedKitchenGresColor.promptKeyword
+      : `${selectedKitchenFloor.label} flooring`;
+    roomMaterialSpecs = `
+      ROOM SPECIFICS (KITCHEN):
+      - Flooring: ${kitchenFloor}.
+      - Countertops: ${selectedCountertop.promptKeyword}.
+      - CRITICAL KITCHEN RULE: The kitchen worktop has ONLY the integrated ceramic/induction cooktop and sink. All other countertop surfaces are clean, bare, and uncluttered. Sleek modern cabinetry.`;
+  } else if (isBathroom) {
+    roomMaterialSpecs = `
+      ROOM SPECIFICS (BATHROOM):
+      - Flooring: ${selectedBathGres60.promptKeyword} 60x60cm tiles.
+      - Shower tray: ALWAYS solid chalk pure white mineral resin tray with a minimalist transparent glass enclosure screen.
+      - Vanity unit with modern basin, chrome/matte black tapware, backlit LED mirror.`;
+  } else if (isTerrace) {
+    roomMaterialSpecs = `
+      ROOM SPECIFICS (TERRACE/BALCONY):
+      - Flooring: ${selectedTerraceFloor.promptKeyword}.
+      - Modern glass or aluminum balustrades, outdoor lounge furniture, beautiful natural exterior daylight.`;
+  } else {
+    roomMaterialSpecs = `
+      ROOM SPECIFICS (LIVING / BEDROOM):
+      - Flooring: ${selectedLivingFloor.label} (${selectedLivingFloor.desc}).
+      - High-end furniture matching ${selectedStyle.label} style, cozy textured textiles, elegant lighting.`;
+  }
+
+  const lightingDesc = config.lighting === 'night_architectural'
+    ? 'Atmospheric evening scene with warm artificial interior lighting (recessed LED downlights, accent lamps) and dark sky outside windows.'
+    : config.lighting === 'golden_hour'
+    ? 'Warm late afternoon golden hour sunlight streaming in through the windows with long soft shadows.'
+    : 'Bright, crisp natural morning daylight illuminating the entire room with realistic architectural bounce light and soft shadows.';
+
+  return [
+    `Generate a photorealistic FIRST-PERSON VIEW interior architectural photograph from the exact viewpoint of Room #${roomIndex + 1} ("${marker.name}") located at the red viewpoint marker on the reference floor plan.`,
+    `VIEWPOINT & CAMERA MANDATE:`,
+    `- Camera position: Inside "${marker.name}" at human eye-level height (approx. 1.60 meters).`,
+    `- Camera angle: Ground-level horizontal interior photograph looking across the furnished room.`,
+    `- ABSOLUTE PROHIBITION OF TOP-DOWN OR AERIAL VIEWS: Do NOT render an aerial view, cutaway axonometric model, or floor plan drawing. The final output MUST BE a normal interior photograph as seen by a person standing inside the room.`,
+    `INTERIOR DESIGN & MATERIAL SPECIFICATIONS:`,
+    `- Interior Style: ${selectedStyle.label} (${selectedStyle.desc}).`,
+    `- Color Palette: ${selectedPalette.label} (${selectedPalette.desc}).`,
+    `- Walls: ${selectedInteriorWall.promptKeyword}.`,
+    `- Doors: ${selectedDoor.promptKeyword}.`,
+    `- Windows: ${selectedWindowType.label} with ${selectedWindowFinish.promptKeyword}.`,
+
+    roomMaterialSpecs,
+    `LIGHTING: ${lightingDesc}`,
+    `PHOTOGRAPHY QUALITY: Crisp 8k architectural editorial photograph, Architectural Digest quality, hyper-realistic textures, clean finishes, zero clutter, zero people, zero text or watermarks.`
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+/**
+ * Superpone un marcador de punto de vista visual (círculo rojo con número blanco)
+ * sobre el plano de planta para guiar a Gemini hacia la estancia exacta.
+ */
+export async function createFloorPlanWithViewpointMarker(
+  base64Data: string,
+  mimeType: string = 'image/png',
+  xPercent: number,
+  yPercent: number,
+  roomIndex: number
+): Promise<{ base64: string; mimeType: string }> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        return resolve({ base64: base64Data, mimeType });
+      }
+
+      ctx.drawImage(img, 0, 0);
+
+      const pxX = (xPercent / 100) * canvas.width;
+      const pxY = (yPercent / 100) * canvas.height;
+      const radius = Math.max(22, Math.min(canvas.width, canvas.height) * 0.035);
+
+      // Sombra exterior para máxima legibilidad sobre cualquier fondo
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 4;
+
+      // Círculo rojo de punto de vista
+      ctx.beginPath();
+      ctx.arc(pxX, pxY, radius, 0, 2 * Math.PI);
+      ctx.fillStyle = '#EF4444'; // Red-500 llamativo
+      ctx.fill();
+      ctx.restore();
+
+      // Borde blanco nítido
+      ctx.lineWidth = Math.max(3.5, radius * 0.16);
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.stroke();
+
+      // Número identificativo centrado
+      ctx.font = `bold ${Math.round(radius * 1.05)}px system-ui, -apple-system, sans-serif`;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(roomIndex + 1), pxX, pxY);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+      const parts = dataUrl.split(',');
+      resolve({
+        base64: parts[1] || base64Data,
+        mimeType: 'image/jpeg'
+      });
+    };
+    img.onerror = () => resolve({ base64: base64Data, mimeType });
+    img.src = `data:${mimeType};base64,${base64Data}`;
+  });
+}

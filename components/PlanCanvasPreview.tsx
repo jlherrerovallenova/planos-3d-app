@@ -11,6 +11,7 @@ import {
   exportPlanOnlyPDF
 } from '../services/downloadHelper';
 import { CorrectionCommandBar } from './CorrectionCommandBar';
+import { generateBinaryMaskFromDefect } from '../services/maskHelper';
 
 interface PlanCanvasPreviewProps {
   sourceImage: { base64: string; mimeType: string; name?: string } | null;
@@ -23,6 +24,7 @@ interface PlanCanvasPreviewProps {
   isPinningMode?: boolean;
   onMarkerClick?: (id: string) => void;
   onCanvasClickToPositionMarker?: (x: number, y: number) => void;
+  onAddMarker?: (category: RoomCategory, name?: string, area?: number, x?: number, y?: number) => void;
   onUpdateMarker?: (id: string, updates: Partial<RoomMarker>) => void;
   onDeleteMarker?: (id: string) => void;
   onTogglePinningMode?: () => void;
@@ -37,8 +39,9 @@ interface PlanCanvasPreviewProps {
   onCleanPlanTexts?: () => void;
   isCleaningPlanText?: boolean;
   onEraseTextAtPoint?: (xPercent: number, yPercent: number) => void;
-  // Corrección puntual y versiones con soporte de marcas de error
-  onApplyCorrection?: (instruction: string, defectMark?: DefectMark | null) => Promise<void>;
+  // Corrección puntual y versiones con soporte de marcas de error y máscara binaria
+  onApplyCorrection?: (instruction: string, defectMark?: DefectMark | null, maskBase64?: string | null) => Promise<void>;
+
   currentVersion?: number;
   canUndo?: boolean;
   onUndoToPreviousVersion?: () => void;
@@ -69,7 +72,22 @@ interface PlanCanvasPreviewProps {
   // Aislamiento / recorte automático de plano
   onIsolatePlan?: () => void;
   isPlanIsolated?: boolean;
+  // Limpieza quirúrgica de textos y cotas
+  isTextCleaned?: boolean;
+  onToggleCleanText?: () => void;
+  // Vistas interiores en primera persona
+  onGenerateInterior?: (marker: RoomMarker, roomIndex: number) => void;
+  isGeneratingInterior?: boolean;
+  generatingRoomId?: string | null;
+  // Control rápido Día / Noche
+  lighting?: 'daylight_warm' | 'golden_hour' | 'ambient_studio' | 'night_architectural';
+  onChangeLighting?: (lighting: 'daylight_warm' | 'night_architectural') => void;
+  // Superficie útil total personalizada / manual
+  customTotalUsefulArea?: number;
+  onChangeCustomTotalUsefulArea?: (total: number | undefined) => void;
 }
+
+
 
 function getContrastTextColor(hexColor?: string): string {
   if (!hexColor) return '#FFFFFF';
@@ -106,8 +124,11 @@ export function PlanCanvasPreview({
   onChangeIsometricOrientation,
   onIsolatePlan,
   isPlanIsolated = false,
+  isTextCleaned = false,
+  onToggleCleanText,
   onMarkerClick,
   onCanvasClickToPositionMarker,
+  onAddMarker,
   onUpdateMarker,
   onDeleteMarker,
   onTogglePinningMode,
@@ -129,8 +150,16 @@ export function PlanCanvasPreview({
   isConvertingPdf = false,
   pdfPagesInfo = null,
   onPdfPageChange,
-  onDropFile
+  onDropFile,
+  onGenerateInterior,
+  isGeneratingInterior = false,
+  generatingRoomId = null,
+  lighting = 'daylight_warm',
+  onChangeLighting,
+  customTotalUsefulArea,
+  onChangeCustomTotalUsefulArea
 }: PlanCanvasPreviewProps) {
+
   const badgeBg = markerBadgeColor || '#0F2C59';
   const badgeText = getContrastTextColor(badgeBg);
   const [localUnitIdentifier, setLocalUnitIdentifier] = useState<string>(unitIdentifier || 'PORTAL 1 - 1º A');
@@ -151,6 +180,7 @@ export function PlanCanvasPreview({
   const [isExportingPDF, setIsExportingPDF] = useState<boolean>(false);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const [planOccupancyPercent, setPlanOccupancyPercent] = useState<number>(75);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
 
@@ -856,8 +886,34 @@ export function PlanCanvasPreview({
 
         {/* Acciones del Canvas a la derecha (Estructura Limpia y Profesional) */}
         <div className="flex items-center gap-2">
+          {/* Selector Rápido Día / Noche */}
+          {onChangeLighting && (
+            <button
+              type="button"
+              onClick={() => onChangeLighting(lighting === 'night_architectural' ? 'daylight_warm' : 'night_architectural')}
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 border cursor-pointer ${
+                lighting === 'night_architectural'
+                  ? 'bg-indigo-950/90 text-indigo-200 border-indigo-700 hover:bg-indigo-900 shadow-xs'
+                  : 'bg-amber-950/70 text-amber-200 border-amber-800/80 hover:bg-amber-900/90 shadow-xs'
+              }`}
+              title={
+                lighting === 'night_architectural'
+                  ? 'Iluminación nocturna activa. Clic para cambiar a luz de día'
+                  : 'Iluminación diurna activa. Clic para cambiar a iluminación nocturna'
+              }
+            >
+              <span className="material-symbols-outlined text-[15px] text-amber-400">
+                {lighting === 'night_architectural' ? 'dark_mode' : 'light_mode'}
+              </span>
+              <span className="hidden sm:inline">
+                {lighting === 'night_architectural' ? 'Noche' : 'Día'}
+              </span>
+            </button>
+          )}
+
           {/* 1. Botón Principal: Señalar / Pintar Error en el Render */}
           {onApplyCorrection && (sourceImage || renderedResult) && (
+
             <button
               type="button"
               onClick={() => setIsAnnotatingError(!isAnnotatingError)}
@@ -951,24 +1007,39 @@ export function PlanCanvasPreview({
                     </button>
                   )}
 
-                  {/* Limpiar textos con IA */}
-                  {onCleanPlanTexts && (
+                  {/* Limpiar textos con IA quirúrgica */}
+                  {(onToggleCleanText || onCleanPlanTexts) && (
                     <button
                       type="button"
                       onClick={() => {
-                        onCleanPlanTexts();
+                        if (onToggleCleanText) {
+                          onToggleCleanText();
+                        } else if (onCleanPlanTexts) {
+                          onCleanPlanTexts();
+                        }
                         setIsToolsMenuOpen(false);
                       }}
                       disabled={isCleaningPlanText}
-                      className="w-full px-2.5 py-2 rounded-xl text-left text-xs font-medium hover:bg-stone-800/80 flex items-center gap-2 transition cursor-pointer disabled:opacity-50"
+                      className="w-full px-2.5 py-2 rounded-xl text-left text-xs font-medium hover:bg-stone-800/80 flex items-center justify-between transition cursor-pointer disabled:opacity-50"
                     >
-                      <span className={`material-symbols-outlined text-[16px] text-amber-400 ${isCleaningPlanText ? 'animate-spin' : ''}`}>
-                        {isCleaningPlanText ? 'autorenew' : 'auto_fix_high'}
-                      </span>
-                      <div>
-                        <div className="font-semibold text-white">Limpiar textos y m² (IA)</div>
-                        <div className="text-[10px] text-stone-400">Elimina rotulaciones y nombres del dibujo</div>
+                      <div className="flex items-center gap-2">
+                        <span className={`material-symbols-outlined text-[16px] text-amber-400 ${isCleaningPlanText ? 'animate-spin' : ''}`}>
+                          {isCleaningPlanText ? 'autorenew' : isTextCleaned ? 'history' : 'auto_fix_high'}
+                        </span>
+                        <div>
+                          <div className="font-semibold text-white">
+                            {isTextCleaned ? 'Restaurar textos y cotas' : 'Limpiar textos y m² (Quirúrgico)'}
+                          </div>
+                          <div className="text-[10px] text-stone-400">
+                            {isTextCleaned ? 'Vuelve a mostrar textos originales' : 'Borrado fino preservando muros y muebles'}
+                          </div>
+                        </div>
                       </div>
+                      {isTextCleaned && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-900/60 text-amber-300 border border-amber-700/50">
+                          Limpio
+                        </span>
+                      )}
                     </button>
                   )}
 
@@ -1618,9 +1689,9 @@ export function PlanCanvasPreview({
               </div>
 
               {/* Cuerpo de la Ficha: Plano a la Izquierda (75% del ancho) y Cuadro de Superficies a la Derecha (25%) */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center flex-1 my-auto">
+              <div className="grid grid-cols-1 md:grid-cols-12 lg:grid-cols-12 gap-5 items-center flex-1 my-auto">
                 {/* Columna Izquierda / Central: Plano Renderizado o Base (Ocupa al menos el 75% con 9 de 12 columnas) */}
-                <div className="lg:col-span-9 flex flex-col items-center justify-center bg-white p-2 sm:p-4 min-h-[480px] max-h-[84vh] w-full overflow-hidden">
+                <div className="md:col-span-8 lg:col-span-9 flex flex-col items-center justify-center bg-white p-2 sm:p-4 min-h-[480px] max-h-[85vh] w-full overflow-hidden">
                   {renderDataUrl || sourceDataUrl ? (
                     <>
                       <div
@@ -1633,18 +1704,21 @@ export function PlanCanvasPreview({
                           if (e.key === 'Enter') handleImageClick(e as any, fichaPlanRef.current);
                         }}
                         style={{
+                          width: planOccupancyPercent === 100 ? '100%' : `${planOccupancyPercent}%`,
+                          maxWidth: '100%',
+                          maxHeight: '78vh',
                           transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : undefined,
                           transformOrigin: 'center center',
-                          transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                          transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
                         }}
-                        className={`relative inline-block max-h-[78vh] max-w-full select-none ${
+                        className={`relative inline-block max-h-[78vh] select-none ${
                           isEraserMode ? 'cursor-crosshair ring-2 ring-rose-500' : ''
                         }`}
                       >
                         <img
                           src={renderDataUrl || sourceDataUrl!}
                           alt="Plano Ficha Comercial"
-                          className="max-h-[78vh] w-auto max-w-full object-contain block pointer-events-none select-none"
+                          className="w-full h-auto max-h-[78vh] object-contain block pointer-events-none select-none rounded-sm"
                         />
 
                         {/* Capa interactiva de marcado y pintura de defectos */}
@@ -1690,48 +1764,73 @@ export function PlanCanvasPreview({
                         })}
                       </div>
 
-                      {/* Barra de control de fijación de puntos */}
-                      <div className="mt-2.5 flex items-center justify-between w-full max-w-md px-1 flex-wrap gap-2">
-                        <div className="flex items-center gap-1.5 text-[11px] select-none">
-                          <span
-                            className={`material-symbols-outlined text-[15px] ${
-                              areMarkersLocked ? 'text-emerald-600' : 'text-blue-600'
-                            }`}
-                          >
-                            {areMarkersLocked ? 'lock' : 'pan_tool'}
+                      {/* Barra de control: Fijación de puntos y selector de ocupación del plano (70% - 75% - 85% - 100%) */}
+                      <div className="mt-3 flex items-center justify-between w-full max-w-2xl px-1 flex-wrap gap-2.5">
+                        <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl border border-stone-200 select-none shadow-2xs">
+                          <span className="text-[11px] font-bold text-stone-600 px-1.5 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[14px] text-[#0F2C59]">aspect_ratio</span>
+                            <span>Ocupación del plano:</span>
                           </span>
-                          <span
-                            className={
-                              areMarkersLocked
-                                ? 'text-emerald-700 font-semibold'
-                                : 'text-stone-500 font-medium'
-                            }
-                          >
-                            {areMarkersLocked
-                              ? 'Puntos fijados (protegidos contra movimientos)'
-                              : 'Arrastra cualquier círculo a su estancia'}
-                          </span>
+                          {[70, 75, 85, 100].map((pct) => (
+                            <button
+                              key={pct}
+                              type="button"
+                              onClick={() => setPlanOccupancyPercent(pct)}
+                              className={`px-2.5 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                                planOccupancyPercent === pct
+                                  ? 'bg-[#0F2C59] text-white shadow-xs'
+                                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200/80'
+                              }`}
+                              title={`Ajustar para que el plano ocupe el ${pct}% de la zona del plano`}
+                            >
+                              {pct}%{pct === 75 ? ' ★' : ''}
+                            </button>
+                          ))}
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => setAreMarkersLocked(!areMarkersLocked)}
-                          className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer ${
-                            areMarkersLocked
-                              ? 'bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300'
-                              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
-                          }`}
-                          title={
-                            areMarkersLocked
-                              ? 'Haz clic para desbloquear y permitir mover los puntos'
-                              : 'Fijar los puntos para que no se puedan mover'
-                          }
-                        >
-                          <span className="material-symbols-outlined text-[14px]">
-                            {areMarkersLocked ? 'lock_open' : 'lock'}
-                          </span>
-                          <span>{areMarkersLocked ? 'Desbloquear Puntos' : 'Fijar Puntos'}</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {onIsolatePlan && (
+                            <button
+                              type="button"
+                              onClick={onIsolatePlan}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 border shadow-2xs cursor-pointer ${
+                                isPlanIsolated
+                                  ? 'bg-blue-50 border-blue-300 text-blue-800 hover:bg-blue-100'
+                                  : 'bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-300'
+                              }`}
+                              title={
+                                isPlanIsolated
+                                  ? 'Ver imagen completa con márgenes originales'
+                                  : 'Aislar plano al 75% (recortar márgenes vacíos y cartelas)'
+                              }
+                            >
+                              <span className="material-symbols-outlined text-[14px] text-blue-600">
+                                {isPlanIsolated ? 'fullscreen_exit' : 'crop'}
+                              </span>
+                              <span>{isPlanIsolated ? 'Plano Aislado' : 'Aislar Plano'}</span>
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => setAreMarkersLocked(!areMarkersLocked)}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer ${
+                              areMarkersLocked
+                                ? 'bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300'
+                                : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
+                            }`}
+                            title={
+                              areMarkersLocked
+                                ? 'Haz clic para desbloquear y permitir mover los puntos'
+                                : 'Fijar los puntos para que no se puedan mover'
+                            }
+                          >
+                            <span className="material-symbols-outlined text-[14px]">
+                              {areMarkersLocked ? 'lock_open' : 'lock'}
+                            </span>
+                            <span>{areMarkersLocked ? 'Desbloquear Puntos' : 'Fijar Puntos'}</span>
+                          </button>
+                        </div>
                       </div>
                     </>
                   ) : (
@@ -1740,7 +1839,7 @@ export function PlanCanvasPreview({
                 </div>
 
                 {/* Columna Derecha: Cuadro de Superficies Útiles (25% del ancho) */}
-                <div className="lg:col-span-3 flex flex-col justify-center items-center lg:items-end w-full">
+                <div className="md:col-span-4 lg:col-span-3 flex flex-col justify-center items-center lg:items-end w-full">
                   {onDetectWithAI && (
                     <div className="w-full mb-3 flex flex-col gap-2">
                       <button
@@ -1757,25 +1856,66 @@ export function PlanCanvasPreview({
                         </span>
                       </button>
 
-                      {onCleanPlanTexts && (
+                      {(onToggleCleanText || onCleanPlanTexts) && (
                         <button
                           type="button"
-                          onClick={onCleanPlanTexts}
+                          onClick={() => {
+                            if (onToggleCleanText) {
+                              onToggleCleanText();
+                            } else if (onCleanPlanTexts) {
+                              onCleanPlanTexts();
+                            }
+                          }}
                           disabled={isCleaningPlanText || (!sourceDataUrl && !renderDataUrl)}
                           className="w-full px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-700 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
-                          title="Borrar todos los textos y superficies rotulados en el plano para dejar únicamente los círculos con números"
+                          title="Borrar nombres de estancias y superficies preservando quirúrgicamente todos los muros y mobiliario"
                         >
-                          <span className={`material-symbols-outlined text-[15px] ${isCleaningPlanText ? 'animate-spin' : ''}`}>
-                            {isCleaningPlanText ? 'autorenew' : 'auto_fix_high'}
+                          <span className={`material-symbols-outlined text-[15px] ${isCleaningPlanText ? 'animate-spin' : 'text-amber-600'}`}>
+                            {isCleaningPlanText ? 'autorenew' : isTextCleaned ? 'history' : 'auto_fix_high'}
                           </span>
                           <span>
-                            {isCleaningPlanText ? 'Borrando textos...' : 'Limpiar nombres y m² del plano'}
+                            {isCleaningPlanText
+                              ? 'Borrando textos quirúrgicamente...'
+                              : isTextCleaned
+                              ? 'Restaurar textos y cotas originales'
+                              : 'Limpiar nombres y m² del plano (Quirúrgico)'}
                           </span>
                         </button>
                       )}
+
+                      {/* Modo manual para planos mudos sin textos */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onTogglePinningMode && !isPinningMode) {
+                            onTogglePinningMode();
+                          }
+                        }}
+                        className={`w-full px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer ${
+                          isPinningMode
+                            ? 'bg-amber-500 hover:bg-amber-400 text-stone-950 ring-2 ring-amber-300'
+                            : 'bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white'
+                        }`}
+                        title="Modo manual para planos limpios: haz clic en el plano o usa la tabla para añadir números, nombres y m²"
+                      >
+                        <span className="material-symbols-outlined text-[17px]">
+                          {isPinningMode ? 'touch_app' : 'add_location_alt'}
+                        </span>
+                        <span>
+                          {isPinningMode ? 'Puntero Activo: Haz clic en el plano' : '+ Colocar Estancias y m² Manualmente'}
+                        </span>
+                      </button>
                     </div>
                   )}
-                  <SurfaceScheduleTable markers={sortedMarkers} markerBadgeColor={badgeBg} />
+                  <SurfaceScheduleTable
+                    markers={sortedMarkers}
+                    markerBadgeColor={badgeBg}
+                    onUpdateMarker={onUpdateMarker}
+                    onAddMarker={onAddMarker}
+                    onDeleteMarker={onDeleteMarker}
+                    customTotalUsefulArea={customTotalUsefulArea}
+                    onChangeCustomTotalUsefulArea={onChangeCustomTotalUsefulArea}
+                  />
                 </div>
               </div>
 
@@ -2054,6 +2194,24 @@ export function PlanCanvasPreview({
                               </div>
 
                               <div>
+                                <label htmlFor={`marker-area-${marker.id}`} className="text-[10px] font-medium text-stone-500 block mb-0.5">Superficie útil (m²):</label>
+                                <input
+                                  id={`marker-area-${marker.id}`}
+                                  aria-label="Superficie útil en m²"
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="Ej: 14.25"
+                                  value={marker.areaSqMeters !== undefined && marker.areaSqMeters !== null ? marker.areaSqMeters : ''}
+                                  onChange={(e) =>
+                                    onUpdateMarker(marker.id, {
+                                      areaSqMeters: e.target.value ? parseFloat(e.target.value) : undefined
+                                    })
+                                  }
+                                  className="w-full bg-stone-50 border border-stone-200 rounded-lg px-2 py-1 text-xs font-mono font-bold text-stone-800"
+                                />
+                              </div>
+
+                              <div>
                                 <label htmlFor={`marker-cat-${marker.id}`} className="text-[10px] font-medium text-stone-500 block mb-0.5">Tipo de estancia:</label>
                                 <select
                                   id={`marker-cat-${marker.id}`}
@@ -2094,6 +2252,24 @@ export function PlanCanvasPreview({
                               Guardar
                             </button>
 
+                            {onGenerateInterior && (
+                              <button
+                                type="button"
+                                disabled={isGeneratingInterior}
+                                onClick={() => {
+                                  onGenerateInterior(marker, idx);
+                                  setEditingMarkerId(null);
+                                }}
+                                className="mt-1.5 w-full py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition shadow-xs disabled:opacity-50"
+                              >
+                                <span className={`material-symbols-outlined text-[15px] ${generatingRoomId === marker.id ? 'animate-spin' : ''}`}>
+                                  {generatingRoomId === marker.id ? 'autorenew' : 'photo_camera'}
+                                </span>
+                                <span>{generatingRoomId === marker.id ? 'Generando...' : '📸 Vista Interior 3D'}</span>
+                              </button>
+                            )}
+
+
                             {onApplyCorrection && (
                               <button
                                 type="button"
@@ -2128,7 +2304,15 @@ export function PlanCanvasPreview({
               >
                 ✕
               </button>
-              <SurfaceScheduleTable markers={roomMarkers} markerBadgeColor={badgeBg} />
+              <SurfaceScheduleTable
+                markers={roomMarkers}
+                markerBadgeColor={badgeBg}
+                onUpdateMarker={onUpdateMarker}
+                onAddMarker={onAddMarker}
+                onDeleteMarker={onDeleteMarker}
+                customTotalUsefulArea={customTotalUsefulArea}
+                onChangeCustomTotalUsefulArea={onChangeCustomTotalUsefulArea}
+              />
             </div>
           </div>
         )}
@@ -2168,13 +2352,28 @@ export function PlanCanvasPreview({
           <CorrectionCommandBar
             roomMarkers={sortedMarkers}
             activeMarkerId={activeMarkerId}
-            onApplyCorrection={onApplyCorrection}
+            onApplyCorrection={async (instruction, defectMark) => {
+              let binaryMask: string | null = null;
+              if (renderedResult?.base64 && (defectMark || defectBrushPaths.length > 0)) {
+                try {
+                  binaryMask = await generateBinaryMaskFromDefect(
+                    renderedResult.base64,
+                    defectMark,
+                    defectBrushPaths
+                  );
+                } catch (err) {
+                  console.warn('Error al generar la máscara binaria para inpainting:', err);
+                }
+              }
+              await onApplyCorrection(instruction, defectMark, binaryMask);
+            }}
             isGenerating={isGenerating}
             hasRender={!!renderedResult}
             currentVersion={currentVersion}
             canUndo={canUndo}
             onUndoToPreviousVersion={onUndoToPreviousVersion}
             externalPrefillText={commandPrefillText}
+
             onClearPrefill={() => setCommandPrefillText(null)}
             activeDefectMark={activeDefectMark}
             onClearDefectMark={handleClearDefectMark}
@@ -2194,6 +2393,7 @@ export function PlanCanvasPreview({
           promotionLogo={promotionLogo}
           agencyLogo={commercialAgencyLogo}
           unitIdentifier={activeUnitId}
+          customTotalUsefulArea={customTotalUsefulArea}
         />
       </div>
     </div>

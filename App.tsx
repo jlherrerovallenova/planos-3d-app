@@ -4,7 +4,9 @@ import {
   PresetConfig,
   RenderHistoryItem,
   RoomMarker,
-  DefectMark
+  RoomCategory,
+  DefectMark,
+  InteriorScene
 } from './types';
 import {
   DEFAULT_PRESETS,
@@ -13,14 +15,20 @@ import {
 import {
   buildArchitecturalPrompt,
   buildTargetedCorrectionPrompt,
-  parseTargetedRoomFromText
+  parseTargetedRoomFromText,
+  buildFirstPersonInteriorPrompt,
+  createFloorPlanWithViewpointMarker,
+  appendPromptVariation
 } from './services/promptBuilder';
+
 import { DEFAULT_PROMOTION_LOGO } from './services/defaultPromotionLogo';
 import { DEFAULT_AGENCY_LOGO } from './services/defaultAgencyLogo';
 import { PlanCanvasPreview } from './components/PlanCanvasPreview';
 import { StyleSelector } from './components/StyleSelector';
 import { IntroModal } from './components/IntroModal';
 import { ProjectExportModal } from './components/ProjectExportModal';
+import { InteriorSceneModal } from './components/InteriorSceneModal';
+
 import { safeDownloadFile, cleanBase64Data } from './services/downloadHelper';
 import { analyzeBlueprintRooms } from './services/planAnalyzer';
 import { sortRoomMarkers } from './services/roomSorter';
@@ -29,10 +37,48 @@ import { convertPdfToImage } from './services/pdfConverter';
 import {
   cropImageToBoundingBox,
   remapMarkersToCrop,
-  isSignificantCrop
+  isSignificantCrop,
+  autoTrimWhitespace
 } from './services/planCropper';
 
+/**
+ * Realiza llamadas a Gemini con reintentos progresivos y retroceso exponencial (Backoff).
+ * Protege contra errores temporales 500/503/429 o micro-cortes de red.
+ */
+async function fetchGeminiWithBackoff(endpoint: string, payload: any, maxRetries = 3): Promise<Response> {
+  let attempt = 0;
+  let lastResponse: Response | null = null;
+  while (attempt < maxRetries) {
+    attempt++;
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      lastResponse = response;
+      if (response.ok) {
+        return response;
+      }
+      if (response.status === 500 || response.status === 503 || response.status === 429) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 6000);
+        console.warn(`[Gemini API ${response.status}] Reintento ${attempt}/${maxRetries} en ${delay}ms...`);
+        await new Promise((res) => setTimeout(res, delay));
+        continue;
+      }
+      return response;
+    } catch (netErr) {
+      if (attempt >= maxRetries) throw netErr;
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 6000);
+      console.warn(`[Error de Red Gemini] Reintento ${attempt}/${maxRetries} en ${delay}ms...`);
+      await new Promise((res) => setTimeout(res, delay));
+    }
+  }
+  return lastResponse!;
+}
+
 export function App() {
+
   // 1. Título y Configuración de renderizado
   const [projectTitle, setProjectTitle] = useState<string>('Proyecto residencial de 140 viviendas');
   const [presets, setPresets] = useState<PresetConfig[]>(DEFAULT_PRESETS);
@@ -60,6 +106,21 @@ export function App() {
     name?: string;
     mediaId?: string;
   } | null>(null);
+  // Versión sin limpiar (con textos y cotas) para poder alternar con el borrado quirúrgico
+  const uncleanedSourceImageRef = useRef<{
+    base64: string;
+    mimeType: string;
+    name?: string;
+    mediaId?: string;
+  } | null>(null);
+  // Versión con borrado quirúrgico preservando muros y mobiliario
+  const cleanedSourceImageRef = useRef<{
+    base64: string;
+    mimeType: string;
+    name?: string;
+    mediaId?: string;
+  } | null>(null);
+  const [isTextCleaned, setIsTextCleaned] = useState<boolean>(false);
   const [isPlanIsolated, setIsPlanIsolated] = useState<boolean>(false);
   const detectedBlueprintBoxRef = useRef<[number, number, number, number] | null>(null);
 
@@ -87,6 +148,14 @@ export function App() {
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [isSidebarWide, setIsSidebarWide] = useState<boolean>(true);
+
+  // 4.5 Vistas Interiores 3D en primera persona (Ground-Level First-Person View)
+  const [interiorScenes, setInteriorScenes] = useState<InteriorScene[]>([]);
+  const [activeInteriorScene, setActiveInteriorScene] = useState<InteriorScene | null>(null);
+  const [isGeneratingInterior, setIsGeneratingInterior] = useState<boolean>(false);
+  const [generatingRoomId, setGeneratingRoomId] = useState<string | null>(null);
+  const [isInteriorModalOpen, setIsInteriorModalOpen] = useState<boolean>(false);
+
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isGeneratingBusyRef = useRef<boolean>(false);
@@ -118,6 +187,7 @@ export function App() {
       let activeMime = mime;
       let processedRooms = result.rooms || [];
       let wasCropped = false;
+      let uncleanedBase = imgBase64;
 
       // Aislamiento automático del plano: si contiene precios, cartelas o márgenes exteriores
       if (result.blueprintBoundingBox && isSignificantCrop(result.blueprintBoundingBox)) {
@@ -127,12 +197,65 @@ export function App() {
           const cropRes = await cropImageToBoundingBox(dataUrl, result.blueprintBoundingBox, 2.5);
           activeBase64 = cropRes.cleanBase64;
           activeMime = cropRes.mimeType;
+
+          // También recortar versión original sin limpiar para que ambas tengan el mismo encuadre
+          try {
+            const rawUrl = `data:${mime};base64,${imgBase64}`;
+            const rawCropRes = await cropImageToBoundingBox(rawUrl, result.blueprintBoundingBox, 2.5);
+            uncleanedBase = rawCropRes.cleanBase64;
+          } catch {
+            // Ignorar
+          }
+
           processedRooms = remapMarkersToCrop(processedRooms, cropRes.cropBox);
           wasCropped = true;
           setIsPlanIsolated(true);
         } catch (cropErr) {
           console.warn('Error al aislar plano automáticamente:', cropErr);
         }
+      } else if (!wasCropped) {
+        // Fallback local: auto-recorte de márgenes blancos o marcos para asegurar ocupación del 70-75%
+        try {
+          const dataUrl = `data:${activeMime};base64,${activeBase64}`;
+          const trimRes = await autoTrimWhitespace(dataUrl, processedRooms, 2.5);
+          if (trimRes.wasTrimmed && trimRes.cropBox) {
+            detectedBlueprintBoxRef.current = trimRes.cropBox;
+            const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
+            activeBase64 = cleanTrimmed.cleanBase64;
+            activeMime = cleanTrimmed.mimeType;
+            processedRooms = trimRes.markers;
+            wasCropped = true;
+            setIsPlanIsolated(true);
+
+            try {
+              const rawUrl = `data:${mime};base64,${imgBase64}`;
+              const rawTrimRes = await autoTrimWhitespace(rawUrl, undefined, 2.5);
+              if (rawTrimRes.wasTrimmed) {
+                const rawTrimmed = cleanBase64Data(rawTrimRes.trimmedDataUrl);
+                uncleanedBase = rawTrimmed.cleanBase64;
+              }
+            } catch {
+              // Ignorar
+            }
+          }
+        } catch (trimErr) {
+          console.warn('Error en auto-recorte fallback:', trimErr);
+        }
+      }
+
+      uncleanedSourceImageRef.current = {
+        base64: uncleanedBase,
+        mimeType: activeMime
+      };
+
+      if (result.cleanedImageBase64) {
+        cleanedSourceImageRef.current = {
+          base64: activeBase64,
+          mimeType: activeMime
+        };
+        setIsTextCleaned(true);
+      } else {
+        setIsTextCleaned(false);
       }
 
       setSourceImage((prev) => (prev ? { ...prev, base64: activeBase64, mimeType: activeMime } : prev));
@@ -145,8 +268,8 @@ export function App() {
         }));
         setGenerationSuccessMessage(
           wasCropped
-            ? `¡Plano arquitectónico extraído y aislado! Se han eliminado automáticamente los precios y textos exteriores, detectando ${processedRooms.length} estancias útiles.`
-            : `¡Plano analizado y textos de estancias eliminados! Se han detectado ${processedRooms.length} estancias ordenadas comercialmente.`
+            ? `¡Plano arquitectónico extraído y aislado! Textos eliminados quirúrgicamente preservando muros (${processedRooms.length} estancias).`
+            : `¡Plano analizado! Nombres y m² eliminados quirúrgicamente con muros y mobiliario intactos (${processedRooms.length} estancias).`
         );
       }
     } catch (err: any) {
@@ -158,7 +281,7 @@ export function App() {
   };
 
   const handleDetectRooms = async () => {
-    const targetImg = originalSourceImageRef.current || sourceImage;
+    const targetImg = uncleanedSourceImageRef.current || originalSourceImageRef.current || sourceImage;
     if (!targetImg) {
       setGenerationError('Carga primero una imagen del plano para analizarla.');
       return;
@@ -173,6 +296,7 @@ export function App() {
       let activeMime = targetImg.mimeType;
       let processedRooms = result.rooms || [];
       let wasCropped = false;
+      let uncleanedBase = targetImg.base64;
 
       if (result.blueprintBoundingBox && isSignificantCrop(result.blueprintBoundingBox)) {
         try {
@@ -181,12 +305,63 @@ export function App() {
           const cropRes = await cropImageToBoundingBox(dataUrl, result.blueprintBoundingBox, 2.5);
           activeBase64 = cropRes.cleanBase64;
           activeMime = cropRes.mimeType;
+
+          try {
+            const rawUrl = `data:${targetImg.mimeType};base64,${targetImg.base64}`;
+            const rawCropRes = await cropImageToBoundingBox(rawUrl, result.blueprintBoundingBox, 2.5);
+            uncleanedBase = rawCropRes.cleanBase64;
+          } catch {
+            // Ignorar
+          }
+
           processedRooms = remapMarkersToCrop(processedRooms, cropRes.cropBox);
           wasCropped = true;
           setIsPlanIsolated(true);
         } catch (cropErr) {
           console.warn('Error al aislar plano:', cropErr);
         }
+      } else if (!wasCropped) {
+        try {
+          const dataUrl = `data:${activeMime};base64,${activeBase64}`;
+          const trimRes = await autoTrimWhitespace(dataUrl, processedRooms, 2.5);
+          if (trimRes.wasTrimmed && trimRes.cropBox) {
+            detectedBlueprintBoxRef.current = trimRes.cropBox;
+            const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
+            activeBase64 = cleanTrimmed.cleanBase64;
+            activeMime = cleanTrimmed.mimeType;
+            processedRooms = trimRes.markers;
+            wasCropped = true;
+            setIsPlanIsolated(true);
+
+            try {
+              const rawUrl = `data:${targetImg.mimeType};base64,${targetImg.base64}`;
+              const rawTrimRes = await autoTrimWhitespace(rawUrl, undefined, 2.5);
+              if (rawTrimRes.wasTrimmed) {
+                const rawTrimmed = cleanBase64Data(rawTrimRes.trimmedDataUrl);
+                uncleanedBase = rawTrimmed.cleanBase64;
+              }
+            } catch {
+              // Ignorar
+            }
+          }
+        } catch (cropErr) {
+          console.warn('Error en auto-recorte fallback en handleDetectRooms:', cropErr);
+        }
+      }
+
+      uncleanedSourceImageRef.current = {
+        base64: uncleanedBase,
+        mimeType: activeMime
+      };
+
+      if (result.cleanedImageBase64) {
+        cleanedSourceImageRef.current = {
+          base64: activeBase64,
+          mimeType: activeMime
+        };
+        setIsTextCleaned(true);
+      } else {
+        setIsTextCleaned(false);
       }
 
       setSourceImage((prev) => (prev ? { ...prev, base64: activeBase64, mimeType: activeMime } : prev));
@@ -199,8 +374,8 @@ export function App() {
         }));
         setGenerationSuccessMessage(
           wasCropped
-            ? `¡Plano aislado con éxito! Precios y textos exteriores eliminados (${processedRooms.length} estancias detectadas).`
-            : `¡Plano limpio y analizado! Se detectaron ${processedRooms.length} estancias ordenadas comercialmente.`
+            ? `¡Plano aislado con éxito! Precios y textos eliminados quirúrgicamente (${processedRooms.length} estancias detectadas).`
+            : `¡Plano analizado! Textos de estancias eliminados preservando muros y líneas (${processedRooms.length} estancias).`
         );
       } else {
         setGenerationError('No se encontraron estancias rotuladas en el plano.');
@@ -219,13 +394,16 @@ export function App() {
 
     if (isPlanIsolated && originalSourceImageRef.current) {
       // Revertir al plano original sin recorte
-      setSourceImage(originalSourceImageRef.current);
+      const targetRevert = (isTextCleaned && cleanedSourceImageRef.current)
+        ? cleanedSourceImageRef.current
+        : originalSourceImageRef.current;
+      setSourceImage(targetRevert);
       setIsPlanIsolated(false);
       setGenerationSuccessMessage('Mostrando plano original completo (sin recorte).');
       return;
     }
 
-    const baseImg = originalSourceImageRef.current || sourceImage;
+    const baseImg = uncleanedSourceImageRef.current || originalSourceImageRef.current || sourceImage;
     if (!baseImg) return;
 
     if (detectedBlueprintBoxRef.current) {
@@ -249,8 +427,54 @@ export function App() {
         console.warn('Error recortando plano:', err);
       }
     } else {
+      // Auto-recorte inteligente local inmediato para aislar el plano y llenar el 75%
+      try {
+        const dataUrl = `data:${baseImg.mimeType};base64,${baseImg.base64}`;
+        const trimRes = await autoTrimWhitespace(dataUrl, config.roomMarkers, 2.5);
+        if (trimRes.wasTrimmed && trimRes.cropBox) {
+          detectedBlueprintBoxRef.current = trimRes.cropBox;
+          const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
+          setSourceImage({
+            ...baseImg,
+            base64: cleanTrimmed.cleanBase64,
+            mimeType: cleanTrimmed.mimeType
+          });
+          if (trimRes.markers && trimRes.markers.length > 0) {
+            setConfig((prev) => ({
+              ...prev,
+              roomMarkers: trimRes.markers
+            }));
+          }
+          setIsPlanIsolated(true);
+          setGenerationSuccessMessage('¡Plano arquitectónico aislado! Márgenes eliminados para ocupar el 70-75% del marco.');
+          return;
+        }
+      } catch (err) {
+        console.warn('Error recortando plano con autoTrim:', err);
+      }
       triggerPlanAnalysis(baseImg.base64, baseImg.mimeType);
     }
+  };
+
+  // Alternar entre ver el plano con textos y cotas o ver el plano limpio quirúrgicamente
+  const handleToggleCleanText = async () => {
+    if (!sourceImage) return;
+
+    if (isTextCleaned && uncleanedSourceImageRef.current) {
+      setSourceImage((prev) => (prev ? { ...prev, base64: uncleanedSourceImageRef.current!.base64 } : prev));
+      setIsTextCleaned(false);
+      setGenerationSuccessMessage('Mostrando plano original con textos y cotas.');
+      return;
+    }
+
+    if (cleanedSourceImageRef.current) {
+      setSourceImage((prev) => (prev ? { ...prev, base64: cleanedSourceImageRef.current!.base64 } : prev));
+      setIsTextCleaned(true);
+      setGenerationSuccessMessage('Mostrando plano con borrado quirúrgico (muros, tabiques y mobiliario intactos).');
+      return;
+    }
+
+    handleCleanPlanTexts();
   };
 
   const handleCleanPlanTexts = async () => {
@@ -258,9 +482,26 @@ export function App() {
     setIsCleaningPlanText(true);
     setGenerationError(null);
     try {
-      const result = await analyzeBlueprintRooms(sourceImage.base64, sourceImage.mimeType);
+      const baseImg = uncleanedSourceImageRef.current || sourceImage;
+      const result = await analyzeBlueprintRooms(baseImg.base64, baseImg.mimeType);
       if (result.cleanedImageBase64) {
-        setSourceImage((prev) => (prev ? { ...prev, base64: result.cleanedImageBase64! } : prev));
+        let cleanBase = result.cleanedImageBase64;
+        if (isPlanIsolated && detectedBlueprintBoxRef.current) {
+          try {
+            const dataUrl = `data:${baseImg.mimeType};base64,${cleanBase}`;
+            const cropRes = await cropImageToBoundingBox(dataUrl, detectedBlueprintBoxRef.current, 2.5);
+            cleanBase = cropRes.cleanBase64;
+          } catch (cropErr) {
+            console.warn('Error recortando versión limpia:', cropErr);
+          }
+        }
+        const cleanedImg = {
+          ...sourceImage,
+          base64: cleanBase
+        };
+        cleanedSourceImageRef.current = cleanedImg;
+        setSourceImage(cleanedImg);
+        setIsTextCleaned(true);
       }
       if (result.rooms && result.rooms.length > 0) {
         setConfig((prev) => ({
@@ -268,7 +509,7 @@ export function App() {
           roomMarkers: sortRoomMarkers(result.rooms)
         }));
       }
-      setGenerationSuccessMessage('¡Todos los textos y superficies han sido eliminados del plano! Solo quedan los números identificadores.');
+      setGenerationSuccessMessage('¡Borrado quirúrgico completado! Textos y cifras eliminados preservando al 100% muros, tabiques y mobiliario.');
     } catch (err: any) {
       setGenerationError(`Error al limpiar textos del plano: ${err?.message || err}`);
     } finally {
@@ -280,7 +521,7 @@ export function App() {
     if (!sourceImage) return;
     try {
       const dataUrl = `data:${sourceImage.mimeType};base64,${sourceImage.base64}`;
-      const cleanedDataUrl = await eraseTextAtCoordinate(dataUrl, xPercent, yPercent, 4);
+      const cleanedDataUrl = await eraseTextAtCoordinate(dataUrl, xPercent, yPercent, 1.5);
       const { cleanBase64 } = cleanBase64Data(cleanedDataUrl);
       setSourceImage((prev) => (prev ? { ...prev, base64: cleanBase64 } : prev));
     } catch (err) {
@@ -302,16 +543,39 @@ export function App() {
           numPages: res.numPages,
           currentPage: 1
         });
-        const loadedImg = {
+        const rawImg = {
           base64: res.base64,
           mimeType: 'image/png',
           name: file.name.replace(/\.pdf$/i, '') + (res.numPages > 1 ? ' (Pág. 1)' : '')
         };
+        originalSourceImageRef.current = rawImg;
+
+        let activeBase64 = res.base64;
+        let wasTrimmed = false;
+        try {
+          const trimRes = await autoTrimWhitespace(`data:image/png;base64,${res.base64}`, undefined, 2.5);
+          if (trimRes.wasTrimmed && trimRes.cropBox) {
+            detectedBlueprintBoxRef.current = trimRes.cropBox;
+            const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
+            activeBase64 = cleanTrimmed.cleanBase64;
+            wasTrimmed = true;
+          }
+        } catch (trimErr) {
+          console.warn('Auto-recorte inicial PDF:', trimErr);
+        }
+
+        const loadedImg = {
+          base64: activeBase64,
+          mimeType: 'image/png',
+          name: rawImg.name
+        };
         setSourceImage(loadedImg);
-        originalSourceImageRef.current = loadedImg;
-        setIsPlanIsolated(false);
+        uncleanedSourceImageRef.current = loadedImg;
+        cleanedSourceImageRef.current = null;
+        setIsTextCleaned(false);
+        setIsPlanIsolated(wasTrimmed);
         setRenderedResult(null);
-        triggerPlanAnalysis(res.base64, 'image/png');
+        triggerPlanAnalysis(activeBase64, 'image/png');
       } catch (err: any) {
         console.error('Error al procesar el archivo PDF:', err);
         setGenerationError('No se pudo procesar el archivo PDF. Asegúrate de que no esté protegido con contraseña.');
@@ -346,19 +610,46 @@ export function App() {
         }
       }
 
-      const loadedImg = {
+      const rawImg = {
         base64: cleanBase64,
         mimeType,
         name: file.name,
         mediaId
       };
+      originalSourceImageRef.current = rawImg;
+
+      // Auto-recorte inteligente inmediato para eliminar márgenes vacíos y marcos CAD
+      let activeBase64 = cleanBase64;
+      let activeMime = mimeType;
+      let wasTrimmed = false;
+      try {
+        const trimRes = await autoTrimWhitespace(dataUrl, undefined, 2.5);
+        if (trimRes.wasTrimmed && trimRes.cropBox) {
+          detectedBlueprintBoxRef.current = trimRes.cropBox;
+          const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
+          activeBase64 = cleanTrimmed.cleanBase64;
+          activeMime = cleanTrimmed.mimeType;
+          wasTrimmed = true;
+        }
+      } catch (trimErr) {
+        console.warn('Auto-recorte inicial imagen:', trimErr);
+      }
+
+      const loadedImg = {
+        base64: activeBase64,
+        mimeType: activeMime,
+        name: file.name,
+        mediaId
+      };
       setSourceImage(loadedImg);
-      originalSourceImageRef.current = loadedImg;
-      setIsPlanIsolated(false);
+      uncleanedSourceImageRef.current = loadedImg;
+      cleanedSourceImageRef.current = null;
+      setIsTextCleaned(false);
+      setIsPlanIsolated(wasTrimmed);
       setRenderedResult(null);
       setGenerationError(null);
       // Extraer estancias y aislar plano automáticamente con IA
-      triggerPlanAnalysis(cleanBase64, mimeType);
+      triggerPlanAnalysis(activeBase64, activeMime);
     };
 
     reader.readAsDataURL(file);
@@ -372,16 +663,40 @@ export function App() {
       setGenerationError(null);
       const res = await convertPdfToImage(pdfFileInfo.file, targetPage);
       setPdfFileInfo((prev) => (prev ? { ...prev, currentPage: targetPage } : null));
-      const loadedImg = {
+
+      const rawImg = {
         base64: res.base64,
         mimeType: 'image/png',
         name: `${pdfFileInfo.file.name.replace(/\.pdf$/i, '')} (Pág. ${targetPage})`
       };
+      originalSourceImageRef.current = rawImg;
+
+      let activeBase64 = res.base64;
+      let wasTrimmed = false;
+      try {
+        const trimRes = await autoTrimWhitespace(`data:image/png;base64,${res.base64}`, undefined, 2.5);
+        if (trimRes.wasTrimmed && trimRes.cropBox) {
+          detectedBlueprintBoxRef.current = trimRes.cropBox;
+          const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
+          activeBase64 = cleanTrimmed.cleanBase64;
+          wasTrimmed = true;
+        }
+      } catch (trimErr) {
+        console.warn('Auto-recorte PDF página:', trimErr);
+      }
+
+      const loadedImg = {
+        base64: activeBase64,
+        mimeType: 'image/png',
+        name: rawImg.name
+      };
       setSourceImage(loadedImg);
-      originalSourceImageRef.current = loadedImg;
-      setIsPlanIsolated(false);
+      uncleanedSourceImageRef.current = loadedImg;
+      cleanedSourceImageRef.current = null;
+      setIsTextCleaned(false);
+      setIsPlanIsolated(wasTrimmed);
       setRenderedResult(null);
-      triggerPlanAnalysis(res.base64, 'image/png');
+      triggerPlanAnalysis(activeBase64, 'image/png');
     } catch (err: any) {
       console.error('Error al cambiar de página en PDF:', err);
       setGenerationError('Error al renderizar la página seleccionada del PDF.');
@@ -414,6 +729,9 @@ export function App() {
           };
           setSourceImage(loadedImg);
           originalSourceImageRef.current = loadedImg;
+          uncleanedSourceImageRef.current = loadedImg;
+          cleanedSourceImageRef.current = null;
+          setIsTextCleaned(false);
           setIsPlanIsolated(false);
           setRenderedResult(null);
           setGenerationError(null);
@@ -433,7 +751,7 @@ export function App() {
   const handleLoadSample = (sampleUrl: string, sampleName: string) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload = () => {
+    img.onload = async () => {
       const canvas = document.createElement('canvas');
       canvas.width = img.width;
       canvas.height = img.height;
@@ -442,20 +760,67 @@ export function App() {
         ctx.drawImage(img, 0, 0);
         const dataUrl = canvas.toDataURL('image/png');
         const { cleanBase64 } = cleanBase64Data(dataUrl);
-        const loadedImg = {
+        const rawImg = {
           base64: cleanBase64,
           mimeType: 'image/png',
           name: sampleName
         };
+        originalSourceImageRef.current = rawImg;
+
+        let activeBase64 = cleanBase64;
+        let wasTrimmed = false;
+        try {
+          const trimRes = await autoTrimWhitespace(dataUrl, undefined, 2.5);
+          if (trimRes.wasTrimmed && trimRes.cropBox) {
+            detectedBlueprintBoxRef.current = trimRes.cropBox;
+            const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
+            activeBase64 = cleanTrimmed.cleanBase64;
+            wasTrimmed = true;
+          }
+        } catch (trimErr) {
+          console.warn('Auto-recorte muestra:', trimErr);
+        }
+
+        const loadedImg = {
+          base64: activeBase64,
+          mimeType: 'image/png',
+          name: sampleName
+        };
         setSourceImage(loadedImg);
-        originalSourceImageRef.current = loadedImg;
-        setIsPlanIsolated(false);
+        uncleanedSourceImageRef.current = loadedImg;
+        cleanedSourceImageRef.current = null;
+        setIsTextCleaned(false);
+        setIsPlanIsolated(wasTrimmed);
         setRenderedResult(null);
         setGenerationError(null);
-        triggerPlanAnalysis(cleanBase64, 'image/png');
+        triggerPlanAnalysis(activeBase64, 'image/png');
       }
     };
     img.src = sampleUrl;
+  };
+
+  // Añadir nueva estancia manualmente
+  const handleAddMarker = (
+    category: RoomCategory = 'salon_comedor',
+    name?: string,
+    area?: number,
+    x: number = 50,
+    y: number = 50
+  ) => {
+    const newMarker: RoomMarker = {
+      id: `room_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: name || 'Nueva Estancia',
+      category,
+      x,
+      y,
+      notes: '',
+      areaSqMeters: area
+    };
+    setConfig((prev) => ({
+      ...prev,
+      roomMarkers: sortRoomMarkers([...(prev.roomMarkers || []), newMarker])
+    }));
+    setActiveMarkerId(newMarker.id);
   };
 
   // Manejo de Pines en el Canvas
@@ -463,31 +828,48 @@ export function App() {
     // Si no está activado el modo de pines o los marcadores están fijos, ignorar clics accidentales
     if (!isPinningMode) return;
 
-    if (!config.roomMarkers || config.roomMarkers.length === 0) {
-      const newMarker: RoomMarker = {
-        id: `room_${Date.now()}`,
-        name: 'Salón Principal',
-        category: 'salon_comedor',
-        x,
-        y,
-        notes: ''
-      };
-      setConfig((prev) => ({
-        ...prev,
-        roomMarkers: [newMarker]
-      }));
-      setActiveMarkerId(newMarker.id);
-      return;
-    }
-
     if (activeMarkerId) {
+      // Si hay una estancia seleccionada, mover su círculo al punto pulsado
       setConfig((prev) => ({
         ...prev,
         roomMarkers: prev.roomMarkers.map((m) =>
           m.id === activeMarkerId ? { ...m, x, y } : m
         )
       }));
+      return;
     }
+
+    // Si NO hay estancia seleccionada, crear automáticamente la siguiente estancia numerada en esa posición del plano
+    const currentCount = config.roomMarkers?.length || 0;
+    const defaultTemplates: { name: string; cat: RoomCategory }[] = [
+      { name: 'Salón - Comedor', cat: 'salon_comedor' },
+      { name: 'Cocina', cat: 'cocina' },
+      { name: 'Dormitorio 1', cat: 'dormitorio_principal' },
+      { name: 'Dormitorio 2', cat: 'dormitorio_secundario' },
+      { name: 'Baño 1', cat: 'bano_principal' },
+      { name: 'Aseo', cat: 'aseo_cortesia' },
+      { name: 'Terraza', cat: 'terraza_balcon' },
+      { name: 'Vestíbulo / Pasillo', cat: 'recibidor_distribuidor' }
+    ];
+    const template = defaultTemplates[currentCount] || {
+      name: `Estancia ${currentCount + 1}`,
+      cat: 'otro' as RoomCategory
+    };
+
+    const newMarker: RoomMarker = {
+      id: `room_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: template.name,
+      category: template.cat,
+      x,
+      y,
+      notes: ''
+    };
+
+    setConfig((prev) => ({
+      ...prev,
+      roomMarkers: sortRoomMarkers([...(prev.roomMarkers || []), newMarker])
+    }));
+    setActiveMarkerId(newMarker.id);
   };
 
   const handleUpdateMarker = (id: string, updates: Partial<RoomMarker>) => {
@@ -550,7 +932,7 @@ export function App() {
       setGenerationSuccessMessage(null);
     }
 
-    const currentImg = latestSourceImageRef.current || sourceImage;
+    const currentImg = cleanedSourceImageRef.current || latestSourceImageRef.current || sourceImage;
     if (!currentImg) {
       setGenerationError('Por favor, selecciona o sube un plano 2D antes de generar la maqueta.');
       return;
@@ -588,7 +970,17 @@ export function App() {
 
         if (genRes && genRes.base64) {
           const { cleanBase64, mimeType } = cleanBase64Data(genRes.base64);
-          const result = { base64: cleanBase64, mimeType: genRes.mimeType || mimeType };
+          let finalBase64 = cleanBase64;
+          let finalMime = genRes.mimeType || mimeType;
+          try {
+            const trimRes = await autoTrimWhitespace(`data:${finalMime};base64,${finalBase64}`, undefined, 2.0);
+            if (trimRes.wasTrimmed) {
+              const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
+              finalBase64 = cleanTrimmed.cleanBase64;
+              finalMime = cleanTrimmed.mimeType;
+            }
+          } catch (e) {}
+          const result = { base64: finalBase64, mimeType: finalMime };
           setRenderedResult(result);
 
           const historyItem: RenderHistoryItem = {
@@ -649,16 +1041,18 @@ export function App() {
             });
           }
 
-          parts.push({ text: currentPrompt });
+          const promptWithVariation = appendPromptVariation(currentPrompt);
+          parts.push({ text: promptWithVariation });
 
-          // react-doctor-disable-next-line react-doctor/no-async-event-handler-without-reentry-guard
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts }]
-            })
+          const response = await fetchGeminiWithBackoff(endpoint, {
+            systemInstruction: {
+              parts: [{
+                text: 'You are an elite architectural 3D visualizer and delineator. Render clean architectural plans with high-end materials and furniture only. Never print or render text, typography, room titles, dimensions, or numerical labels on floor or wall surfaces.'
+              }]
+            },
+            contents: [{ parts }]
           });
+
 
           if (!response.ok) {
             const errText = await response.text();
@@ -688,13 +1082,25 @@ export function App() {
       }
 
       if (generatedImage) {
-        setRenderedResult(generatedImage);
+        let finalRender = generatedImage;
+        try {
+          const trimRes = await autoTrimWhitespace(`data:${generatedImage.mimeType};base64,${generatedImage.base64}`, undefined, 2.0);
+          if (trimRes.wasTrimmed) {
+            const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
+            finalRender = {
+              base64: cleanTrimmed.cleanBase64,
+              mimeType: cleanTrimmed.mimeType
+            };
+          }
+        } catch (e) {}
+
+        setRenderedResult(finalRender);
 
         const historyItem: RenderHistoryItem = {
           id: `render_${Date.now()}`,
           mediaId: 'gemini_image',
-          base64: generatedImage.base64,
-          mimeType: generatedImage.mimeType,
+          base64: finalRender.base64,
+          mimeType: finalRender.mimeType,
           prompt: currentPrompt,
           config: { ...config },
           timestamp: Date.now(),
@@ -724,10 +1130,11 @@ export function App() {
     }
   };
 
-  // 4.1 Corrección puntual con IA (Image-to-Image sobre el render actual preservando el resto)
+  // 4.1 Corrección puntual con IA (Image-to-Image sobre el render actual preservando el resto con máscara binaria)
   const handleApplyTargetedCorrection = async (
     instruction: string,
-    defectMark?: DefectMark | null
+    defectMark?: DefectMark | null,
+    maskBase64?: string | null
   ) => {
     if (isGenerating || isGeneratingBusyRef.current) return;
     if (!instruction.trim()) return;
@@ -766,8 +1173,10 @@ export function App() {
       instruction,
       detection.matchedMarker,
       detection.roomIndex,
-      defectMark
+      defectMark,
+      !!maskBase64
     );
+
 
     const nextVersion = (history.length > 0 ? (history[0].versionNumber || history.length) : 1) + 1;
 
@@ -796,7 +1205,17 @@ export function App() {
 
         if (genRes && genRes.base64) {
           const { cleanBase64, mimeType } = cleanBase64Data(genRes.base64);
-          const result = { base64: cleanBase64, mimeType: genRes.mimeType || mimeType };
+          let finalBase64 = cleanBase64;
+          let finalMime = genRes.mimeType || mimeType;
+          try {
+            const trimRes = await autoTrimWhitespace(`data:${finalMime};base64,${finalBase64}`, undefined, 2.0);
+            if (trimRes.wasTrimmed) {
+              const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
+              finalBase64 = cleanTrimmed.cleanBase64;
+              finalMime = cleanTrimmed.mimeType;
+            }
+          } catch (e) {}
+          const result = { base64: finalBase64, mimeType: finalMime };
           setRenderedResult(result);
           setCurrentVersionNumber(nextVersion);
 
@@ -853,7 +1272,19 @@ export function App() {
         });
       }
 
-      parts.push({ text: targetedPrompt });
+      // Máscara binaria blanco/negro para inpainting quirúrgico
+      if (maskBase64) {
+        const { cleanBase64 } = cleanBase64Data(maskBase64);
+        parts.push({
+          inlineData: {
+            mimeType: 'image/png',
+            data: cleanBase64
+          }
+        });
+      }
+
+      const promptWithVariation = appendPromptVariation(targetedPrompt);
+      parts.push({ text: promptWithVariation });
 
       let generatedImage: { base64: string; mimeType: string } | null = null;
       let usedEngineName = '';
@@ -862,12 +1293,15 @@ export function App() {
       for (const model of candidateModels) {
         try {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-          // react-doctor-disable-next-line react-doctor/no-async-event-handler-without-reentry-guard
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts }] })
+          const response = await fetchGeminiWithBackoff(endpoint, {
+            systemInstruction: {
+              parts: [{
+                text: 'You are an elite architectural 3D visualizer and delineator. Render clean architectural plans with high-end materials and furniture only. Never print or render text, typography, room titles, dimensions, or numerical labels on floor or wall surfaces.'
+              }]
+            },
+            contents: [{ parts }]
           });
+
 
           if (!response.ok) {
             const errText = await response.text();
@@ -897,14 +1331,26 @@ export function App() {
       }
 
       if (generatedImage) {
-        setRenderedResult(generatedImage);
+        let finalRender = generatedImage;
+        try {
+          const trimRes = await autoTrimWhitespace(`data:${generatedImage.mimeType};base64,${generatedImage.base64}`, undefined, 2.0);
+          if (trimRes.wasTrimmed) {
+            const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
+            finalRender = {
+              base64: cleanTrimmed.cleanBase64,
+              mimeType: cleanTrimmed.mimeType
+            };
+          }
+        } catch (e) {}
+
+        setRenderedResult(finalRender);
         setCurrentVersionNumber(nextVersion);
 
         const historyItem: RenderHistoryItem = {
           id: `render_${Date.now()}`,
           mediaId: 'gemini_correction',
-          base64: generatedImage.base64,
-          mimeType: generatedImage.mimeType,
+          base64: finalRender.base64,
+          mimeType: finalRender.mimeType,
           prompt: targetedPrompt,
           config: { ...config, roomMarkers: updatedMarkers },
           timestamp: Date.now(),
@@ -933,8 +1379,145 @@ export function App() {
     }
   };
 
+  // Generar render interior 3D a pie de estancia (en primera persona)
+  const handleGenerateRoomInterior = async (marker: RoomMarker, roomIndex: number) => {
+    const currentImg = latestSourceImageRef.current || sourceImage;
+    if (!currentImg || !currentImg.base64) {
+      setGenerationError('Carga primero un plano arquitectónico para generar perspectivas interiores.');
+      return;
+    }
+
+    const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      setGenerationError('No se encontró VITE_GEMINI_API_KEY en .env.local.');
+      return;
+    }
+
+    setIsGeneratingInterior(true);
+    setGeneratingRoomId(marker.id);
+    setGenerationError(null);
+
+    try {
+      // 1. Superponer visualmente el punto de vista (círculo rojo con número) en el plano
+      const markedPlan = await createFloorPlanWithViewpointMarker(
+        currentImg.base64,
+        currentImg.mimeType || 'image/png',
+        marker.x,
+        marker.y,
+        roomIndex
+      );
+
+      // 2. Construir prompt arquitectónico en primera persona
+      const interiorPrompt = buildFirstPersonInteriorPrompt(config, marker, roomIndex);
+
+      // 3. Motores de imagen Gemini candidatos
+      const chosenEngine = config.renderEngine && config.renderEngine !== 'auto' ? config.renderEngine : null;
+      const defaultSequence = [
+        'gemini-3.1-flash-image',
+        'gemini-3-pro-image',
+        'gemini-2.5-flash-image',
+        'gemini-3.1-flash-image-preview',
+        'gemini-3-pro-image-preview',
+        'gemini-3.1-flash-lite-image'
+      ];
+      const candidateModels = chosenEngine
+        ? [chosenEngine, ...defaultSequence.filter((m) => m !== chosenEngine)]
+        : defaultSequence;
+
+      let generatedInterior: { base64: string; mimeType: string } | null = null;
+      let usedEngineName = '';
+      let lastErrorMessage = '';
+
+      for (const model of candidateModels) {
+        try {
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const promptWithVariation = appendPromptVariation(interiorPrompt);
+          const parts: any[] = [
+            {
+              inlineData: {
+                mimeType: markedPlan.mimeType,
+                data: markedPlan.base64
+              }
+            },
+            { text: promptWithVariation }
+          ];
+
+          const response = await fetchGeminiWithBackoff(endpoint, {
+            systemInstruction: {
+              parts: [{
+                text: 'You are an elite architectural interior photographer and 3D visualizer. Render photorealistic eye-level indoor photographs from the viewpoint specified on the floor plan. Never print or render text, titles, or watermarks.'
+              }]
+            },
+            contents: [{ parts }]
+          });
+
+
+          if (!response.ok) {
+            const errText = await response.text();
+            lastErrorMessage = `API error ${response.status}: ${errText}`;
+            continue;
+          }
+
+          const data = await response.json();
+          const imagePart = data.candidates?.[0]?.content?.parts?.find(
+            (p: any) => p.inlineData && p.inlineData.data
+          );
+
+          if (imagePart?.inlineData?.data) {
+            const { cleanBase64, mimeType } = cleanBase64Data(imagePart.inlineData.data);
+            generatedInterior = {
+              base64: cleanBase64,
+              mimeType: imagePart.inlineData.mimeType || mimeType || 'image/jpeg'
+            };
+            usedEngineName = model;
+            break;
+          }
+        } catch (modelErr: any) {
+          lastErrorMessage = modelErr?.message || 'Error de conexión con Gemini';
+        }
+      }
+
+      if (generatedInterior) {
+        const newScene: InteriorScene = {
+          id: `interior_${Date.now()}`,
+          roomId: marker.id,
+          roomName: marker.name,
+          roomCategory: marker.category,
+          roomIndex,
+          base64: generatedInterior.base64,
+          mimeType: generatedInterior.mimeType,
+          prompt: interiorPrompt,
+          timestamp: Date.now(),
+          engineUsed: usedEngineName
+        };
+
+        setInteriorScenes((prev) => [newScene, ...prev.filter((s) => s.roomId !== marker.id)]);
+        setActiveInteriorScene(newScene);
+        setIsInteriorModalOpen(true);
+        setGenerationSuccessMessage(`¡Vista interior de ${marker.name} generada con éxito!`);
+      } else {
+        throw new Error(lastErrorMessage || 'No se pudo generar la perspectiva interior.');
+      }
+    } catch (err: any) {
+      console.error('Error generando vista interior:', err);
+      setGenerationError(err?.message || 'Error al generar la perspectiva interior.');
+    } finally {
+      setIsGeneratingInterior(false);
+      setGeneratingRoomId(null);
+    }
+  };
+
+  const handleRegenerateInteriorScene = (roomId: string) => {
+    const marker = config.roomMarkers.find((m) => m.id === roomId);
+    if (marker) {
+      const idx = config.roomMarkers.findIndex((m) => m.id === roomId);
+      handleGenerateRoomInterior(marker, idx >= 0 ? idx : 0);
+    }
+  };
+
   // Restaurar versión específica del historial
   const handleRestoreVersion = (item: RenderHistoryItem) => {
+
     setRenderedResult({
       base64: item.base64,
       mimeType: item.mimeType
@@ -1212,17 +1795,23 @@ export function App() {
               onChangeIsometricOrientation={(orientation, angle) => setConfig((prev) => ({ ...prev, isometricOrientation: orientation, isometricRotationAngle: angle }))}
               onIsolatePlan={handleToggleIsolatePlan}
               isPlanIsolated={isPlanIsolated}
+              isTextCleaned={isTextCleaned}
+              onToggleCleanText={handleToggleCleanText}
               projectTitle={projectTitle}
               activeMarkerId={activeMarkerId}
               isPinningMode={isPinningMode}
               onMarkerClick={(id) => setActiveMarkerId(id)}
               onCanvasClickToPositionMarker={handleCanvasClickToPositionMarker}
+              onAddMarker={handleAddMarker}
               onUpdateMarker={handleUpdateMarker}
               onDeleteMarker={handleDeleteMarker}
               onTogglePinningMode={() => setIsPinningMode(!isPinningMode)}
               onClearPlan={() => {
                 setSourceImage(null);
                 originalSourceImageRef.current = null;
+                uncleanedSourceImageRef.current = null;
+                cleanedSourceImageRef.current = null;
+                setIsTextCleaned(false);
                 setIsPlanIsolated(false);
                 detectedBlueprintBoxRef.current = null;
                 setRenderedResult(null);
@@ -1245,7 +1834,15 @@ export function App() {
               pdfPagesInfo={pdfFileInfo ? { currentPage: pdfFileInfo.currentPage, numPages: pdfFileInfo.numPages } : null}
               onPdfPageChange={handlePdfPageChange}
               onDropFile={processUploadedFile}
+              onGenerateInterior={handleGenerateRoomInterior}
+              isGeneratingInterior={isGeneratingInterior}
+              generatingRoomId={generatingRoomId}
+              lighting={config.lighting}
+              onChangeLighting={(l) => setConfig((prev) => ({ ...prev, lighting: l }))}
+              customTotalUsefulArea={config.customTotalUsefulArea}
+              onChangeCustomTotalUsefulArea={(val) => setConfig((prev) => ({ ...prev, customTotalUsefulArea: val }))}
             />
+
           </div>
         </section>
 
@@ -1276,6 +1873,9 @@ export function App() {
               onDetectWithAI={handleDetectRooms}
               isDetectingWithAI={isAnalyzingPlan}
               hasSourceImage={!!sourceImage}
+              onGenerateInterior={handleGenerateRoomInterior}
+              isGeneratingInterior={isGeneratingInterior}
+              generatingRoomId={generatingRoomId}
               history={history}
               onApplyCorrection={handleApplyTargetedCorrection}
               onRestoreVersion={handleRestoreVersion}
@@ -1310,8 +1910,18 @@ export function App() {
         renderedResult={renderedResult}
         history={history}
       />
+      <InteriorSceneModal
+        isOpen={isInteriorModalOpen}
+        onClose={() => setIsInteriorModalOpen(false)}
+        scene={activeInteriorScene}
+        allScenes={interiorScenes}
+        onSelectScene={(scene) => setActiveInteriorScene(scene)}
+        onRegenerateScene={handleRegenerateInteriorScene}
+        isRegenerating={isGeneratingInterior}
+      />
     </div>
   );
 }
+
 
 export default App;

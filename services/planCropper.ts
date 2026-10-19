@@ -191,31 +191,53 @@ export async function autoTrimWhitespace(
         const imgData = ctx.getImageData(0, 0, w, h);
         const data = imgData.data;
 
+        // Muestrear las 4 esquinas para detectar el color de fondo predominante (blanco o gris claro)
+        const sampleCorner = (pxX: number, pxY: number) => {
+          const idx = (pxY * w + pxX) * 4;
+          return { r: data[idx], g: data[idx + 1], b: data[idx + 2] };
+        };
+        const c1 = sampleCorner(Math.min(8, w - 1), Math.min(8, h - 1));
+        const c2 = sampleCorner(Math.max(0, w - 9), Math.min(8, h - 1));
+        const c3 = sampleCorner(Math.min(8, w - 1), Math.max(0, h - 9));
+        const c4 = sampleCorner(Math.max(0, w - 9), Math.max(0, h - 9));
+
+        const bgR = Math.round((c1.r + c2.r + c3.r + c4.r) / 4);
+        const bgG = Math.round((c1.g + c2.g + c3.g + c4.g) / 4);
+        const bgB = Math.round((c1.b + c2.b + c3.b + c4.b) / 4);
+
+        // Muchos planos CAD/PDF tienen un marco o recuadro perimetral a 1-2.5% del borde de la hoja.
+        // Ignoramos esa franja exterior para no confundir el marco de la página con los muros de la vivienda.
+        const padEdgeX = Math.max(5, Math.min(35, Math.floor(w * 0.02)));
+        const padEdgeY = Math.max(5, Math.min(35, Math.floor(h * 0.02)));
+
         // Detección de píxeles con información gráfica (muros, texturas, suelos, carpinterías)
-        const isContent = (idx: number) => {
+        const isContent = (x: number, y: number) => {
+          if (x < padEdgeX || x >= w - padEdgeX || y < padEdgeY || y >= h - padEdgeY) {
+            return false;
+          }
+          const idx = (y * w + x) * 4;
           const a = data[idx + 3];
           if (a < 25) return false;
           const r = data[idx];
           const g = data[idx + 1];
           const b = data[idx + 2];
-          const max = Math.max(r, g, b);
-          const min = Math.min(r, g, b);
-          if (max - min > 15) return true; // Color o contraste
-          return max < 242; // Fondo no blanco
+
+          const diff = Math.max(Math.abs(r - bgR), Math.abs(g - bgG), Math.abs(b - bgB));
+          if (diff > 18) return true;
+          return Math.max(r, g, b) < 242;
         };
 
         let minY = h, maxY = 0;
         let minX = w, maxX = 0;
         let contentFound = false;
 
-        const rowThreshold = Math.max(3, Math.floor(w * 0.004));
-        const colThreshold = Math.max(3, Math.floor(h * 0.004));
+        const rowThreshold = Math.max(6, Math.floor(w * 0.008));
+        const colThreshold = Math.max(6, Math.floor(h * 0.008));
 
-        for (let y = 0; y < h; y += 2) {
+        for (let y = padEdgeY; y < h - padEdgeY; y += 2) {
           let count = 0;
-          const rowStart = y * w * 4;
-          for (let x = 0; x < w; x += 2) {
-            if (isContent(rowStart + x * 4)) {
+          for (let x = padEdgeX; x < w - padEdgeX; x += 2) {
+            if (isContent(x, y)) {
               count++;
               if (count >= rowThreshold) {
                 if (y < minY) minY = y;
@@ -232,10 +254,10 @@ export async function autoTrimWhitespace(
           return;
         }
 
-        for (let x = 0; x < w; x += 2) {
+        for (let x = padEdgeX; x < w - padEdgeX; x += 2) {
           let count = 0;
           for (let y = minY; y <= maxY; y += 2) {
-            if (isContent((y * w + x) * 4)) {
+            if (isContent(x, y)) {
               count++;
               if (count >= colThreshold) {
                 if (x < minX) minX = x;

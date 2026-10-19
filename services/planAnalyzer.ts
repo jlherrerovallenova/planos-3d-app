@@ -28,10 +28,11 @@ export async function analyzeBlueprintRooms(
 
   const prompt = `Actúa como arquitecto técnico y delineante experto.
 Analiza detenidamente esta imagen de un plano arquitectónico o plano de ventas comercial.
-Tu tarea es leer con máxima precisión todas las estancias rotuladas y sus superficies útiles en m² (metros cuadrados).
+Tu tarea es leer con máxima precisión las estancias rotuladas y sus superficies útiles en m² (metros cuadrados).
 
 INSTRUCCIONES CLAVE:
-1. Lee todos los textos y números que indican superficies en cada habitación (ejemplo: "Vestíbulo 4.14", "Salón-comedor-cocina 30.74", "Dormitorio 1", "Dormitorio 2 10.43", "Dormitorio 3 10.74", "Pasillo 7.48", "Aseo 3.56", "Baño 4.34", "Terraza 10.70", etc.).
+0. REGLA FUNDAMENTAL DE PLANO LIMPIO: Si el dibujo del plano NO tiene textos rotulados de estancias ni números de superficies en m² (es un dibujo limpio, esquema CAD o plano mudo sin cotas escritas), NO extraigas nada ni inventes textos o cajas. Devuelve estrictamente "rooms": [] y "textBoxes": [] para que el dibujo se mantenga 100% puro y se renderice directamente sin tocar los muros ni el dibujo.
+1. Si y solo si el plano tiene textos escritos, lee todos los textos y números que indican superficies en cada habitación (ejemplo: "Vestíbulo 4.14", "Salón-comedor-cocina 30.74", "Dormitorio 1", "Dormitorio 2 10.43", "Dormitorio 3 10.74", "Pasillo 7.48", "Aseo 3.56", "Baño 4.34", "Terraza 10.70", etc.).
 2. Fíjate en los resúmenes o totales si aparecen (ejemplo: "S. Util 83.95 m2", "S terraza 10.70 m2", "S.const 109.43 m2").
 3. Si una estancia tiene el nombre rotulado pero no se lee claramente su superficie, y dispones del total de superficie útil ("S. Util"), deduce la superficie de esa estancia restando las demás del total para que la suma sea coherente.
 4. Para cada estancia, proporciona:
@@ -52,13 +53,10 @@ INSTRUCCIONES CLAVE:
    8º Pasillo / Distribuidor
    9º Terraza (o Terraza 1, Terraza 2 si hay varias)
    Si no hay 3 dormitorios, el Baño pasa a la posición 4 y así sucesivamente de forma natural.
-6. MÁXIMA DE ORO: DETECCIÓN EXHAUSTIVA DE TODO TEXTO Y NÚMERO PARA SU BORRADO TOTAL:
-   Es una MÁXIMA IMPERATIVA ABSOLUTA borrar y eliminar el 100% de los textos y números del plano.
-   Detecta con precisión MILIMÉTRICA las cajas de delimitación [ymin, xmin, ymax, xmax] en escala 0-1000 de ABSOLUTAMENTE TODOS los textos, letras, títulos, rótulos, cotas, abreviaturas y números presentes en el plano:
-   - TODOS los nombres de estancias (ejemplo: 'Salón', 'Comedor', 'Cocina', 'Dormitorio 1', 'Dormitorio 2', 'Dormitorio 3', 'Baño', 'Aseo', 'Vestíbulo', 'Pasillo', 'Distribuidor', 'Terraza', 'Tendedero', 'Lavadero', etc.).
-   - TODAS las cifras de metros cuadrados y superficies útiles (ejemplo: '30.74', '10.43', '4.14', 'm2', 'm²', 'm.u.', etc.).
-   - TODAS las cotas de distancia, números de puertas o armarios, indicaciones técnicas y leyendas.
-   Cada texto debe tener su caja delimitadora [ymin, xmin, ymax, xmax] en el array 'textBoxes' para que nuestro motor gráfico pueda parcharlo y eliminarlo por completo con el color del suelo.
+6. DETECCIÓN Y BORRADO TOTAL DE NOMBRES DE ESTANCIAS Y SUPERFICIES (textBoxes):
+   Detecta las cajas delimitadoras [ymin, xmin, ymax, xmax] en escala 0-1000 de TODO bloque de texto, nombre de estancia, números de superficie (m²) y rótulos presentes en el plano.
+   - Si una estancia tiene su nombre y superficie juntos (ej: "Vestíbulo 4.14", "Dormitorio 1 12.79", "Salón-comedor 30.74"), abárcalos preferentemente en una caja que cubra el bloque completo para asegurar su borrado total.
+   - Incluye también cajas para tablas o cuadros de superficies externas ("S. Util", "S. const", "S. terraza", etc.).
 7. DETECCIÓN Y AISLAMIENTO DEL PLANO (BLUEPRINT BOUNDING BOX):
    Detecta la caja delimitadora [ymin, xmin, ymax, xmax] en escala 0-1000 que encuadra EXCLUSIVAMENTE los muros exteriores y el perímetro de la vivienda / plano arquitectónico ('blueprintBoundingBox').
    REGLA ESTRICTA DE EXCLUSIÓN: Si la imagen contiene columnas de texto externas, listados de precios (ejemplo: '5º B 250.000', '4º B 245.000', listas de importes), logotipos, leyendas, márgenes vacíos o dibujos secundarios fuera de la vivienda: EXCLÚYELOS de la caja. El 'blueprintBoundingBox' debe encuadrar ÚNICA Y EXCLUSIVAMENTE el plano de la vivienda.
@@ -135,10 +133,13 @@ Devuelve estrictamente un objeto JSON con el siguiente esquema:
     notes: r.notes || ''
   }));
 
-  // Limpiar y borrar todos los textos del plano automáticamente con el color del suelo
+  // Limpiar y borrar textos del plano SÓLO SI se han detectado cajas de texto reales en la imagen
   let cleanedBase64Result: string | undefined = undefined;
-  const detectedBoxes: TextBoxDetection[] = Array.isArray(parsed.textBoxes) ? parsed.textBoxes : [];
+  const detectedBoxes: TextBoxDetection[] = Array.isArray(parsed.textBoxes)
+    ? parsed.textBoxes.filter((b: any) => b && Array.isArray(b.box2d) && b.box2d.length === 4)
+    : [];
 
+  // Si no hay textos rotulados en el plano, NO tocar ni alterar la imagen original
   if (detectedBoxes.length > 0) {
     try {
       const cleanedDataUrl = await cleanPlanTextsFromBoxes(dataUrl, detectedBoxes);

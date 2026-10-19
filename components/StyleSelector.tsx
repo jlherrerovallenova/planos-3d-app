@@ -44,6 +44,9 @@ interface StyleSelectorProps {
   onDetectWithAI?: () => void;
   isDetectingWithAI?: boolean;
   hasSourceImage?: boolean;
+  onGenerateInterior?: (marker: RoomMarker, roomIndex: number) => void;
+  isGeneratingInterior?: boolean;
+  generatingRoomId?: string | null;
   // Correcciones puntuales y control de versiones
   history?: RenderHistoryItem[];
   onApplyCorrection?: (instruction: string) => Promise<void>;
@@ -53,6 +56,7 @@ interface StyleSelectorProps {
   isWide?: boolean;
   onToggleWide?: () => void;
 }
+
 
 type TabMode = 'presets' | 'camera' | 'rooms' | 'calidades' | 'config' | 'corrections' | 'flooring' | 'carpentry';
 
@@ -74,11 +78,15 @@ export function StyleSelector({
   onDetectWithAI,
   isDetectingWithAI = false,
   hasSourceImage = false,
+  onGenerateInterior,
+  isGeneratingInterior = false,
+  generatingRoomId = null,
   history = [],
   onApplyCorrection,
   onRestoreVersion,
   currentVersion = 1,
   isWide = true,
+
   onToggleWide
 }: StyleSelectorProps) {
   const [activeTab, setActiveTab] = useState<TabMode>('presets');
@@ -838,7 +846,13 @@ export function StyleSelector({
               onDetectWithAI={onDetectWithAI}
               isDetectingWithAI={isDetectingWithAI}
               hasSourceImage={hasSourceImage}
+              onGenerateInterior={onGenerateInterior}
+              isGeneratingInterior={isGeneratingInterior}
+              generatingRoomId={generatingRoomId}
+              customTotalUsefulArea={config.customTotalUsefulArea}
+              onChangeCustomTotalUsefulArea={(val) => updateField('customTotalUsefulArea', val)}
             />
+
           </div>
         )}
 

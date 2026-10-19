@@ -127,6 +127,7 @@ export async function generateBrochureCanvas({
   promotionLogo = DEFAULT_PROMOTION_LOGO,
   agencyLogo = DEFAULT_AGENCY_LOGO,
   unitIdentifier = 'PORTAL 1 - 1º A',
+  customTotalUsefulArea,
   width = 2480,
   height = 1754
 }: {
@@ -137,6 +138,7 @@ export async function generateBrochureCanvas({
   promotionLogo?: string | null;
   agencyLogo?: string | null;
   unitIdentifier?: string;
+  customTotalUsefulArea?: number;
   width?: number;
   height?: number;
 }): Promise<HTMLCanvasElement | null> {
@@ -165,7 +167,7 @@ export async function generateBrochureCanvas({
         const badgeTextColor = getContrastColor(badgeBg);
 
         const scale = width / 1920;
-        const schedule = categorizeRoomsForSchedule(effectiveMarkers as any);
+        const schedule = categorizeRoomsForSchedule(effectiveMarkers as any, customTotalUsefulArea);
 
         // 1. Fondo blanco comercial
         ctx.fillStyle = '#FFFFFF';
@@ -498,6 +500,7 @@ export async function exportCommercialBrochureImage({
   promotionLogo = DEFAULT_PROMOTION_LOGO,
   agencyLogo = DEFAULT_AGENCY_LOGO,
   unitIdentifier = 'PORTAL 1 - 1º A',
+  customTotalUsefulArea,
   filename = 'ficha_comercial_arquitectura.png'
 }: {
   imageSrc: string;
@@ -507,6 +510,7 @@ export async function exportCommercialBrochureImage({
   promotionLogo?: string | null;
   agencyLogo?: string | null;
   unitIdentifier?: string;
+  customTotalUsefulArea?: number;
   filename?: string;
 }): Promise<boolean> {
   const canvas = await generateBrochureCanvas({
@@ -517,6 +521,7 @@ export async function exportCommercialBrochureImage({
     promotionLogo,
     agencyLogo,
     unitIdentifier,
+    customTotalUsefulArea,
     width: 2480,
     height: 1754
   });
@@ -540,6 +545,7 @@ export async function exportCommercialBrochurePDF({
   promotionLogo = DEFAULT_PROMOTION_LOGO,
   agencyLogo = DEFAULT_AGENCY_LOGO,
   unitIdentifier = 'PORTAL 1 - 1º A',
+  customTotalUsefulArea,
   filename = 'ficha_comercial_plano.pdf'
 }: {
   imageSrc: string;
@@ -549,6 +555,7 @@ export async function exportCommercialBrochurePDF({
   promotionLogo?: string | null;
   agencyLogo?: string | null;
   unitIdentifier?: string;
+  customTotalUsefulArea?: number;
   filename?: string;
 }): Promise<boolean> {
   const trimRes = await autoTrimWhitespace(imageSrc, markers as any, 2.0);
@@ -567,7 +574,7 @@ export async function exportCommercialBrochurePDF({
         const badgeTextColor = getContrastColor(badgeBg);
         const textRgb = hexToRgb(badgeTextColor);
 
-        const schedule = categorizeRoomsForSchedule(effectiveMarkers as any);
+        const schedule = categorizeRoomsForSchedule(effectiveMarkers as any, customTotalUsefulArea);
 
         // A4 Landscape: 297mm x 210mm
         const doc = new jsPDF({

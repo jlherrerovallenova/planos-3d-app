@@ -266,13 +266,19 @@ export interface CategorizedSchedule {
   interiorTotal: number;
   exteriorTotal: number;
   grandTotal: number;
+  calculatedGrandTotal: number;
+  isCustomGrandTotal: boolean;
   hasExterior: boolean;
 }
 
 /**
- * Agrupa y suma las estancias en Útiles Interiores y Exteriores según los estándares comerciales
+ * Agrupa y suma las estancias en Útiles Interiores y Exteriores según los estándares comerciales.
+ * Si se especifica un customGrandTotal (> 0), se utiliza este valor como total oficial.
  */
-export function categorizeRoomsForSchedule(markers: RoomMarker[]): CategorizedSchedule {
+export function categorizeRoomsForSchedule(
+  markers: RoomMarker[],
+  customGrandTotal?: number
+): CategorizedSchedule {
   const sortedMarkers = sortRoomMarkers(markers || []);
   const interiorRooms: RoomMarker[] = [];
   const exteriorRooms: RoomMarker[] = [];
@@ -287,7 +293,10 @@ export function categorizeRoomsForSchedule(markers: RoomMarker[]): CategorizedSc
 
   const interiorTotal = interiorRooms.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0);
   const exteriorTotal = exteriorRooms.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0);
-  const grandTotal = interiorTotal + exteriorTotal;
+  const calculatedGrandTotal = interiorTotal + exteriorTotal;
+
+  const hasCustomTotal = typeof customGrandTotal === 'number' && !isNaN(customGrandTotal) && customGrandTotal > 0;
+  const grandTotal = hasCustomTotal ? customGrandTotal : calculatedGrandTotal;
 
   return {
     sortedMarkers,
@@ -296,6 +305,8 @@ export function categorizeRoomsForSchedule(markers: RoomMarker[]): CategorizedSc
     interiorTotal,
     exteriorTotal,
     grandTotal,
+    calculatedGrandTotal,
+    isCustomGrandTotal: hasCustomTotal,
     hasExterior: exteriorRooms.length > 0
   };
 }
