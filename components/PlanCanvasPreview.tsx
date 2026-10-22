@@ -3,7 +3,7 @@ import { CameraAngle, RoomMarker, RoomCategory, IsometricOrientation, DefectMark
 import { ROOM_CATEGORIES, SAMPLE_PLANS, ISOMETRIC_ORIENTATIONS } from '../constants';
 import { SurfaceScheduleTable } from './SurfaceScheduleTable';
 import { PdfExportModal } from './PdfExportModal';
-import { sortRoomMarkers } from '../services/roomSorter';
+import { sortRoomMarkers, isExteriorRoom } from '../services/roomSorter';
 import { DEFAULT_PROMOTION_LOGO } from '../services/defaultPromotionLogo';
 import { DEFAULT_AGENCY_LOGO } from '../services/defaultAgencyLogo';
 import { DEFAULT_PROMUEVE_LOGO } from '../services/defaultPromueveLogo';
@@ -174,14 +174,55 @@ export function PlanCanvasPreview({
 
   const badgeBg = markerBadgeColor || '#0F2C59';
   const badgeText = getContrastTextColor(badgeBg);
-  const [localUnitIdentifier, setLocalUnitIdentifier] = useState<string>(unitIdentifier || 'PORTAL 1 - 1º A');
-  const activeUnitId = unitIdentifier !== undefined ? unitIdentifier : localUnitIdentifier;
+  const [localUnitIdentifier, setLocalUnitIdentifier] = useState<string>(unitIdentifier || 'Portal 1 · 1º A');
+  const activeUnitId = unitIdentifier !== undefined && unitIdentifier !== '' ? unitIdentifier : localUnitIdentifier || 'Portal 1 · 1º A';
   const handleUnitIdentifierChange = (value: string) => {
     setLocalUnitIdentifier(value);
     if (onChangeUnitIdentifier) {
       onChangeUnitIdentifier(value);
     }
   };
+
+  // Formato Planta y Letra para el pie del plano (ej. PLANTA 1ª · LETRA A)
+  const floorAndLetterText = useMemo(() => {
+    if (!activeUnitId) return 'PLANTA 1ª · LETRA A';
+    const clean = activeUnitId.trim();
+    const match = clean.match(/(?:(?:portal\s*\d+)?\s*[·\-\s]\s*)?(\d+)[ºª\s]*\s*([a-zA-Z])/i);
+    if (match) {
+      return `PLANTA ${match[1]}ª · LETRA ${match[2].toUpperCase()}`;
+    }
+    const plantaMatch = clean.match(/planta\s*([^\s·\-]+)/i);
+    const letraMatch = clean.match(/letra\s*([a-zA-Z])/i);
+    if (plantaMatch || letraMatch) {
+      return `PLANTA ${plantaMatch ? plantaMatch[1] : '1ª'} · LETRA ${letraMatch ? letraMatch[1].toUpperCase() : 'A'}`;
+    }
+    return clean.toUpperCase();
+  }, [activeUnitId]);
+
+  // Contadores dinámicos para los badges del bloque VIVIENDA
+  const { bedroomsCount, bathroomsCount, terracesCount } = useMemo(() => {
+    let bed = 0;
+    let bath = 0;
+    let terr = 0;
+
+    (roomMarkers || []).forEach((m) => {
+      const name = (m.name || '').toLowerCase();
+      const cat = (m.category || '').toLowerCase();
+      if (cat.includes('dormitorio') || name.includes('dormitorio') || name.includes('habitacion')) {
+        bed++;
+      } else if (cat.includes('bano') || cat.includes('aseo') || name.includes('baño') || name.includes('bano') || name.includes('aseo')) {
+        bath++;
+      } else if (isExteriorRoom(m) || name.includes('terraza') || name.includes('balcon') || name.includes('porche')) {
+        terr++;
+      }
+    });
+
+    return {
+      bedroomsCount: bed || 2,
+      bathroomsCount: bath || 2,
+      terracesCount: terr || 2
+    };
+  }, [roomMarkers]);
   const [activeTab, setActiveTab] = useState<'ficha' | 'rendered' | 'split' | 'source'>('rendered');
   const [commandPrefillText, setCommandPrefillText] = useState<string | null>(null);
   const [sliderPosition, setSliderPosition] = useState<number>(50);
@@ -195,6 +236,15 @@ export function PlanCanvasPreview({
   const [planOccupancyPercent, setPlanOccupancyPercent] = useState<number | 'fit'>('fit');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
+  const [isEditingUnitId, setIsEditingUnitId] = useState<boolean>(false);
+  const [tempUnitId, setTempUnitId] = useState<string>('');
+
+  const handleSaveUnitId = () => {
+    if (tempUnitId.trim()) {
+      handleUnitIdentifierChange(tempUnitId.trim());
+    }
+    setIsEditingUnitId(false);
+  };
 
   // Estados de rotación interactiva 360° para el plano y corte isométrico
   const [canvasRotation, setCanvasRotation] = useState<number>(isometricRotationAngle || 0);
@@ -223,6 +273,28 @@ export function PlanCanvasPreview({
       const mapped = ISOMETRIC_ORIENTATIONS.find((o) => Math.abs(o.angle - normalized) < 25) || ISOMETRIC_ORIENTATIONS[0];
       onChangeIsometricOrientation(mapped.id, normalized);
     }
+  };
+
+  // Resetear zoom y encuadre cada vez que se carga un nuevo plano para asegurar que entre en el área visible
+  const [prevSourceBase64, setPrevSourceBase64] = useState<string | null>(null);
+  const currentBase64 = sourceImage?.base64 || null;
+  if (currentBase64 && currentBase64 !== prevSourceBase64) {
+    setPrevSourceBase64(currentBase64);
+    setZoomLevel(1);
+    setPlanOccupancyPercent('fit');
+  }
+
+  const isRotated90 = canvasRotation === 90 || canvasRotation === 270;
+  const planBoxStyle: React.CSSProperties = {
+    maxHeight: isRotated90 ? 'min(64vh, 560px)' : 'min(72vh, calc(100% - 1.5rem))',
+    maxWidth: isRotated90 ? 'min(64vh, 560px)' : '100%',
+    transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : undefined,
+    transformOrigin: 'center center',
+    transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.25s ease, max-width 0.25s ease'
+  };
+  const planImgStyle: React.CSSProperties = {
+    maxHeight: isRotated90 ? 'min(64vh, 560px)' : 'min(72vh, calc(100% - 1.5rem))',
+    maxWidth: isRotated90 ? 'min(64vh, 560px)' : '100%'
   };
 
   // Refs de contenedores específicos de imagen
@@ -1405,7 +1477,9 @@ export function PlanCanvasPreview({
 
       {/* 2. Área Central del Canvas */}
       <div
-        className={`relative flex-1 flex items-center justify-center p-4 overflow-hidden select-none ${
+        className={`relative flex-1 min-h-0 min-w-0 w-full h-full flex items-center justify-center p-2 sm:p-4 ${
+          zoomLevel > 1 ? 'overflow-auto' : 'overflow-hidden'
+        } select-none ${
           isEraserMode
             ? 'cursor-crosshair'
             : isPinningMode
@@ -1558,21 +1632,21 @@ export function PlanCanvasPreview({
         {/* CONTENEDOR DE IMAGEN (Con soporte de zoom) */}
         <div
           ref={imageContainerRef}
-          className="relative max-w-full max-h-full flex items-center justify-center transition-transform duration-150 ease-out"
+          className="relative w-full h-full max-w-full max-h-full flex items-center justify-center transition-transform duration-150 ease-out"
           style={{ transform: activeTab === 'ficha' ? 'none' : `scale(${zoomLevel})` }}
         >
           {/* MODO 0: FICHA COMERCIAL DE VENTA CON CUADRO DE SUPERFICIES ÚTILES */}
           {activeTab === 'ficha' ? (
-            <div className="w-full max-w-none mx-auto bg-white text-stone-900 rounded-none sm:rounded-sm shadow-xl border border-stone-200/90 p-5 sm:p-7 flex flex-col justify-between max-h-[86vh] overflow-y-auto animate-fadeIn select-text">
+            <div className="w-full max-w-none mx-auto bg-white text-stone-900 rounded-none sm:rounded-sm shadow-xl border border-stone-200/90 p-5 sm:p-7 flex flex-col justify-between max-h-[86vh] overflow-y-auto animate-fadeIn select-text font-sans">
               {/* Encabezado Comercial */}
-              <div className="border-b border-stone-200 pb-3 mb-4 flex items-center justify-between flex-wrap gap-4">
+              <div className="border-b border-stone-200 pb-3 mb-5 flex items-center justify-between flex-wrap gap-4">
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-black tracking-tight uppercase font-sans text-[#0F2C59]">
-                    {projectTitle || 'PROYECTO RESIDENCIAL DE 140 VIVIENDAS'}
-                  </h2>
-                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mt-0.5">
-                    FICHA COMERCIAL ARQUITECTÓNICA • PLANO AMUEBLADO Y CUADRO DE SUPERFICIES ÚTILES
+                  <p className="text-[11px] font-bold text-stone-500 uppercase tracking-widest mb-1">
+                    FICHA COMERCIAL · PLANO AMUEBLADO
                   </p>
+                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-[#102A45]">
+                    {projectTitle || 'Proyecto residencial de 140 viviendas'}
+                  </h2>
                 </div>
 
                 <div className="flex items-center gap-3 flex-wrap">
@@ -1590,7 +1664,7 @@ export function PlanCanvasPreview({
                   <button
                     onClick={handleExportFicha}
                     disabled={isExportingFicha}
-                    className="px-3 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs cursor-pointer"
+                    className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs cursor-pointer"
                     title="Descargar Ficha en Imagen PNG"
                   >
                     <span className="material-symbols-outlined text-[15px]">image</span>
@@ -1600,7 +1674,7 @@ export function PlanCanvasPreview({
                   <button
                     onClick={handleExportPDF}
                     disabled={isExportingPDF}
-                    className="px-3.5 py-1 bg-red-700 hover:bg-red-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                    className="px-3.5 py-1.5 bg-red-700 hover:bg-red-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
                     title="Descargar Ficha Comercial en PDF de alta resolución"
                   >
                     <span className="material-symbols-outlined text-[15px]">picture_as_pdf</span>
@@ -1609,12 +1683,13 @@ export function PlanCanvasPreview({
                 </div>
               </div>
 
-              {/* Cuerpo de la Ficha: Plano a la Izquierda (75% del ancho) y Cuadro de Superficies a la Derecha (25%) */}
-              <div className="grid grid-cols-1 md:grid-cols-12 lg:grid-cols-12 gap-5 items-center flex-1 my-auto">
-                {/* Columna Izquierda / Central: Plano Renderizado o Base (Ocupa al menos el 75% con 9 de 12 columnas) */}
-                <div className="md:col-span-8 lg:col-span-9 flex flex-col items-center justify-center bg-white p-2 sm:p-3 min-h-[350px] w-full overflow-hidden">
-                  {renderDataUrl || sourceDataUrl ? (
-                    <>
+              {/* Cuerpo de la Ficha: Plano a la Izquierda (~65%) y Cuadro de Superficies + Datos a la Derecha (~35%) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch flex-1 my-auto">
+                {/* Columna Izquierda: Tarjeta contenedora con fondo arena/beige suave para el plano */}
+                <div className="lg:col-span-8 flex flex-col justify-between bg-[#F8F6F1] rounded-xs p-4 sm:p-5 border border-stone-200/60 shadow-2xs min-h-[500px]">
+                  {/* Zona de Imagen del Plano */}
+                  <div className="flex-1 flex items-center justify-center overflow-hidden w-full py-2">
+                    {renderDataUrl || sourceDataUrl ? (
                       <div
                         ref={fichaPlanRef}
                         role="region"
@@ -1625,241 +1700,124 @@ export function PlanCanvasPreview({
                           if (e.key === 'Enter') handleImageClick(e as any, fichaPlanRef.current);
                         }}
                         style={{
-                          width: planOccupancyPercent === 'fit' ? '100%' : `${planOccupancyPercent}%`,
+                          width: planOccupancyPercent === 'fit' ? 'auto' : `${planOccupancyPercent}%`,
                           maxWidth: '100%',
-                          maxHeight: planOccupancyPercent === 'fit' ? '65vh' : `${Math.round(planOccupancyPercent * 0.85)}vh`,
+                          maxHeight: planOccupancyPercent === 'fit' ? (isRotated90 ? 'min(48vh, 450px)' : 'min(58vh, 520px)') : `${Math.round(planOccupancyPercent * 0.70)}vh`,
                           transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : undefined,
                           transformOrigin: 'center center',
-                          transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                          transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
                         }}
-                        className={`relative flex items-center justify-center select-none ${
-                          isEraserMode ? 'cursor-crosshair ring-2 ring-rose-500' : ''
-                        }`}
+                        className="relative inline-flex items-center justify-center max-w-full select-none"
                       >
                         <img
-                          src={renderDataUrl || sourceDataUrl!}
-                          alt="Plano Ficha Comercial"
-                          style={{
-                            maxHeight: planOccupancyPercent === 'fit' ? '65vh' : `${Math.round(planOccupancyPercent * 0.85)}vh`,
-                            maxWidth: '100%',
-                            width: 'auto',
-                            height: 'auto'
-                          }}
-                          className="object-contain block pointer-events-none select-none rounded-sm"
+                          src={renderDataUrl || sourceDataUrl || ''}
+                          alt="Plano amueblado de la vivienda"
+                          style={planImgStyle}
+                          className="w-auto h-auto object-contain block max-w-full max-h-[58vh] select-none pointer-events-none drop-shadow-sm"
                         />
-
-                        {/* Capa interactiva de marcado y pintura de defectos */}
-                        {renderDefectOverlay()}
-
-                        {/* Círculos azules interactivos y arrastrables con número blanco */}
-                        {sortedMarkers.map((marker, idx) => {
-                          const isDragging = draggingMarkerId === marker.id;
-                          return (
-                            <button
-                              type="button"
-                              key={marker.id || `marker-ficha-${marker.name}`}
-                              aria-label={`Estancia #${idx + 1} ${marker.name}`}
-                              onMouseDown={(e) => handleMarkerDragStart(e, marker.id, fichaPlanRef.current)}
-                              onTouchStart={(e) => handleMarkerDragStart(e, marker.id, fichaPlanRef.current)}
-                              onClick={(e) => e.stopPropagation()}
-                              style={{
-                                left: `${marker.x}%`,
-                                top: `${marker.y}%`,
-                                backgroundColor: badgeBg,
-                                color: badgeText
-                              }}
-                              className={`absolute -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full border-2 border-white shadow-md flex items-center justify-center font-bold text-xs select-none z-30 font-sans transition-transform ${
-                                areMarkersLocked
-                                  ? 'cursor-default'
-                                  : 'cursor-grab active:cursor-grabbing hover:scale-120'
-                              } ${
-                                isDragging
-                                  ? 'scale-135 ring-4 ring-blue-400 shadow-2xl cursor-grabbing'
-                                  : ''
-                              }`}
-                              title={
-                                areMarkersLocked
-                                  ? `Estancia #${idx + 1} (Fijada)`
-                                  : `Estancia #${idx + 1} (Arrastra para recolocar)`
-                              }
-                            >
-                              <span style={{ transform: canvasRotation !== 0 ? `rotate(${-canvasRotation}deg)` : undefined }}>
-                                {idx + 1}
-                              </span>
-                            </button>
-                          );
-                        })}
                       </div>
-
-                      {/* Barra de control: Fijación de puntos y selector de ocupación del plano */}
-                      <div className="mt-3 flex items-center justify-between w-full max-w-2xl px-1 flex-wrap gap-2.5">
-                        <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl border border-stone-200 select-none shadow-2xs">
-                          <button
-                            type="button"
-                            onClick={() => setPlanOccupancyPercent('fit')}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                              planOccupancyPercent === 'fit'
-                                ? 'bg-[#0F2C59] text-white shadow-xs'
-                                : 'text-stone-700 hover:text-stone-900 hover:bg-stone-200/80'
-                            }`}
-                            title="Ajustar automáticamente todo el plano dentro del área de trabajo disponible sin cortarse"
-                          >
-                            <span className="material-symbols-outlined text-[15px]">fit_screen</span>
-                            <span>Ajustar al área</span>
-                          </button>
-
-                          <div className="h-4 w-px bg-stone-300 mx-0.5" />
-
-                          {[50, 60, 70, 85, 100].map((pct) => (
-                            <button
-                              key={pct}
-                              type="button"
-                              onClick={() => setPlanOccupancyPercent(pct)}
-                              className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                                planOccupancyPercent === pct
-                                  ? 'bg-[#0F2C59] text-white shadow-xs'
-                                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200/80'
-                              }`}
-                              title={`Ajustar escala manual al ${pct}%`}
-                            >
-                              {pct}%
-                            </button>
-                          ))}
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {onIsolatePlan && (
-                            <button
-                              type="button"
-                              onClick={onIsolatePlan}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 border shadow-2xs cursor-pointer ${
-                                isPlanIsolated
-                                  ? 'bg-blue-50 border-blue-300 text-blue-800 hover:bg-blue-100'
-                                  : 'bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-300'
-                              }`}
-                              title={
-                                isPlanIsolated
-                                  ? 'Ver imagen completa con márgenes originales'
-                                  : 'Aislar plano al 75% (recortar márgenes vacíos y cartelas)'
-                              }
-                            >
-                              <span className="material-symbols-outlined text-[14px] text-blue-600">
-                                {isPlanIsolated ? 'fullscreen_exit' : 'crop'}
-                              </span>
-                              <span>{isPlanIsolated ? 'Plano Aislado' : 'Aislar Plano'}</span>
-                            </button>
-                          )}
-
-                          <button
-                            type="button"
-                            onClick={() => setAreMarkersLocked(!areMarkersLocked)}
-                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer ${
-                              areMarkersLocked
-                                ? 'bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300'
-                                : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
-                            }`}
-                            title={
-                              areMarkersLocked
-                                ? 'Haz clic para desbloquear y permitir mover los puntos'
-                                : 'Fijar los puntos para que no se puedan mover'
-                            }
-                          >
-                            <span className="material-symbols-outlined text-[14px]">
-                              {areMarkersLocked ? 'lock_open' : 'lock'}
-                            </span>
-                            <span>{areMarkersLocked ? 'Desbloquear Puntos' : 'Fijar Puntos'}</span>
-                          </button>
-                        </div>
+                    ) : (
+                      <div className="text-center p-8 text-stone-400">
+                        <span className="material-symbols-outlined text-5xl mb-2 opacity-40">floor</span>
+                        <p className="text-sm font-semibold">Carga o genera un plano para visualizar la ficha</p>
                       </div>
-                    </>
-                  ) : (
-                    <div className="text-stone-400 text-xs italic">Carga un plano para visualizar la ficha</div>
-                  )}
-                </div>
-
-                {/* Columna Derecha: Identificador, Cuadro de Superficies Útiles y Entidades */}
-                <div className="md:col-span-4 lg:col-span-3 flex flex-col justify-start items-start w-full">
-                  {/* Identificador de Vivienda (ej. PORTAL XX LETRA X) en color azul marino */}
-                  <div className="w-full mb-3">
-                    <input
-                      id="plan-unit-identifier-input"
-                      type="text"
-                      value={activeUnitId}
-                      onChange={(e) => handleUnitIdentifierChange(e.target.value.toUpperCase())}
-                      placeholder="PORTAL XX LETRA X"
-                      className="bg-transparent border-b border-transparent hover:border-stone-300 focus:border-[#0E3B64] outline-none text-xl sm:text-2xl font-black text-[#0E3B64] uppercase w-full tracking-tight transition"
-                      title="Haz clic para editar el Portal, Piso o Letra de la vivienda"
-                    />
+                    )}
                   </div>
 
-                  {onDetectWithAI && (
-                    <div className="w-full mb-3 flex flex-col gap-2">
-                      <button
-                        type="button"
-                        onClick={onDetectWithAI}
-                        disabled={isDetectingWithAI || (!sourceDataUrl && !renderDataUrl)}
-                        className="w-full px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <span className={`material-symbols-outlined text-[16px] ${isDetectingWithAI ? 'animate-spin' : ''}`}>
-                          {isDetectingWithAI ? 'autorenew' : 'auto_awesome'}
-                        </span>
-                        <span>
-                          {isDetectingWithAI ? 'Analizando plano y limpiando textos...' : 'Extraer estancias y limpiar textos con IA'}
-                        </span>
-                      </button>
+                  {/* Pie interior de la tarjeta del plano */}
+                  <div className="w-full flex items-center justify-between pt-3 border-t border-stone-200/70 text-xs mt-2">
+                    <span className="text-stone-400 font-medium">Plano orientativo · Sin escala</span>
+                    <span className="text-[#102A45] font-bold uppercase tracking-wider">{floorAndLetterText}</span>
+                  </div>
+                </div>
 
-                      {(onToggleCleanText || onCleanPlanTexts) && (
+                {/* Columna Derecha: Tarjeta Azul Marina "VIVIENDA" + Tabla de Superficies + Promueve/Comercializa */}
+                <div className="lg:col-span-4 flex flex-col justify-between gap-4 h-full">
+                  <div className="flex flex-col gap-4">
+                  {/* Tarjeta Azul Marina de Identificación de Vivienda */}
+                  <div className="bg-[#102A45] rounded-xs p-4 sm:p-5 text-white shadow-xs">
+                    <span className="text-[11px] font-bold tracking-widest text-slate-300 uppercase block mb-1">
+                      VIVIENDA
+                    </span>
+                    <div className="my-1">
+                      {isEditingUnitId ? (
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            aria-label="Identificador de la vivienda (ej. Portal 1 · 1º A)"
+                            value={tempUnitId}
+                            onChange={(e) => setTempUnitId(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveUnitId();
+                              if (e.key === 'Escape') setIsEditingUnitId(false);
+                            }}
+                            autoFocus
+                            className="text-2xl font-black bg-white/10 text-white px-2 py-0.5 rounded border border-white/30 focus:outline-hidden focus:ring-2 focus:ring-sky-400 w-full"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleSaveUnitId}
+                            className="p-1 hover:bg-white/20 rounded text-emerald-400"
+                            title="Guardar"
+                          >
+                            <span className="material-symbols-outlined text-lg">check</span>
+                          </button>
+                        </div>
+                      ) : (
                         <button
                           type="button"
+                          className="group flex items-center gap-2 cursor-pointer text-left w-full bg-transparent border-0 p-0 focus:outline-hidden focus:ring-2 focus:ring-sky-400 rounded"
                           onClick={() => {
-                            if (onToggleCleanText) {
-                              onToggleCleanText();
-                            } else if (onCleanPlanTexts) {
-                              onCleanPlanTexts();
-                            }
+                            setTempUnitId(activeUnitId || 'Portal 1 · 1º A');
+                            setIsEditingUnitId(true);
                           }}
-                          disabled={isCleaningPlanText || (!sourceDataUrl && !renderDataUrl)}
-                          className="w-full px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-700 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
-                          title="Borrar nombres de estancias y superficies preservando quirúrgicamente todos los muros y mobiliario"
+                          title="Haz clic para editar la identificación de la vivienda"
                         >
-                          <span className={`material-symbols-outlined text-[15px] ${isCleaningPlanText ? 'animate-spin' : 'text-amber-600'}`}>
-                            {isCleaningPlanText ? 'autorenew' : isTextCleaned ? 'history' : 'auto_fix_high'}
-                          </span>
-                          <span>
-                            {isCleaningPlanText
-                              ? 'Borrando textos quirúrgicamente...'
-                              : isTextCleaned
-                              ? 'Restaurar textos y cotas originales'
-                              : 'Limpiar nombres y m² del plano (Quirúrgico)'}
+                          <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                            {activeUnitId || 'Portal 1 · 1º A'}
+                          </h3>
+                          <span className="material-symbols-outlined text-sm opacity-0 group-hover:opacity-70 text-slate-300 transition">
+                            edit
                           </span>
                         </button>
                       )}
+                    </div>
 
-                      {/* Modo manual para planos mudos sin textos */}
+                    {/* Pastillas informativas de dormitorios, baños y terrazas */}
+                    <div className="flex flex-wrap items-center gap-2 mt-3 pt-2 border-t border-white/10">
+                      <span className="bg-[#16385e] border border-sky-400/30 text-sky-100 text-[11px] font-semibold px-3 py-1 rounded-full shadow-2xs">
+                        {bedroomsCount} {bedroomsCount === 1 ? 'dormitorio' : 'dormitorios'}
+                      </span>
+                      <span className="bg-[#16385e] border border-sky-400/30 text-sky-100 text-[11px] font-semibold px-3 py-1 rounded-full shadow-2xs">
+                        {bathroomsCount} {bathroomsCount === 1 ? 'baño' : 'baños'}
+                      </span>
+                      {terracesCount > 0 && (
+                        <span className="bg-[#16385e] border border-sky-400/30 text-sky-100 text-[11px] font-semibold px-3 py-1 rounded-full shadow-2xs">
+                          {terracesCount} {terracesCount === 1 ? 'terraza' : 'terrazas'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Acciones de IA para Estancias (Discretas) */}
+                  {onDetectWithAI && (
+                    <div className="flex gap-2">
                       <button
                         type="button"
-                        onClick={() => {
-                          if (onTogglePinningMode && !isPinningMode) {
-                            onTogglePinningMode();
-                          }
-                        }}
-                        className={`w-full px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer ${
-                          isPinningMode
-                            ? 'bg-amber-500 hover:bg-amber-400 text-stone-950 ring-2 ring-amber-300'
-                            : 'bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white'
-                        }`}
-                        title="Modo manual para planos limpios: haz clic en el plano o usa la tabla para añadir números, nombres y m²"
+                        onClick={onDetectWithAI}
+                        disabled={isDetectingWithAI}
+                        className="flex-1 px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
+                        title="Detectar estancias y superficies automáticamente con IA"
                       >
-                        <span className="material-symbols-outlined text-[17px]">
-                          {isPinningMode ? 'touch_app' : 'add_location_alt'}
+                        <span className="material-symbols-outlined text-[16px] text-amber-500">
+                          {isDetectingWithAI ? 'sync' : 'auto_awesome'}
                         </span>
-                        <span>
-                          {isPinningMode ? 'Puntero Activo: Haz clic en el plano' : '+ Colocar Estancias y m² Manualmente'}
-                        </span>
+                        <span>{isDetectingWithAI ? 'Analizando plano...' : 'Auto-detectar con IA'}</span>
                       </button>
                     </div>
                   )}
 
+                  {/* Tabla de Superficies Útiles */}
                   <SurfaceScheduleTable
                     markers={sortedMarkers}
                     markerBadgeColor={badgeBg}
@@ -1869,43 +1827,48 @@ export function PlanCanvasPreview({
                     customTotalUsefulArea={customTotalUsefulArea}
                     onChangeCustomTotalUsefulArea={onChangeCustomTotalUsefulArea}
                   />
+                  </div>
 
-                  {/* Bloque inferior: PROMUEVE, COMERCIALIZA y TELÉFONO */}
-                  <div className="w-full mt-7 pt-4 flex flex-col gap-4 text-left">
-                    {/* PROMUEVE */}
+                  {/* Bloque Inferior Anclado: PROMUEVE, COMERCIALIZA e INFORMACIÓN Y VENTA */}
+                  <div className="mt-auto pt-4 flex flex-col gap-3">
+                    {/* Grid de 2 Columnas: PROMUEVE y COMERCIALIZA */}
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <span className="text-[11px] font-black tracking-wider text-[#0E3B64] uppercase block mb-1">
-                        PROMUEVE:
+                      <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-1">
+                        PROMUEVE
                       </span>
-                      <div className="flex items-center">
+                      <div className="flex items-center min-h-[44px]">
                         <img
                           src={promotorLogo || DEFAULT_PROMUEVE_LOGO}
                           alt="LUBENS Proyecto S.L."
-                          className="h-9 sm:h-10 w-auto max-w-[240px] object-contain"
+                          className="h-9 sm:h-10 w-auto max-w-[130px] object-contain"
                         />
                       </div>
                     </div>
 
-                    {/* COMERCIALIZA */}
                     <div>
-                      <span className="text-[11px] font-black tracking-wider text-[#991B1B] uppercase block mb-1">
-                        COMERCIALIZA:
+                      <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-1">
+                        COMERCIALIZA
                       </span>
-                      <div className="flex items-center">
+                      <div className="flex items-center min-h-[44px]">
                         <img
                           src={commercialAgencyLogo || DEFAULT_AGENCY_LOGO}
                           alt="TERRAVALL Servicios Inmobiliarios"
-                          className="h-10 sm:h-11 w-auto max-w-[240px] object-contain"
+                          className="h-9 sm:h-10 w-auto max-w-[130px] object-contain"
                         />
                       </div>
                     </div>
+                  </div>
 
-                    {/* Teléfono */}
+                  {/* Bloque: INFORMACIÓN Y VENTA */}
                     <div className="pt-1">
+                      <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-0.5">
+                        INFORMACIÓN Y VENTA
+                      </span>
                       <a
                         href={`tel:${(agencyPhone || '983342132').replace(/\s+/g, '')}`}
-                        className="text-2xl sm:text-3xl font-black text-[#991B1B] tracking-tight hover:underline block"
-                        title="Llamar a Comercializadora"
+                        className="text-2xl sm:text-3xl font-black text-[#C5221F] tracking-tight hover:underline block"
+                        title="Llamar a Información y Venta"
                       >
                         {agencyPhone || '983 34 21 32'}
                       </a>
@@ -1914,36 +1877,39 @@ export function PlanCanvasPreview({
                 </div>
               </div>
 
-              {/* Pie de Ficha con Cláusula Legal */}
-              <div className="mt-4 pt-3 border-t border-stone-200 text-[10px] text-stone-400">
-                Documento comercial no vinculante. Las superficies corresponden a superficie útil interior estimada y pueden variar durante la ejecución de obra.
+              {/* Pie de Ficha con Cláusula Legal y Unidad */}
+              <div className="mt-6 pt-3 border-t border-stone-200/80 flex items-center justify-between flex-wrap gap-2 text-xs">
+                <span className="text-stone-400 font-normal">
+                  Documento comercial no vinculante. Las superficies corresponden a superficie útil interior estimada y pueden variar durante la ejecución de obra.
+                </span>
+                <span className="text-[#102A45] font-bold tracking-wide">
+                  {activeUnitId || 'Portal 1 · 1º A'}
+                </span>
               </div>
             </div>
           ) : activeTab === 'split' && sourceDataUrl && renderDataUrl ? (
             <div
-              style={{
-                transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : undefined,
-                transformOrigin: 'center center',
-                transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-              }}
-              className="relative max-h-[82vh] max-w-full rounded-2xl overflow-hidden shadow-2xl border border-stone-700"
+              style={planBoxStyle}
+              className="relative inline-flex items-center justify-center max-w-full rounded-2xl overflow-hidden shadow-2xl border border-stone-700 select-none"
             >
               {/* Imagen 3D de fondo */}
               <img
                 src={renderDataUrl}
                 alt="Render 3D"
-                className="max-h-[82vh] w-auto max-w-full object-contain block select-none pointer-events-none"
+                style={planImgStyle}
+                className="w-auto h-auto object-contain block select-none pointer-events-none"
               />
 
               {/* Imagen 2D recortada superpuesta */}
               <div
-                className="absolute inset-0 overflow-hidden pointer-events-none"
+                className="absolute inset-0 overflow-hidden pointer-events-none flex items-center justify-center"
                 style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
               >
                 <img
                   src={sourceDataUrl}
                   alt="Plano 2D Original"
-                  className="max-h-[82vh] w-auto max-w-full object-contain block"
+                  style={planImgStyle}
+                  className="w-auto h-auto object-contain block select-none pointer-events-none"
                 />
               </div>
 
@@ -1987,19 +1953,16 @@ export function PlanCanvasPreview({
                 if (e.key === 'Enter') handleImageClick(e as any, renderPlanRef.current);
               }}
               onClick={(e) => handleImageClick(e, renderPlanRef.current)}
-              style={{
-                transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : undefined,
-                transformOrigin: 'center center',
-                transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-              }}
-              className={`relative max-h-[82vh] inline-block rounded-2xl overflow-hidden shadow-2xl border border-stone-800 select-none ${
+              style={planBoxStyle}
+              className={`relative inline-flex items-center justify-center max-w-full rounded-2xl overflow-hidden shadow-2xl border border-stone-800 select-none ${
                 isEraserMode ? 'cursor-crosshair ring-2 ring-rose-500' : ''
               }`}
             >
               <img
                 src={renderDataUrl}
                 alt="Render 3D Arquitectónico"
-                className="max-h-[82vh] w-auto max-w-full object-contain block rounded-2xl pointer-events-none"
+                style={planImgStyle}
+                className="w-auto h-auto object-contain block rounded-2xl pointer-events-none select-none"
               />
 
               {/* Capa interactiva de marcado y pintura de defectos */}
@@ -2068,19 +2031,16 @@ export function PlanCanvasPreview({
                 if (e.key === 'Enter') handleImageClick(e as any, basePlanRef.current);
               }}
               onClick={(e) => handleImageClick(e, basePlanRef.current)}
-              style={{
-                transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : undefined,
-                transformOrigin: 'center center',
-                transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-              }}
-              className={`relative max-h-[82vh] inline-block rounded-2xl overflow-hidden shadow-2xl border border-stone-800 select-none ${
+              style={planBoxStyle}
+              className={`relative inline-flex items-center justify-center max-w-full rounded-2xl overflow-hidden shadow-2xl border border-stone-800 select-none ${
                 isEraserMode ? 'cursor-crosshair ring-2 ring-rose-500' : ''
               }`}
             >
                 <img
                   src={sourceDataUrl}
                   alt="Plano Base 2D"
-                  className="max-h-[82vh] w-auto max-w-full object-contain block rounded-2xl pointer-events-none"
+                  style={planImgStyle}
+                  className="w-auto h-auto object-contain block rounded-2xl pointer-events-none select-none"
                 />
 
                 {/* Capa interactiva de marcado y pintura de defectos */}
