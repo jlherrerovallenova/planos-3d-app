@@ -134,8 +134,11 @@ export function SurfaceScheduleTable({
   const hasExterior = schedule.exteriorRooms.length > 0;
   const isEmpty = schedule.sortedMarkers.length === 0;
 
-  const renderRoomRow = (marker: RoomMarker) => {
+  const renderRoomRow = (marker: RoomMarker, displayIndex?: number) => {
     const isThisEditing = editingRoomId === marker.id;
+    const roomNumber = typeof displayIndex === 'number'
+      ? displayIndex + 1
+      : schedule.sortedMarkers.findIndex((m) => m.id === marker.id) + 1;
 
     if (isThisEditing) {
       return (
@@ -143,6 +146,15 @@ export function SurfaceScheduleTable({
           key={marker.id}
           className="flex items-center gap-1.5 py-1 px-1.5 bg-blue-50/80 border border-blue-300 rounded-lg shadow-2xs my-0.5"
         >
+          {roomNumber > 0 && (
+            <span
+              style={{ backgroundColor: markerBadgeColor }}
+              className="w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0 shadow-2xs"
+              title={`Estancia #${roomNumber}`}
+            >
+              {roomNumber}
+            </span>
+          )}
           <input
             type="text"
             aria-label="Nombre de la estancia"
@@ -206,7 +218,16 @@ export function SurfaceScheduleTable({
             title="Haz clic para editar nombre o superficie"
             aria-label={`Editar estancia ${marker.name}`}
           >
-            <div className="flex items-center gap-1.5 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              {roomNumber > 0 && (
+                <span
+                  style={{ backgroundColor: markerBadgeColor }}
+                  className="w-4.5 h-4.5 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0 shadow-2xs"
+                  title={`Número #${roomNumber} en el plano`}
+                >
+                  {roomNumber}
+                </span>
+              )}
               <span
                 className="font-medium text-[12.5px] truncate text-stone-800"
                 title={marker.name}
@@ -224,12 +245,23 @@ export function SurfaceScheduleTable({
           </button>
         ) : (
           <div className="flex-1 flex items-center justify-between gap-2 min-w-0">
-            <span
-              className="font-medium text-[12.5px] truncate text-stone-800"
-              title={marker.name}
-            >
-              {marker.name}
-            </span>
+            <div className="flex items-center gap-2 min-w-0">
+              {roomNumber > 0 && (
+                <span
+                  style={{ backgroundColor: markerBadgeColor }}
+                  className="w-4.5 h-4.5 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0 shadow-2xs"
+                  title={`Número #${roomNumber} en el plano`}
+                >
+                  {roomNumber}
+                </span>
+              )}
+              <span
+                className="font-medium text-[12.5px] truncate text-stone-800"
+                title={marker.name}
+              >
+                {marker.name}
+              </span>
+            </div>
             <span className="font-medium text-[12px] whitespace-nowrap text-right text-stone-600 shrink-0 font-sans">
               {formatM2(marker.areaSqMeters)}
             </span>

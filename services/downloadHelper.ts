@@ -249,6 +249,7 @@ export async function generateBrochureCanvas({
         const schedule = categorizeRoomsForSchedule(effectiveMarkers as any, customTotalUsefulArea);
         const { bedroomsCount, bathroomsCount, terracesCount } = countRoomTypes(effectiveMarkers as any);
         const floorAndLetterText = parseUnitFloorAndLetter(unitIdentifier);
+        const badgeRgb = hexToRgb(markerBadgeColor || '#102A45');
 
         // 1. Fondo blanco comercial
         ctx.fillStyle = '#FFFFFF';
@@ -346,6 +347,46 @@ export async function generateBrochureCanvas({
         const drawY = bodyY + planPadY + (maxPlanH - drawH) / 2;
 
         ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
+        // Señalizar marcadores numerados de estancias sobre el plano
+        if (markers && markers.length > 0) {
+          const sortedMarkers = sortRoomMarkers(markers);
+          const circleRadius = 14 * scale;
+          sortedMarkers.forEach((m: any, idx: number) => {
+            if (typeof m.x === 'number' && typeof m.y === 'number') {
+              const markerX = drawX + (m.x / 100) * drawW;
+              const markerY = drawY + (m.y / 100) * drawH;
+
+              // Sombra / halo suave
+              ctx.save();
+              ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+              ctx.shadowBlur = 6 * scale;
+              ctx.shadowOffsetY = 2 * scale;
+
+              // Anillo blanco
+              ctx.beginPath();
+              ctx.arc(markerX, markerY, circleRadius + 2.5 * scale, 0, Math.PI * 2);
+              ctx.fillStyle = '#FFFFFF';
+              ctx.fill();
+              ctx.restore();
+
+              // Círculo corporativo
+              ctx.beginPath();
+              ctx.arc(markerX, markerY, circleRadius, 0, Math.PI * 2);
+              ctx.fillStyle = markerBadgeColor || '#102A45';
+              ctx.fill();
+
+              // Número correlativo de la estancia
+              ctx.fillStyle = '#FFFFFF';
+              ctx.font = `bold ${Math.round(13 * scale)}px sans-serif`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(String(idx + 1), markerX, markerY + 0.5 * scale);
+            }
+          });
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'alphabetic';
+        }
 
         // Línea divisoria interior y pie de la tarjeta del plano
         const planCardFooterY = bodyY + bodyH - planFooterH;
@@ -596,14 +637,14 @@ export async function generateBrochureCanvas({
 
         const infoVentaY = entityY + 68 * scale;
 
-        // INFORMACIÓN Y VENTA
+        // INFORMACIÓN Y VENTA (A la derecha, debajo de TERRAVALL)
         ctx.fillStyle = '#78716C';
         ctx.font = `bold ${Math.round(11 * scale)}px sans-serif`;
-        ctx.fillText('INFORMACIÓN Y VENTA', rightColX + 8 * scale, infoVentaY);
+        ctx.fillText('INFORMACIÓN Y VENTA', comColX, infoVentaY);
 
         ctx.fillStyle = '#C5221F';
         ctx.font = `900 ${Math.round(34 * scale)}px sans-serif`;
-        ctx.fillText(agencyPhone || '983 34 21 32', rightColX + 8 * scale, infoVentaY + 36 * scale);
+        ctx.fillText(agencyPhone || '983 34 21 32', comColX, infoVentaY + 36 * scale);
 
         // 4. Pie de página legal
         const footerY = height - 26 * scale;
@@ -727,6 +768,7 @@ export async function exportCommercialBrochurePDF({
         const schedule = categorizeRoomsForSchedule(effectiveMarkers as any, customTotalUsefulArea);
         const { bedroomsCount, bathroomsCount, terracesCount } = countRoomTypes(effectiveMarkers as any);
         const floorAndLetterText = parseUnitFloorAndLetter(unitIdentifier);
+        const badgeRgb = hexToRgb(markerBadgeColor || '#102A45');
 
         // A4 Landscape: 297mm x 210mm
         const doc = new jsPDF({
@@ -822,6 +864,32 @@ export async function exportCommercialBrochurePDF({
 
         const isPng = effectiveImageSrc.startsWith('data:image/png') || !effectiveImageSrc.startsWith('data:image/jpeg');
         doc.addImage(effectiveImageSrc, isPng ? 'PNG' : 'JPEG', imgX, imgY, imgW, imgH, undefined, 'SLOW');
+
+        // Pines numerados de estancias en el plano del PDF
+        if (markers && markers.length > 0) {
+          const sortedMarkers = sortRoomMarkers(markers);
+          const circleRadius = 2.8; // mm
+          sortedMarkers.forEach((m: any, idx: number) => {
+            if (typeof m.x === 'number' && typeof m.y === 'number') {
+              const markerX = imgX + (m.x / 100) * imgW;
+              const markerY = imgY + (m.y / 100) * imgH;
+
+              // Anillo exterior blanco
+              doc.setFillColor(255, 255, 255);
+              doc.circle(markerX, markerY, circleRadius + 0.45, 'F');
+
+              // Círculo personalizado
+              doc.setFillColor(badgeRgb.r, badgeRgb.g, badgeRgb.b);
+              doc.circle(markerX, markerY, circleRadius, 'F');
+
+              // Número correlativo de estancia
+              doc.setFont('helvetica', 'bold');
+              doc.setFontSize(6.5);
+              doc.setTextColor(255, 255, 255);
+              doc.text(String(idx + 1), markerX, markerY + 0.9, { align: 'center' });
+            }
+          });
+        }
 
         // Pie interior de la caja del plano
         const planCardFooterY = contentY + contentH - planFooterH;
@@ -1040,16 +1108,16 @@ export async function exportCommercialBrochurePDF({
 
         const infoVentaY = entityY + 12;
 
-        // INFORMACIÓN Y VENTA
+        // INFORMACIÓN Y VENTA (A la derecha, debajo de TERRAVALL)
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(6.5);
         doc.setTextColor(120, 113, 108);
-        doc.text('INFORMACIÓN Y VENTA', rightColX + 2, infoVentaY);
+        doc.text('INFORMACIÓN Y VENTA', comColX, infoVentaY);
 
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(15);
         doc.setTextColor(197, 34, 31); // #C5221F
-        doc.text(agencyPhone || '983 34 21 32', rightColX + 2, infoVentaY + 6);
+        doc.text(agencyPhone || '983 34 21 32', comColX, infoVentaY + 6);
 
         // 4. Pie de página legal
         doc.setDrawColor(226, 232, 240);

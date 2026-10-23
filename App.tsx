@@ -847,12 +847,17 @@ export function App() {
     x: number = 50,
     y: number = 50
   ) => {
+    // Si no se suministraron coordenadas y ya hay marcadores, distribuirlos ligeramente para no solaparse
+    const existingCount = config.roomMarkers?.length || 0;
+    const finalX = x !== 50 || y !== 50 ? x : Math.min(85, Math.max(15, 30 + ((existingCount * 12) % 50)));
+    const finalY = x !== 50 || y !== 50 ? y : Math.min(85, Math.max(15, 30 + ((existingCount * 10) % 50)));
+
     const newMarker: RoomMarker = {
       id: `room_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      name: name || 'Nueva Estancia',
+      name: name || `Estancia ${existingCount + 1}`,
       category,
-      x,
-      y,
+      x: finalX,
+      y: finalY,
       notes: '',
       areaSqMeters: area
     };

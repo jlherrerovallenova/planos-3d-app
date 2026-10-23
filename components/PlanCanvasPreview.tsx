@@ -383,6 +383,11 @@ export function PlanCanvasPreview({
     if (!isAnnotatingError) return;
     e.preventDefault();
     e.stopPropagation();
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    } catch {
+      // Ignore if pointer capture unsupported
+    }
     const rect = e.currentTarget.getBoundingClientRect();
     const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
     const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
@@ -431,6 +436,11 @@ export function PlanCanvasPreview({
     if (!isAnnotatingError || !isDefectDrawingRef.current) return;
     e.preventDefault();
     e.stopPropagation();
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    } catch {
+      // Ignore if pointer capture unsupported
+    }
     isDefectDrawingRef.current = false;
     const pts = [...defectStrokeRef.current];
     if (pts.length > 0) {
@@ -489,18 +499,37 @@ export function PlanCanvasPreview({
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
       >
-        {defectBrushPaths.map((bp) => (
-          <path
-            key={bp.id}
-            d={pointsToSvgPath(bp.points)}
-            fill="rgba(239, 68, 68, 0.18)"
-            stroke={bp.color || '#ef4444'}
-            strokeWidth="2.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ filter: 'drop-shadow(0px 0px 2px rgba(0,0,0,0.8))' }}
-          />
-        ))}
+        {defectBrushPaths.map((bp) => {
+          const pathD = pointsToSvgPath(bp.points);
+          return (
+            <g key={bp.id}>
+              {/* Si es trazo continuo */}
+              {bp.points.length > 1 && (
+                <path
+                  d={pathD}
+                  fill="rgba(239, 68, 68, 0.18)"
+                  stroke={bp.color || '#ef4444'}
+                  strokeWidth="2.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ filter: 'drop-shadow(0px 0px 2px rgba(0,0,0,0.8))' }}
+                />
+              )}
+              {/* Si es un punto o tap único */}
+              {bp.points.length === 1 && (
+                <circle
+                  cx={bp.points[0].x}
+                  cy={bp.points[0].y}
+                  r="2.5"
+                  fill={bp.color || '#ef4444'}
+                  stroke="#ffffff"
+                  strokeWidth="0.8"
+                  style={{ filter: 'drop-shadow(0px 0px 2px rgba(0,0,0,0.8))' }}
+                />
+              )}
+            </g>
+          );
+        })}
 
         {currentDefectPoints.length > 1 && (
           <path
@@ -510,6 +539,17 @@ export function PlanCanvasPreview({
             strokeWidth="2.8"
             strokeLinecap="round"
             strokeLinejoin="round"
+            opacity="0.9"
+          />
+        )}
+        {currentDefectPoints.length === 1 && (
+          <circle
+            cx={currentDefectPoints[0].x}
+            cy={currentDefectPoints[0].y}
+            r="2.5"
+            fill={annotationColor}
+            stroke="#ffffff"
+            strokeWidth="0.8"
             opacity="0.9"
           />
         )}
@@ -1184,7 +1224,7 @@ export function PlanCanvasPreview({
                   )}
 
                   {/* Mostrar / Ocultar overlay de marcadores */}
-                  {roomMarkers.length > 0 && activeTab !== 'ficha' && (
+                  {roomMarkers.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setShowMarkersOverlay(!showMarkersOverlay)}
@@ -1715,6 +1755,56 @@ export function PlanCanvasPreview({
                           style={planImgStyle}
                           className="w-auto h-auto object-contain block max-w-full max-h-[58vh] select-none pointer-events-none drop-shadow-sm"
                         />
+
+                        {/* Capa interactiva de marcado y pintura de defectos */}
+                        {renderDefectOverlay()}
+
+                        {/* OVERLAY DE PINES DE ESTANCIAS EN FICHA COMERCIAL */}
+                        {showMarkersOverlay &&
+                          sortedMarkers.map((marker, idx) => {
+                            const isDragging = draggingMarkerId === marker.id;
+                            const isSelected = activeMarkerId === marker.id;
+
+                            return (
+                              <button
+                                type="button"
+                                key={marker.id || `ficha-marker-${marker.name}`}
+                                aria-label={`Estancia #${idx + 1} ${marker.name}`}
+                                onMouseDown={(e) => handleMarkerDragStart(e, marker.id, fichaPlanRef.current)}
+                                onTouchStart={(e) => handleMarkerDragStart(e, marker.id, fichaPlanRef.current)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onMarkerClick) onMarkerClick(marker.id);
+                                }}
+                                style={{
+                                  left: `${marker.x}%`,
+                                  top: `${marker.y}%`,
+                                  backgroundColor: badgeBg,
+                                  color: badgeText
+                                }}
+                                className={`absolute -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full border-2 border-white shadow-md flex items-center justify-center font-bold text-xs select-none z-30 font-sans transition-transform ${
+                                  areMarkersLocked
+                                    ? 'cursor-default'
+                                    : 'cursor-grab active:cursor-grabbing hover:scale-120'
+                                } ${
+                                  isDragging
+                                    ? 'scale-135 ring-4 ring-blue-400 shadow-2xl cursor-grabbing'
+                                    : isSelected
+                                    ? 'scale-125 ring-4 ring-blue-400 shadow-2xl'
+                                    : ''
+                                }`}
+                                title={
+                                  areMarkersLocked
+                                    ? `Estancia #${idx + 1} ${marker.name} (Fijada)`
+                                    : `Estancia #${idx + 1} ${marker.name} (Arrastra libremente para colocar en el plano)`
+                                }
+                              >
+                                <span style={{ transform: canvasRotation !== 0 ? `rotate(${-canvasRotation}deg)` : undefined }}>
+                                  {idx + 1}
+                                </span>
+                              </button>
+                            );
+                          })}
                       </div>
                     ) : (
                       <div className="text-center p-8 text-stone-400">
@@ -1830,48 +1920,52 @@ export function PlanCanvasPreview({
                   </div>
 
                   {/* Bloque Inferior Anclado: PROMUEVE, COMERCIALIZA e INFORMACIÓN Y VENTA */}
-                  <div className="mt-auto pt-4 flex flex-col gap-3">
-                    {/* Grid de 2 Columnas: PROMUEVE y COMERCIALIZA */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-1">
-                        PROMUEVE
-                      </span>
-                      <div className="flex items-center min-h-[44px]">
-                        <img
-                          src={promotorLogo || DEFAULT_PROMUEVE_LOGO}
-                          alt="LUBENS Proyecto S.L."
-                          className="h-9 sm:h-10 w-auto max-w-[130px] object-contain"
-                        />
+                  <div className="mt-auto pt-4">
+                    {/* Grid de 2 Columnas: PROMUEVE a la izquierda, COMERCIALIZA + INFORMACIÓN Y VENTA a la derecha */}
+                    <div className="grid grid-cols-2 gap-4 items-start">
+                      {/* Columna Izquierda: PROMUEVE */}
+                      <div>
+                        <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-1">
+                          PROMUEVE
+                        </span>
+                        <div className="flex items-center min-h-[44px]">
+                          <img
+                            src={promotorLogo || DEFAULT_PROMUEVE_LOGO}
+                            alt="LUBENS Proyecto S.L."
+                            className="h-9 sm:h-10 w-auto max-w-[130px] object-contain"
+                          />
+                        </div>
                       </div>
-                    </div>
 
-                    <div>
-                      <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-1">
-                        COMERCIALIZA
-                      </span>
-                      <div className="flex items-center min-h-[44px]">
-                        <img
-                          src={commercialAgencyLogo || DEFAULT_AGENCY_LOGO}
-                          alt="TERRAVALL Servicios Inmobiliarios"
-                          className="h-9 sm:h-10 w-auto max-w-[130px] object-contain"
-                        />
+                      {/* Columna Derecha: COMERCIALIZA + INFORMACIÓN Y VENTA debajo */}
+                      <div className="flex flex-col gap-2">
+                        <div>
+                          <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-1">
+                            COMERCIALIZA
+                          </span>
+                          <div className="flex items-center min-h-[44px]">
+                            <img
+                              src={commercialAgencyLogo || DEFAULT_AGENCY_LOGO}
+                              alt="TERRAVALL Servicios Inmobiliarios"
+                              className="h-9 sm:h-10 w-auto max-w-[130px] object-contain"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Bloque: INFORMACIÓN Y VENTA (debajo del logo de TERRAVALL) */}
+                        <div className="pt-0.5">
+                          <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-0.5">
+                            INFORMACIÓN Y VENTA
+                          </span>
+                          <a
+                            href={`tel:${(agencyPhone || '983342132').replace(/\s+/g, '')}`}
+                            className="text-2xl sm:text-3xl font-black text-[#C5221F] tracking-tight hover:underline block"
+                            title="Llamar a Información y Venta"
+                          >
+                            {agencyPhone || '983 34 21 32'}
+                          </a>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Bloque: INFORMACIÓN Y VENTA */}
-                    <div className="pt-1">
-                      <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-0.5">
-                        INFORMACIÓN Y VENTA
-                      </span>
-                      <a
-                        href={`tel:${(agencyPhone || '983342132').replace(/\s+/g, '')}`}
-                        className="text-2xl sm:text-3xl font-black text-[#C5221F] tracking-tight hover:underline block"
-                        title="Llamar a Información y Venta"
-                      >
-                        {agencyPhone || '983 34 21 32'}
-                      </a>
                     </div>
                   </div>
                 </div>
