@@ -145,6 +145,38 @@ export interface DefectMark {
   /** Descripción del fallo asociada a este punto */
   notes?: string;
 }
+export type FurnitureType =
+  | 'sofa'
+  | 'corner_sofa'
+  | 'bed_double'
+  | 'bed_single'
+  | 'nightstand'
+  | 'dining_table'
+  | 'coffee_table'
+  | 'tv_unit'
+  | 'kitchen_counter'
+  | 'kitchen_island'
+  | 'wardrobe'
+  | 'desk'
+  | 'rug'
+  | 'plant'
+  | 'chair'
+  | 'custom';
+
+export interface FurnitureItem {
+  id: string;
+  name: string;
+  type: FurnitureType;
+  roomId?: string;
+  roomName?: string;
+  roomIndex?: number;
+  x: number; // Porcentaje 0 a 100 en el plano
+  y: number; // Porcentaje 0 a 100 en el plano
+  widthMeters: number; // Ancho en metros (ej. 2.2)
+  depthMeters: number; // Fondo en metros (ej. 0.9)
+  rotation: number; // Grados (0, 45, 90, 180, 270)
+}
+
 export interface RenderConfig {
   // 1. General
   cameraAngle: CameraAngle;

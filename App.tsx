@@ -7,8 +7,10 @@ import {
   RoomCategory,
   DefectMark,
   InteriorScene,
-  PromotionPlan
+  PromotionPlan,
+  FurnitureItem
 } from './types';
+import { generateDefaultFurnitureForRooms } from './services/furnitureManager';
 import {
   DEFAULT_PRESETS,
   SAMPLE_PLANS
@@ -27,6 +29,14 @@ import { DEFAULT_AGENCY_LOGO } from './services/defaultAgencyLogo';
 import { DEFAULT_PROMUEVE_LOGO } from './services/defaultPromueveLogo';
 import { PlanCanvasPreview } from './components/PlanCanvasPreview';
 import { StyleSelector } from './components/StyleSelector';
+import { LeftRail, ActiveSidebarTab } from './components/sidebar/LeftRail';
+import { TabPlano } from './components/sidebar/TabPlano';
+import { TabEstancias } from './components/sidebar/TabEstancias';
+import { TabEstilo } from './components/sidebar/TabEstilo';
+import { TabCalidades } from './components/sidebar/TabCalidades';
+import { TabAmueblar } from './components/sidebar/TabAmueblar';
+import { TabFicha } from './components/sidebar/TabFicha';
+import { ClaudeCanvas, CanvasViewMode } from './components/ClaudeCanvas';
 import { IntroModal } from './components/IntroModal';
 import { ProjectExportModal } from './components/ProjectExportModal';
 import { InteriorSceneModal } from './components/InteriorSceneModal';
@@ -206,6 +216,80 @@ export function App() {
   const [activePromotionId, setActivePromotionId] = useState<string>('');
   const [activePromotionName, setActivePromotionName] = useState<string>('');
 
+
+  // 4.7 Estados del Nuevo Diseño y Layout (Inspirado en Claude)
+  const [activeSidebarTab, setActiveSidebarTab] = useState<ActiveSidebarTab>('plano');
+  const [canvasViewMode, setCanvasViewMode] = useState<CanvasViewMode>('plano');
+  const [paintedStrokes, setPaintedStrokes] = useState<{ id: string; points: { x: number; y: number }[] }[]>([]);
+  const [brushSize, setBrushSize] = useState<number>(25);
+  const [isPaintingMode, setIsPaintingMode] = useState<boolean>(false);
+  const [isEraserMode, setIsEraserMode] = useState<boolean>(false);
+  const [removeOriginalFurniture, setRemoveOriginalFurniture] = useState<boolean>(true);
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [isPromptModalOpen, setIsPromptModalOpen] = useState<boolean>(false);
+  const [activeDefectMark, setActiveDefectMark] = useState<DefectMark | null>(null);
+  const [externalPrefillText, setExternalPrefillText] = useState<string | null>(null);
+
+  // 4.8 Estado de Mobiliario Interactivo (Mover, Rotar, Eliminar)
+  const [furnitureItems, setFurnitureItems] = useState<FurnitureItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('planos3d_furniture_items');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+  const [selectedFurnitureId, setSelectedFurnitureId] = useState<string | null>(null);
+
+  // Persistir muebles
+  useEffect(() => {
+    try {
+      localStorage.setItem('planos3d_furniture_items', JSON.stringify(furnitureItems));
+    } catch {}
+  }, [furnitureItems]);
+
+  // Si no hay muebles inicializados pero sí estancias, autogenerar la distribución estándar
+  useEffect(() => {
+    if (furnitureItems.length === 0 && config.roomMarkers && config.roomMarkers.length > 0) {
+      const generated = generateDefaultFurnitureForRooms(config.roomMarkers);
+      if (generated.length > 0) {
+        setFurnitureItems(generated);
+      }
+    }
+  }, [config.roomMarkers]);
+
+  const handleUpdateFurniture = (id: string, updates: Partial<FurnitureItem>) => {
+    setFurnitureItems((prev) => prev.map((f) => (f.id === id ? { ...f, ...updates } : f)));
+  };
+
+  const handleDeleteFurniture = (id: string) => {
+    setFurnitureItems((prev) => prev.filter((f) => f.id !== id));
+    setGenerationSuccessMessage('Pieza de mobiliario eliminada');
+    setTimeout(() => setGenerationSuccessMessage(null), 2500);
+  };
+
+  const handleAddFurniture = (item: Omit<FurnitureItem, 'id'>) => {
+    const newItem: FurnitureItem = {
+      ...item,
+      id: `furn_${Date.now()}`
+    };
+    setFurnitureItems((prev) => [...prev, newItem]);
+    setSelectedFurnitureId(newItem.id);
+    setGenerationSuccessMessage(`Añadido al plano: ${newItem.name}`);
+    setTimeout(() => setGenerationSuccessMessage(null), 2500);
+  };
+
+  // Calcular dimensiones de imagen automáticamente al cargar
+  useEffect(() => {
+    if (sourceImage && sourceImage.base64) {
+      const img = new Image();
+      img.onload = () => {
+        setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+      };
+      img.src = `data:${sourceImage.mimeType};base64,${sourceImage.base64}`;
+    } else {
+      setImageDimensions(null);
+    }
+  }, [sourceImage]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isGeneratingBusyRef = useRef<boolean>(false);
@@ -1696,7 +1780,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fcfbfa] text-stone-900 flex flex-col font-sans selection:bg-[#c25e38] selection:text-white">
+    <div className="h-screen w-screen overflow-hidden bg-[#f4f5f7] text-slate-900 flex flex-col font-sans select-none">
       {/* Input oculto para subida local */}
       <input
         ref={fileInputRef}
@@ -1706,275 +1790,111 @@ export function App() {
         className="hidden"
       />
 
-      {/* 1. Header Comercial / Barra Superior */}
-      <header className="border-b border-stone-200/90 bg-white/95 backdrop-blur-md sticky top-0 z-40 px-4 lg:px-6 py-2.5 flex items-center justify-between">
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#c25e38] to-[#e07a5f] text-white flex items-center justify-center shadow-md shadow-[#c25e38]/20">
-            <span className="material-symbols-outlined text-[24px]">view_in_ar</span>
+      {/* 1. Header Superior Minimalista Estilo Claude */}
+      <header className="h-14 bg-white border-b border-slate-200/90 px-4 flex items-center justify-between shrink-0 z-30 shadow-2xs">
+        {/* Izquierda: Icono App + Migas de pan Proyecto / Portal */}
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center shadow-xs">
+            <span className="material-symbols-outlined text-[20px]">view_in_ar</span>
           </div>
-          <div>
-            <div className="flex items-center gap-2.5">
-              <input
-                type="text"
-                value={projectTitle}
-                onChange={(e) => setProjectTitle(e.target.value)}
-                className="font-serif italic text-lg lg:text-xl text-stone-900 font-normal bg-transparent hover:bg-stone-50 focus:bg-white rounded-lg px-1.5 py-0.5 border border-transparent hover:border-stone-200 focus:border-[#c25e38] focus:outline-none transition-all"
-                title="Haz clic para renombrar el proyecto"
-              />
-              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-orange-100 text-[#c25e38]">
-                <span>✨</span> Estudio de Planos 3D
-              </span>
-            </div>
-            <p className="text-[11px] text-stone-400 hidden md:block">
-              De plano 2D a maqueta arquitectónica 3D fotorrealista con IA
-            </p>
+
+          <div className="flex items-center gap-2 text-sm">
+            <input
+              type="text"
+              value={projectTitle}
+              onChange={(e) => setProjectTitle(e.target.value)}
+              className="font-bold text-slate-800 bg-transparent hover:bg-slate-100 focus:bg-white rounded px-1.5 py-0.5 border border-transparent hover:border-slate-200 focus:border-blue-500 focus:outline-none transition-all max-w-[220px] sm:max-w-[280px] truncate"
+              title="Haz clic para renombrar la promoción"
+            />
+            <span className="text-slate-400">/</span>
+            <button
+              onClick={() => setIsGalleryOpen(true)}
+              className="flex items-center gap-1 font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded px-1.5 py-0.5 transition cursor-pointer"
+              title="Cambiar vivienda o tipología"
+            >
+              <span>{config.unitIdentifier || 'Portal 1 · 1º A'}</span>
+              <span className="material-symbols-outlined text-[16px] text-slate-400">expand_more</span>
+            </button>
           </div>
         </div>
 
-        {/* Acciones principales a la derecha */}
-        <div className="flex items-center gap-2">
-          {/* Badge de conexión a IA */}
-          <div className="hidden xl:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
+        {/* Derecha: Estado IA + Deshacer + Galería + Botón Amueblar */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Badge Estado Servidor IA */}
+          <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Motor: Renderizado Inteligente IA</span>
+            <span>Claude / Gemini vía servidor</span>
           </div>
 
-          {/* Selector y Subida Masiva de Promociones Supabase */}
-          <div className="flex items-center gap-1 bg-indigo-50/80 border border-indigo-200/90 rounded-xl p-1 shadow-2xs">
+          {/* Botones de acción rápidos */}
+          <div className="flex items-center gap-1 text-slate-500">
+            <button
+              onClick={handleUndo}
+              disabled={history.length <= 1}
+              className="p-1.5 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition disabled:opacity-30 cursor-pointer"
+              title="Deshacer cambio (Ctrl+Z)"
+            >
+              <span className="material-symbols-outlined text-[20px]">undo</span>
+            </button>
+            <button
+              onClick={() => {}}
+              disabled={true}
+              className="p-1.5 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition disabled:opacity-30 cursor-pointer"
+              title="Rehacer"
+            >
+              <span className="material-symbols-outlined text-[20px]">redo</span>
+            </button>
             <button
               onClick={() => setIsGalleryOpen(true)}
-              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-950 hover:bg-white hover:shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-              title="Explorar planos guardados por promoción, portal y tipología"
+              className="p-1.5 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+              title="Galería de planos de la promoción"
             >
-              <span className="material-symbols-outlined text-[17px] text-indigo-600">apartment</span>
-              <span className="max-w-[130px] truncate">
-                {activePromotionName || 'Promociones'}
-              </span>
+              <span className="material-symbols-outlined text-[20px]">folder_open</span>
             </button>
             <button
               onClick={() => setIsBatchUploadOpen(true)}
-              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-              title="Subida masiva: subir todos los planos de la promoción con portal y tipología"
+              className="p-1.5 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+              title="Subida masiva de planos"
             >
-              <span className="material-symbols-outlined text-[16px]">cloud_upload</span>
-              <span className="hidden sm:inline">Subida Masiva</span>
+              <span className="material-symbols-outlined text-[20px]">cloud_upload</span>
             </button>
           </div>
 
-          {/* Botón Maximizar Área de Trabajo / Alternar Panel Lateral */}
-          <button
-            onClick={() => setIsSidebarOpen((prev) => !prev)}
-            className={`px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 border cursor-pointer shadow-2xs ${
-              isSidebarOpen
-                ? 'bg-stone-100 hover:bg-stone-200 text-stone-800 border-stone-200'
-                : 'bg-[#c25e38]/10 hover:bg-[#c25e38]/20 text-[#c25e38] border-[#c25e38]/30 font-bold'
-            }`}
-            title={isSidebarOpen ? 'Ocultar panel lateral (Área de trabajo máxima)' : 'Mostrar panel de calidades'}
-          >
-            <span className="material-symbols-outlined text-[17px]">
-              {isSidebarOpen ? 'dock_to_right' : 'view_sidebar'}
-            </span>
-            <span className="hidden md:inline">
-              {isSidebarOpen ? 'Ocultar Calidades' : 'Ver Calidades'}
-            </span>
-          </button>
-
-          {/* Botón Alternar Ancho del Panel */}
-          {isSidebarOpen && (
-            <button
-              onClick={() => setIsSidebarWide((prev) => !prev)}
-              className="px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 border cursor-pointer shadow-2xs bg-stone-100 hover:bg-stone-200 text-stone-800 border-stone-200"
-              title={isSidebarWide ? 'Cambiar a ancho estándar' : 'Cambiar a panel extra ancho'}
-            >
-              <span className="material-symbols-outlined text-[17px]">
-                {isSidebarWide ? 'collapse_content' : 'expand_content'}
-              </span>
-              <span className="hidden md:inline">
-                {isSidebarWide ? 'Ancho Cómodo' : 'Extra Ancho'}
-              </span>
-            </button>
-          )}
-
-          <button
-            onClick={() => setIsIntroOpen(true)}
-            className="p-2 lg:px-3 lg:py-1.5 rounded-xl text-xs font-semibold text-stone-600 hover:text-stone-900 hover:bg-stone-100 transition flex items-center gap-1.5 cursor-pointer"
-            title="Guía rápida"
-          >
-            <span className="material-symbols-outlined text-[18px]">help_outline</span>
-            <span className="hidden sm:inline">Guía</span>
-          </button>
-
-          <button
-            onClick={() => setIsExportOpen(true)}
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-800 transition flex items-center gap-1.5 border border-stone-200 cursor-pointer shadow-2xs"
-          >
-            <span className="material-symbols-outlined text-[17px]">archive</span>
-            <span>Exportar</span>
-          </button>
-
-          {/* Botón Primario de Generación */}
+          {/* Botón Primario: Amueblar */}
           <button
             onClick={handleGenerate}
             disabled={isGenerating || !sourceImage}
-            className="px-5 py-2 rounded-xl text-xs font-bold bg-[#c25e38] hover:bg-[#a84d2b] disabled:opacity-50 text-white shadow-md shadow-[#c25e38]/25 transition flex items-center gap-2 cursor-pointer active:scale-95"
+            className="px-4 py-2 bg-[#254b8c] hover:bg-[#1d3d75] disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer active:scale-95"
           >
-            <span className="material-symbols-outlined text-[18px]">
-              {isGenerating ? 'progress_activity' : 'auto_awesome'}
+            <span className="material-symbols-outlined text-[17px]">
+              {isGenerating ? 'sync' : 'auto_awesome'}
             </span>
-            <span>{isGenerating ? 'Renderizando...' : 'Generar Render 3D'}</span>
+            <span>{isGenerating ? 'Generando...' : 'Amueblar'}</span>
           </button>
         </div>
       </header>
 
-      {/* 2. Barra de Pasos / Guía de Flujo Sutil */}
-      <div className="bg-stone-100/60 border-b border-stone-200/80 px-4 lg:px-6 py-2 flex items-center justify-between text-xs text-stone-500 overflow-x-auto">
-        <div className="flex items-center gap-6 min-w-max">
-          <div className="flex items-center gap-2 font-medium">
-            <span
-              className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                sourceImage ? 'bg-emerald-600 text-white' : 'bg-[#c25e38] text-white'
-              }`}
-            >
-              {sourceImage ? '✓' : '1'}
-            </span>
-            <span className={sourceImage ? 'text-stone-900 font-semibold' : 'text-[#c25e38] font-bold'}>
-              1. Carga tu Plano 2D
-            </span>
-          </div>
+      {/* 2. Cuerpo Principal: LeftRail + Sub-panel Contextual + ClaudeCanvas */}
+      <div className="flex-1 flex overflow-hidden w-full h-[calc(100vh-56px)]">
+        {/* Rail Vertical Izquierdo de Iconos */}
+        <LeftRail
+          activeTab={activeSidebarTab}
+          onSelectTab={(tab) => {
+            setActiveSidebarTab(tab);
+            if (tab === 'plano') setCanvasViewMode('plano');
+            else if (tab === 'amueblar' && renderedResult) setCanvasViewMode('amueblado');
+            else if (tab === 'ficha') setCanvasViewMode('ficha');
+          }}
+          roomCount={config.roomMarkers?.length || 0}
+          changesCount={history.length}
+        />
 
-          <span className="text-stone-300">→</span>
-
-          <div className="flex items-center gap-2 font-medium">
-            <span
-              className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                config.roomMarkers?.length ? 'bg-emerald-600 text-white' : 'bg-stone-200 text-stone-700'
-              }`}
-            >
-              {config.roomMarkers?.length ? '✓' : '2'}
-            </span>
-            <span className={config.roomMarkers?.length ? 'text-stone-900 font-semibold' : 'text-stone-500'}>
-              2. Marca Estancias ({config.roomMarkers?.length || 0})
-            </span>
-          </div>
-
-          <span className="text-stone-300">→</span>
-
-          <div className="flex items-center gap-2 font-medium">
-            <span className="w-5 h-5 rounded-full bg-stone-200 text-stone-700 flex items-center justify-center text-[11px] font-bold">
-              3
-            </span>
-            <span className="text-stone-900 font-semibold">
-              3. Elige Estilo & Calidades
-            </span>
-          </div>
-
-          <span className="text-stone-300">→</span>
-
-          <div className="flex items-center gap-2 font-medium">
-            <span
-              className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                renderedResult ? 'bg-emerald-600 text-white' : 'bg-stone-200 text-stone-700'
-              }`}
-            >
-              {renderedResult ? '✓' : '4'}
-            </span>
-            <span className={renderedResult ? 'text-emerald-700 font-bold' : 'text-stone-500'}>
-              4. Render 3D & Descarga
-            </span>
-          </div>
-        </div>
-
-        {/* Acceso rápido a muestras de prueba */}
-        {!sourceImage && (
-          <div className="hidden lg:flex items-center gap-2 shrink-0">
-            <span className="text-[11px] text-stone-400">Probar plano muestra:</span>
-            {SAMPLE_PLANS.map((sample) => (
-              <button
-                key={sample.url}
-                onClick={() => handleLoadSample(sample.url, sample.name)}
-                className="px-2.5 py-0.5 rounded-lg bg-white border border-stone-200 hover:border-[#c25e38] text-stone-700 text-[11px] font-medium transition cursor-pointer"
-              >
-                {sample.type}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 3. Espacio Principal de Trabajo (Aprovechamiento total del ancho de pantalla sin márgenes artificiales) */}
-      <main className="flex-1 w-full px-3 sm:px-4 lg:px-6 py-3 flex flex-col lg:flex-row gap-4 items-stretch">
-        {/* Columna Izquierda: Visor Interactivo (Ocupa todo el espacio disponible) */}
-        <section className="flex-1 min-w-0 flex flex-col gap-3 min-h-[540px]">
-          {/* Mensajes de Notificación */}
-          {generationError && (
-            <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-800 flex items-center justify-between shadow-xs animate-fadeIn">
-              <span className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px] text-red-600">error</span>
-                <span>{generationError}</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => setGenerationError(null)}
-                aria-label="Cerrar notificación de error"
-                className="text-red-500 hover:text-red-900 font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-
-          {generationSuccessMessage && (
-            <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-800 flex items-center justify-between shadow-xs animate-fadeIn">
-              <span className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px] text-emerald-600">check_circle</span>
-                <span>{generationSuccessMessage}</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => setGenerationSuccessMessage(null)}
-                aria-label="Cerrar mensaje de éxito"
-                className="text-emerald-500 hover:text-emerald-900 font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-
-          <div className="flex-1 h-full min-h-[500px]">
-            <PlanCanvasPreview
+        {/* Panel Contextual Secundario */}
+        <aside className="w-[360px] xl:w-[390px] 2xl:w-[410px] shrink-0 bg-white border-r border-slate-200 h-full overflow-hidden flex flex-col z-10 shadow-xs">
+          {activeSidebarTab === 'plano' && (
+            <TabPlano
               sourceImage={sourceImage}
-              renderedResult={renderedResult}
-              isGenerating={isGenerating}
-              cameraAngle={config.cameraAngle}
-              roomMarkers={config.roomMarkers || []}
-              markerBadgeColor={config.markerBadgeColor || '#0F2C59'}
-              onChangeMarkerBadgeColor={(color) => setConfig((prev) => ({ ...prev, markerBadgeColor: color }))}
-              promotionLogo={config.promotionLogo || DEFAULT_PROMOTION_LOGO}
-              onChangePromotionLogo={(logo) => setConfig((prev) => ({ ...prev, promotionLogo: logo || undefined }))}
-              promotorLogo={config.promotorLogo || DEFAULT_PROMUEVE_LOGO}
-              onChangePromotorLogo={(logo) => setConfig((prev) => ({ ...prev, promotorLogo: logo || undefined }))}
-              commercialAgencyLogo={config.commercialAgencyLogo || DEFAULT_AGENCY_LOGO}
-              onChangeCommercialAgencyLogo={(logo) => setConfig((prev) => ({ ...prev, commercialAgencyLogo: logo || undefined }))}
-              agencyPhone={config.agencyPhone || '983 34 21 32'}
-              onChangeAgencyPhone={(phone) => setConfig((prev) => ({ ...prev, agencyPhone: phone || undefined }))}
-              unitIdentifier={config.unitIdentifier}
-              onChangeUnitIdentifier={(val) => setConfig((prev) => ({ ...prev, unitIdentifier: val }))}
-              isometricOrientation={config.isometricOrientation}
-              isometricRotationAngle={config.isometricRotationAngle}
-              onChangeIsometricOrientation={(orientation, angle) => setConfig((prev) => ({ ...prev, isometricOrientation: orientation, isometricRotationAngle: angle }))}
-              onIsolatePlan={handleToggleIsolatePlan}
-              isPlanIsolated={isPlanIsolated}
-              isTextCleaned={isTextCleaned}
-              onToggleCleanText={handleToggleCleanText}
-              projectTitle={projectTitle}
-              activeMarkerId={activeMarkerId}
-              isPinningMode={isPinningMode}
-              onMarkerClick={(id) => setActiveMarkerId(id)}
-              onCanvasClickToPositionMarker={handleCanvasClickToPositionMarker}
-              onAddMarker={handleAddMarker}
-              onUpdateMarker={handleUpdateMarker}
-              onDeleteMarker={handleDeleteMarker}
-              onTogglePinningMode={() => setIsPinningMode(!isPinningMode)}
+              onUploadFile={() => fileInputRef.current?.click()}
               onClearPlan={() => {
                 setSourceImage(null);
                 originalSourceImageRef.current = null;
@@ -1985,89 +1905,234 @@ export function App() {
                 detectedBlueprintBoxRef.current = null;
                 setRenderedResult(null);
               }}
-              onSelectFromGallery={handleSelectFromGallery}
-              onUploadLocalFile={() => fileInputRef.current?.click()}
-              onLoadSamplePlan={handleLoadSample}
-              onDownloadRender={handleDownloadRender}
-              downloadStatus={downloadStatus}
               onDetectWithAI={handleDetectRooms}
               isDetectingWithAI={isAnalyzingPlan}
-              onCleanPlanTexts={handleCleanPlanTexts}
-              isCleaningPlanText={isCleaningPlanText}
-              onEraseTextAtPoint={handleEraseTextAtPoint}
-              onApplyCorrection={handleApplyTargetedCorrection}
-              currentVersion={currentVersionNumber}
-              canUndo={history.length > 1}
-              onUndoToPreviousVersion={handleUndo}
-              isConvertingPdf={isConvertingPdf}
-              pdfPagesInfo={pdfFileInfo ? { currentPage: pdfFileInfo.currentPage, numPages: pdfFileInfo.numPages } : null}
-              onPdfPageChange={handlePdfPageChange}
-              onDropFile={processUploadedFile}
-              onGenerateInterior={handleGenerateRoomInterior}
-              isGeneratingInterior={isGeneratingInterior}
-              generatingRoomId={generatingRoomId}
-              lighting={config.lighting}
-              onChangeLighting={(l) => setConfig((prev) => ({ ...prev, lighting: l }))}
-              customTotalUsefulArea={config.customTotalUsefulArea}
-              onChangeCustomTotalUsefulArea={(val) => setConfig((prev) => ({ ...prev, customTotalUsefulArea: val }))}
+              isPlanIsolated={isPlanIsolated}
+              onToggleIsolatePlan={handleToggleIsolatePlan}
+              isTextCleaned={isTextCleaned}
+              onToggleCleanText={handleToggleCleanText}
+              removeOriginalFurniture={removeOriginalFurniture}
+              onToggleRemoveOriginalFurniture={setRemoveOriginalFurniture}
+              isEraserMode={isEraserMode}
+              onToggleEraserMode={() => setIsEraserMode(!isEraserMode)}
+              detectedTextCount={3}
+              imageDimensions={imageDimensions}
+              onLoadSample={handleLoadSample}
             />
+          )}
 
-          </div>
-        </section>
+          {activeSidebarTab === 'estancias' && (
+            <TabEstancias
+              markers={config.roomMarkers || []}
+              onAddMarker={handleAddMarker}
+              onUpdateMarker={handleUpdateMarker}
+              onDeleteMarker={handleDeleteMarker}
+              onClearMarkers={() => setConfig((prev) => ({ ...prev, roomMarkers: [] }))}
+              activeMarkerId={activeMarkerId}
+              onSelectMarker={setActiveMarkerId}
+              isPinningMode={isPinningMode}
+              onTogglePinningMode={() => setIsPinningMode(!isPinningMode)}
+              customTotalUsefulArea={config.customTotalUsefulArea}
+              onChangeCustomTotalUsefulArea={(val) =>
+                setConfig((prev) => ({ ...prev, customTotalUsefulArea: val }))
+              }
+            />
+          )}
 
-        {/* Columna Derecha: Panel de Estilo & Memoria de Calidades (Opcionalmente colapsable) */}
-        {isSidebarOpen && (
-          <section
-            className={`w-full shrink-0 flex flex-col gap-3 animate-fadeIn transition-all duration-200 ${
-              isSidebarWide
-                ? 'lg:w-[500px] xl:w-[560px] 2xl:w-[620px]'
-                : 'lg:w-[420px] xl:w-[460px] 2xl:w-[500px]'
-            }`}
-          >
-            <StyleSelector
+          {activeSidebarTab === 'estilo' && (
+            <TabEstilo
               config={config}
               onChangeConfig={setConfig}
               presets={presets}
               activePresetId={activePresetId}
               onApplyPreset={handleApplyPreset}
-              onSavePreset={handleSavePreset}
-              onDeletePreset={handleDeletePreset}
-              onImportPresetJson={handleImportPresetJson}
-              onSetDefaultConfig={handleSetDefaultConfig}
-              activeMarkerId={activeMarkerId}
-              onSelectMarker={setActiveMarkerId}
-              isPinningMode={isPinningMode}
-              onTogglePinningMode={() => setIsPinningMode(!isPinningMode)}
-              onGenerateRender={handleGenerate}
-              isGenerating={isGenerating}
-              disabled={isGenerating || isAnalyzingPlan}
-              onDetectWithAI={handleDetectRooms}
-              isDetectingWithAI={isAnalyzingPlan}
-              hasSourceImage={!!sourceImage}
-              onGenerateInterior={handleGenerateRoomInterior}
-              isGeneratingInterior={isGeneratingInterior}
-              generatingRoomId={generatingRoomId}
-              history={history}
-              onApplyCorrection={handleApplyTargetedCorrection}
-              onRestoreVersion={handleRestoreVersion}
-              currentVersion={currentVersionNumber}
-              isWide={isSidebarWide}
-              onToggleWide={() => setIsSidebarWide((prev) => !prev)}
+              onSavePreset={(name) => handleSavePreset(name, config)}
+              onApplyChangesInstant={() => {
+                setGenerationSuccessMessage('Estilo de renderizado actualizado');
+                setTimeout(() => setGenerationSuccessMessage(null), 3000);
+              }}
             />
-          </section>
-        )}
-      </main>
+          )}
 
-      {/* Botón flotante para restaurar panel si está oculto */}
-      {!isSidebarOpen && (
-        <button
-          onClick={() => setIsSidebarOpen(true)}
-          className="fixed bottom-6 right-6 z-40 px-4 py-2.5 rounded-2xl bg-stone-900/95 hover:bg-stone-900 text-white text-xs font-bold shadow-2xl border border-stone-700/80 backdrop-blur-md flex items-center gap-2 transition-all hover:scale-105 active:scale-95 cursor-pointer animate-fadeIn"
-          title="Abrir panel de estilos y calidades"
-        >
-          <span className="material-symbols-outlined text-[18px] text-[#c25e38]">tune</span>
-          <span>Abrir Panel de Calidades</span>
-        </button>
+          {activeSidebarTab === 'calidades' && (
+            <TabCalidades
+              config={config}
+              onChangeConfig={setConfig}
+              onApplyChangesInstant={() => {
+                setGenerationSuccessMessage('Memoria de calidades aplicada al instante');
+                setTimeout(() => setGenerationSuccessMessage(null), 3000);
+              }}
+            />
+          )}
+
+          {activeSidebarTab === 'amueblar' && (
+            <TabAmueblar
+              currentVersion={currentVersionNumber}
+              roomMarkers={config.roomMarkers || []}
+              furnitureItems={furnitureItems}
+              selectedFurnitureId={selectedFurnitureId}
+              onSelectFurniture={setSelectedFurnitureId}
+              onUpdateFurniture={handleUpdateFurniture}
+              onDeleteFurniture={handleDeleteFurniture}
+              onAddFurniture={handleAddFurniture}
+              onApplyCorrection={handleApplyTargetedCorrection}
+              isGenerating={isGenerating}
+              hasRender={!!renderedResult}
+              isPaintingMode={isPaintingMode}
+              onTogglePaintingMode={() => {
+                const next = !isPaintingMode;
+                setIsPaintingMode(next);
+                if (next) setActiveSidebarTab('amueblar');
+              }}
+              strokeCount={paintedStrokes.length}
+              brushSize={brushSize}
+              onChangeBrushSize={setBrushSize}
+              onClearStrokes={() => setPaintedStrokes([])}
+              onViewPromptModal={() => setIsPromptModalOpen(true)}
+              activeDefectMark={activeDefectMark}
+              onClearDefectMark={() => setActiveDefectMark(null)}
+              externalPrefillText={externalPrefillText}
+              onClearPrefill={() => setExternalPrefillText(null)}
+            />
+          )}
+
+          {activeSidebarTab === 'ficha' && (
+            <TabFicha
+              projectTitle={projectTitle}
+              onChangeProjectTitle={setProjectTitle}
+              unitIdentifier={config.unitIdentifier || 'Portal 1 · 1º A'}
+              onChangeUnitIdentifier={(val) =>
+                setConfig((prev) => ({ ...prev, unitIdentifier: val }))
+              }
+              agencyPhone={config.agencyPhone}
+              onChangeAgencyPhone={(val) =>
+                setConfig((prev) => ({ ...prev, agencyPhone: val || undefined }))
+              }
+              onExportPDF={() => setIsExportOpen(true)}
+              onExportPNG={handleDownloadRender}
+              onExportProjectZip={() => setIsExportOpen(true)}
+              roomMarkers={config.roomMarkers || []}
+            />
+          )}
+        </aside>
+
+        {/* Canvas Central */}
+        <main className="flex-1 h-full overflow-hidden relative flex flex-col">
+          {/* Mensajes de feedback */}
+          {generationError && (
+            <div className="absolute top-16 left-6 right-6 z-40 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 flex items-center justify-between shadow-md">
+              <span className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[18px] text-red-600">error</span>
+                <span>{generationError}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setGenerationError(null)}
+                className="text-red-500 hover:text-red-800 font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {generationSuccessMessage && (
+            <div className="absolute top-16 left-6 right-6 z-40 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center justify-between shadow-md">
+              <span className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[18px] text-emerald-600">check_circle</span>
+                <span>{generationSuccessMessage}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setGenerationSuccessMessage(null)}
+                className="text-emerald-500 hover:text-emerald-800 font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          <ClaudeCanvas
+            sourceImage={sourceImage}
+            renderedResult={renderedResult}
+            isGenerating={isGenerating}
+            roomMarkers={config.roomMarkers || []}
+            activeMarkerId={activeMarkerId}
+            onSelectMarker={setActiveMarkerId}
+            isPinningMode={isPinningMode}
+            onCanvasClickToPositionMarker={handleCanvasClickToPositionMarker}
+            onUpdateMarkerPosition={(id, x, y) => handleUpdateMarker(id, { x, y })}
+            isPaintingMode={isPaintingMode}
+            onTogglePaintingMode={() => {
+              const next = !isPaintingMode;
+              setIsPaintingMode(next);
+              if (next) setActiveSidebarTab('amueblar');
+            }}
+            brushSize={brushSize}
+            onChangeBrushSize={setBrushSize}
+            paintedStrokes={paintedStrokes}
+            onAddStroke={(s) => setPaintedStrokes((prev) => [...prev, s])}
+            onClearStrokes={() => setPaintedStrokes([])}
+            activeDefectMark={activeDefectMark}
+            onSetDefectMark={(mark) => {
+              setActiveDefectMark(mark);
+              setActiveSidebarTab('amueblar');
+            }}
+            onAnnotationComplete={(prefill) => {
+              setExternalPrefillText(prefill);
+              setActiveSidebarTab('amueblar');
+            }}
+            history={history}
+            currentVersion={currentVersionNumber}
+            onSelectVersion={handleRestoreVersion}
+            projectTitle={projectTitle}
+            unitIdentifier={config.unitIdentifier || 'Portal 1 · 1º A'}
+            furnitureItems={furnitureItems}
+            selectedFurnitureId={selectedFurnitureId}
+            onSelectFurniture={setSelectedFurnitureId}
+            onUpdateFurniture={handleUpdateFurniture}
+            onDeleteFurniture={handleDeleteFurniture}
+            viewMode={canvasViewMode}
+            onChangeViewMode={setCanvasViewMode}
+            onUploadFile={() => fileInputRef.current?.click()}
+            onDropFile={processUploadedFile}
+            isEraserMode={isEraserMode}
+            onEraseAtPoint={handleEraseTextAtPoint}
+          />
+        </main>
+      </div>
+
+      {/* Modal para ver el encargo/prompt enviado */}
+      {isPromptModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-base font-bold text-slate-900">
+                Encargo arquitectónico enviado (v{currentVersionNumber})
+              </h3>
+              <button
+                onClick={() => setIsPromptModalOpen(false)}
+                className="text-slate-400 hover:text-slate-800"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="bg-slate-50 p-4 rounded-xl text-xs font-mono text-slate-700 max-h-80 overflow-y-auto leading-relaxed border border-slate-200">
+              {currentPrompt}
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(currentPrompt);
+                  setGenerationSuccessMessage('Encargo copiado al portapapeles');
+                  setIsPromptModalOpen(false);
+                }}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition"
+              >
+                Copiar Encargo
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modales */}
@@ -2113,6 +2178,5 @@ export function App() {
     </div>
   );
 }
-
 
 export default App;
