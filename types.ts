@@ -216,3 +216,43 @@ export interface InteriorScene {
   timestamp: number;
   engineUsed?: string;
 }
+
+export interface Promotion {
+  id: string;
+  name: string;
+  description?: string;
+  address?: string;
+  developer_name?: string;
+  agency_name?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PromotionPlan {
+  id: string;
+  promotion_id: string;
+  portal: string;
+  typology: string;
+  unit_identifier?: string;
+  original_filename: string;
+  file_path: string;
+  storage_url: string;
+  mime_type: string;
+  file_size?: number;
+  num_pages?: number;
+  useful_area?: number;
+  metadata?: Record<string, any>;
+  created_at?: string;
+}
+
+export interface BatchUploadPlanItem {
+  id: string;
+  file: File;
+  portal: string;
+  typology: string;
+  unit_identifier: string;
+  status: 'pending' | 'uploading' | 'completed' | 'error';
+  progress: number;
+  error?: string;
+  previewUrl?: string;
+}

@@ -6,7 +6,8 @@ import {
   RoomMarker,
   RoomCategory,
   DefectMark,
-  InteriorScene
+  InteriorScene,
+  PromotionPlan
 } from './types';
 import {
   DEFAULT_PRESETS,
@@ -29,6 +30,9 @@ import { StyleSelector } from './components/StyleSelector';
 import { IntroModal } from './components/IntroModal';
 import { ProjectExportModal } from './components/ProjectExportModal';
 import { InteriorSceneModal } from './components/InteriorSceneModal';
+import { BatchUploadModal } from './components/BatchUploadModal';
+import { PromotionPlansGalleryModal } from './components/PromotionPlansGalleryModal';
+import { isSupabaseConfigured } from './services/supabaseClient';
 
 import { safeDownloadFile, cleanBase64Data } from './services/downloadHelper';
 import { analyzeBlueprintRooms } from './services/planAnalyzer';
@@ -195,6 +199,12 @@ export function App() {
   const [isGeneratingInterior, setIsGeneratingInterior] = useState<boolean>(false);
   const [generatingRoomId, setGeneratingRoomId] = useState<string | null>(null);
   const [isInteriorModalOpen, setIsInteriorModalOpen] = useState<boolean>(false);
+
+  // 4.6 Gestión de Promociones y Subida Masiva (Supabase)
+  const [isBatchUploadOpen, setIsBatchUploadOpen] = useState<boolean>(false);
+  const [isGalleryOpen, setIsGalleryOpen] = useState<boolean>(false);
+  const [activePromotionId, setActivePromotionId] = useState<string>('');
+  const [activePromotionName, setActivePromotionName] = useState<string>('');
 
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -753,7 +763,30 @@ export function App() {
   };
 
   // Selección desde Galería Flow
+  // Selección de plano desde Supabase (Promociones)
+  const handleSelectPlanFromSupabase = async (
+    file: File,
+    planInfo: PromotionPlan,
+    promoName: string
+  ) => {
+    setActivePromotionId(planInfo.promotion_id);
+    setActivePromotionName(promoName);
+    if (promoName) {
+      setProjectTitle(`${promoName} - ${planInfo.portal}`);
+    }
+    setConfig((prev) => ({
+      ...prev,
+      unitIdentifier: `${planInfo.portal}${planInfo.unit_identifier ? ` - ${planInfo.unit_identifier}` : ''} (${planInfo.typology})`
+    }));
+    await processUploadedFile(file);
+  };
+
+  // Selección desde Galería (Supabase o Flow)
   const handleSelectFromGallery = async () => {
+    if (isSupabaseConfigured) {
+      setIsGalleryOpen(true);
+      return;
+    }
     const flowSdk = (window as any).Flow;
     if (flowSdk && typeof flowSdk.media?.select === 'function') {
       try {
@@ -1706,6 +1739,28 @@ export function App() {
             <span>Motor: Renderizado Inteligente IA</span>
           </div>
 
+          {/* Selector y Subida Masiva de Promociones Supabase */}
+          <div className="flex items-center gap-1 bg-indigo-50/80 border border-indigo-200/90 rounded-xl p-1 shadow-2xs">
+            <button
+              onClick={() => setIsGalleryOpen(true)}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-950 hover:bg-white hover:shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              title="Explorar planos guardados por promoción, portal y tipología"
+            >
+              <span className="material-symbols-outlined text-[17px] text-indigo-600">apartment</span>
+              <span className="max-w-[130px] truncate">
+                {activePromotionName || 'Promociones'}
+              </span>
+            </button>
+            <button
+              onClick={() => setIsBatchUploadOpen(true)}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              title="Subida masiva: subir todos los planos de la promoción con portal y tipología"
+            >
+              <span className="material-symbols-outlined text-[16px]">cloud_upload</span>
+              <span className="hidden sm:inline">Subida Masiva</span>
+            </button>
+          </div>
+
           {/* Botón Maximizar Área de Trabajo / Alternar Panel Lateral */}
           <button
             onClick={() => setIsSidebarOpen((prev) => !prev)}
@@ -2034,6 +2089,26 @@ export function App() {
         onSelectScene={(scene) => setActiveInteriorScene(scene)}
         onRegenerateScene={handleRegenerateInteriorScene}
         isRegenerating={isGeneratingInterior}
+      />
+      <BatchUploadModal
+        isOpen={isBatchUploadOpen}
+        onClose={() => setIsBatchUploadOpen(false)}
+        initialPromotionId={activePromotionId}
+        onUploadComplete={(promoId) => {
+          setActivePromotionId(promoId);
+          setIsBatchUploadOpen(false);
+          setIsGalleryOpen(true);
+        }}
+      />
+      <PromotionPlansGalleryModal
+        isOpen={isGalleryOpen}
+        onClose={() => setIsGalleryOpen(false)}
+        activePromotionId={activePromotionId}
+        onSelectPlan={handleSelectPlanFromSupabase}
+        onOpenBatchUpload={() => {
+          setIsGalleryOpen(false);
+          setIsBatchUploadOpen(true);
+        }}
       />
     </div>
   );

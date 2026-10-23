@@ -156,6 +156,42 @@ export function StyleSelector({
   // Datos de opciones seleccionadas para el resumen activo
   const selectedStyle = INTERIOR_STYLES.find((s) => s.id === config.interiorStyle) || INTERIOR_STYLES[0];
   const selectedPalette = COLOR_PALETTE_SCHEMES.find((p) => p.id === config.colorPalette) || COLOR_PALETTE_SCHEMES[0];
+
+  // Estado para ventana emergente / vista previa de paleta cromática al pasar el cursor
+  const [hoveredPalette, setHoveredPalette] = useState<{
+    palette: typeof COLOR_PALETTE_SCHEMES[0];
+    rect: DOMRect;
+  } | null>(null);
+
+  const getPopoverStyle = (rect: DOMRect): React.CSSProperties => {
+    const width = 340;
+    const padding = 12;
+
+    // Preferir situarlo a la izquierda del botón (sobre el área central de trabajo)
+    let left = rect.left - width - 12;
+    if (left < padding) {
+      if (rect.right + width + padding <= window.innerWidth) {
+        left = rect.right + 12;
+      } else {
+        left = Math.max(padding, Math.min(window.innerWidth - width - padding, rect.left));
+      }
+    }
+
+    const approxHeight = 360;
+    let top = rect.top + rect.height / 2 - approxHeight / 2;
+    if (top + approxHeight > window.innerHeight - padding) {
+      top = window.innerHeight - approxHeight - padding;
+    }
+    if (top < padding) {
+      top = padding;
+    }
+
+    return {
+      top: `${top}px`,
+      left: `${left}px`,
+      width: `${width}px`
+    };
+  };
   const selectedCamera = CAMERA_ANGLES.find((c) => c.id === config.cameraAngle) || CAMERA_ANGLES[0];
   const selectedLivingFloor = FLOORING_LIVING_OPTIONS.find((f) => f.id === config.flooringLiving) || FLOORING_LIVING_OPTIONS[0];
   const selectedBathGres60 = BATHROOM_GRES_60X60_TONES.find((b) => b.id === config.flooringBathroomGres60) || BATHROOM_GRES_60X60_TONES[0];
@@ -451,6 +487,11 @@ export function StyleSelector({
                       type="button"
                       disabled={disabled}
                       onClick={() => updateField('colorPalette', pal.id)}
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setHoveredPalette({ palette: pal, rect });
+                      }}
+                      onMouseLeave={() => setHoveredPalette(null)}
                       className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
                         isSelected
                           ? 'border-[#c25e38] bg-white ring-2 ring-[#c25e38]/30 shadow-xs'
@@ -481,6 +522,60 @@ export function StyleSelector({
                   );
                 })}
               </div>
+
+              {/* Ventana Emergente Flotante con Vista Previa 3D de la Paleta Cromática */}
+              {hoveredPalette && (
+                <div
+                  className="fixed z-50 pointer-events-none bg-stone-900/95 backdrop-blur-md text-white rounded-2xl p-3.5 shadow-2xl border border-stone-700/80 animate-fadeIn space-y-2.5 transition-all"
+                  style={getPopoverStyle(hoveredPalette.rect)}
+                >
+                  {/* Cabecera del popover */}
+                  <div className="flex items-center justify-between gap-2 border-b border-stone-800 pb-2">
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-white truncate flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[15px] text-[#e07a5f]">palette</span>
+                        <span>{hoveredPalette.palette.label}</span>
+                      </div>
+                      <span className="text-[10px] text-amber-300 font-semibold">
+                        {hoveredPalette.palette.badge}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {hoveredPalette.palette.colors.map((c, i) => (
+                        <span
+                          key={`popover-c-${i}`}
+                          className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-xs"
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Imagen de ejemplo del plano genérico 3D */}
+                  <div className="relative aspect-4/3 rounded-xl overflow-hidden bg-stone-950 border border-stone-800 shadow-inner">
+                    <img
+                      src={`/palettes/${hoveredPalette.palette.id}.png`}
+                      alt={`Ejemplo 3D - ${hoveredPalette.palette.label}`}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-stone-900/85 text-[10px] font-semibold text-stone-200 border border-white/10 backdrop-blur-xs flex items-center gap-1 shadow-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>Ejemplo de Render 3D</span>
+                    </div>
+                  </div>
+
+                  {/* Descripción de la paleta */}
+                  <p className="text-[11px] text-stone-300 leading-relaxed">
+                    {hoveredPalette.palette.desc}
+                  </p>
+
+                  {/* Pie informativo */}
+                  <div className="pt-1 border-t border-stone-800/80 flex items-center justify-between text-[10px] text-stone-400">
+                    <span>Gama cromática de estancias y mobiliario</span>
+                    <span className="text-orange-300 font-medium">Vista previa</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
