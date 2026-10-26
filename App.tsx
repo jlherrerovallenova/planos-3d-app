@@ -310,75 +310,24 @@ export function App() {
   // Limpieza de textos y nombres en plano
   const [isCleaningPlanText, setIsCleaningPlanText] = useState<boolean>(false);
 
-  // Análisis automático de estancias, aislamiento de plano y superficies útiles con Gemini Vision
+  // Análisis automático de estancias y superficies útiles con Gemini Vision (sin recorte ni zoom forzado)
   const triggerPlanAnalysis = async (imgBase64: string, mime: string) => {
     isAnalyzingPlanRef.current = true;
     setIsAnalyzingPlan(true);
     setGenerationError(null);
     try {
       const result = await analyzeBlueprintRooms(imgBase64, mime);
-      let activeBase64 = result.cleanedImageBase64 || imgBase64;
-      let activeMime = mime;
-      let processedRooms = result.rooms || [];
-      let wasCropped = false;
-      let uncleanedBase = imgBase64;
+      const activeBase64 = result.cleanedImageBase64 || imgBase64;
+      const activeMime = mime;
+      const processedRooms = result.rooms || [];
 
-      // Aislamiento automático del plano: si contiene precios, cartelas o márgenes exteriores
-      if (result.blueprintBoundingBox && isSignificantCrop(result.blueprintBoundingBox)) {
-        try {
-          detectedBlueprintBoxRef.current = result.blueprintBoundingBox;
-          const dataUrl = `data:${activeMime};base64,${activeBase64}`;
-          const cropRes = await cropImageToBoundingBox(dataUrl, result.blueprintBoundingBox, 2.5);
-          activeBase64 = cropRes.cleanBase64;
-          activeMime = cropRes.mimeType;
-
-          // También recortar versión original sin limpiar para que ambas tengan el mismo encuadre
-          try {
-            const rawUrl = `data:${mime};base64,${imgBase64}`;
-            const rawCropRes = await cropImageToBoundingBox(rawUrl, result.blueprintBoundingBox, 2.5);
-            uncleanedBase = rawCropRes.cleanBase64;
-          } catch {
-            // Ignorar
-          }
-
-          processedRooms = remapMarkersToCrop(processedRooms, cropRes.cropBox);
-          wasCropped = true;
-          setIsPlanIsolated(true);
-        } catch (cropErr) {
-          console.warn('Error al aislar plano automáticamente:', cropErr);
-        }
-      } else if (!wasCropped) {
-        // Fallback local: auto-recorte de márgenes blancos o marcos para asegurar ocupación del 70-75%
-        try {
-          const dataUrl = `data:${activeMime};base64,${activeBase64}`;
-          const trimRes = await autoTrimWhitespace(dataUrl, processedRooms, 2.5);
-          if (trimRes.wasTrimmed && trimRes.cropBox) {
-            detectedBlueprintBoxRef.current = trimRes.cropBox;
-            const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
-            activeBase64 = cleanTrimmed.cleanBase64;
-            activeMime = cleanTrimmed.mimeType;
-            processedRooms = trimRes.markers;
-            wasCropped = true;
-            setIsPlanIsolated(true);
-
-            try {
-              const rawUrl = `data:${mime};base64,${imgBase64}`;
-              const rawTrimRes = await autoTrimWhitespace(rawUrl, undefined, 2.5);
-              if (rawTrimRes.wasTrimmed) {
-                const rawTrimmed = cleanBase64Data(rawTrimRes.trimmedDataUrl);
-                uncleanedBase = rawTrimmed.cleanBase64;
-              }
-            } catch {
-              // Ignorar
-            }
-          }
-        } catch (trimErr) {
-          console.warn('Error en auto-recorte fallback:', trimErr);
-        }
+      // Guardar caja delimitadora por si el usuario decide aislar el plano manualmente
+      if (result.blueprintBoundingBox) {
+        detectedBlueprintBoxRef.current = result.blueprintBoundingBox;
       }
 
       uncleanedSourceImageRef.current = {
-        base64: uncleanedBase,
+        base64: imgBase64,
         mimeType: activeMime
       };
 
@@ -392,6 +341,7 @@ export function App() {
         setIsTextCleaned(false);
       }
 
+      // Mantener el plano en sus dimensiones y encuadre original exacto
       setSourceImage((prev) => (prev ? { ...prev, base64: activeBase64, mimeType: activeMime } : prev));
 
       if (processedRooms.length > 0) {
@@ -401,9 +351,7 @@ export function App() {
           roomMarkers: sorted
         }));
         setGenerationSuccessMessage(
-          wasCropped
-            ? `¡Plano arquitectónico extraído y aislado! Textos eliminados quirúrgicamente preservando muros (${processedRooms.length} estancias).`
-            : `¡Plano analizado! Nombres y m² eliminados quirúrgicamente con muros y mobiliario intactos (${processedRooms.length} estancias).`
+          `¡Plano analizado! Nombres y m² eliminados quirúrgicamente con muros y mobiliario intactos (${processedRooms.length} estancias).`
         );
       }
     } catch (err: any) {
@@ -426,65 +374,16 @@ export function App() {
     setGenerationSuccessMessage(null);
     try {
       const result = await analyzeBlueprintRooms(targetImg.base64, targetImg.mimeType);
-      let activeBase64 = result.cleanedImageBase64 || targetImg.base64;
-      let activeMime = targetImg.mimeType;
-      let processedRooms = result.rooms || [];
-      let wasCropped = false;
-      let uncleanedBase = targetImg.base64;
+      const activeBase64 = result.cleanedImageBase64 || targetImg.base64;
+      const activeMime = targetImg.mimeType;
+      const processedRooms = result.rooms || [];
 
-      if (result.blueprintBoundingBox && isSignificantCrop(result.blueprintBoundingBox)) {
-        try {
-          detectedBlueprintBoxRef.current = result.blueprintBoundingBox;
-          const dataUrl = `data:${activeMime};base64,${activeBase64}`;
-          const cropRes = await cropImageToBoundingBox(dataUrl, result.blueprintBoundingBox, 2.5);
-          activeBase64 = cropRes.cleanBase64;
-          activeMime = cropRes.mimeType;
-
-          try {
-            const rawUrl = `data:${targetImg.mimeType};base64,${targetImg.base64}`;
-            const rawCropRes = await cropImageToBoundingBox(rawUrl, result.blueprintBoundingBox, 2.5);
-            uncleanedBase = rawCropRes.cleanBase64;
-          } catch {
-            // Ignorar
-          }
-
-          processedRooms = remapMarkersToCrop(processedRooms, cropRes.cropBox);
-          wasCropped = true;
-          setIsPlanIsolated(true);
-        } catch (cropErr) {
-          console.warn('Error al aislar plano:', cropErr);
-        }
-      } else if (!wasCropped) {
-        try {
-          const dataUrl = `data:${activeMime};base64,${activeBase64}`;
-          const trimRes = await autoTrimWhitespace(dataUrl, processedRooms, 2.5);
-          if (trimRes.wasTrimmed && trimRes.cropBox) {
-            detectedBlueprintBoxRef.current = trimRes.cropBox;
-            const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
-            activeBase64 = cleanTrimmed.cleanBase64;
-            activeMime = cleanTrimmed.mimeType;
-            processedRooms = trimRes.markers;
-            wasCropped = true;
-            setIsPlanIsolated(true);
-
-            try {
-              const rawUrl = `data:${targetImg.mimeType};base64,${targetImg.base64}`;
-              const rawTrimRes = await autoTrimWhitespace(rawUrl, undefined, 2.5);
-              if (rawTrimRes.wasTrimmed) {
-                const rawTrimmed = cleanBase64Data(rawTrimRes.trimmedDataUrl);
-                uncleanedBase = rawTrimmed.cleanBase64;
-              }
-            } catch {
-              // Ignorar
-            }
-          }
-        } catch (cropErr) {
-          console.warn('Error en auto-recorte fallback en handleDetectRooms:', cropErr);
-        }
+      if (result.blueprintBoundingBox) {
+        detectedBlueprintBoxRef.current = result.blueprintBoundingBox;
       }
 
       uncleanedSourceImageRef.current = {
-        base64: uncleanedBase,
+        base64: targetImg.base64,
         mimeType: activeMime
       };
 
@@ -498,6 +397,7 @@ export function App() {
         setIsTextCleaned(false);
       }
 
+      // Preservar dimensiones íntegras sin alterar el zoom ni recortar muros
       setSourceImage((prev) => (prev ? { ...prev, base64: activeBase64, mimeType: activeMime } : prev));
 
       if (processedRooms.length > 0) {
@@ -507,9 +407,7 @@ export function App() {
           roomMarkers: sorted
         }));
         setGenerationSuccessMessage(
-          wasCropped
-            ? `¡Plano aislado con éxito! Precios y textos eliminados quirúrgicamente (${processedRooms.length} estancias detectadas).`
-            : `¡Plano analizado! Textos de estancias eliminados preservando muros y líneas (${processedRooms.length} estancias).`
+          `¡Plano analizado con éxito! (${processedRooms.length} estancias detectadas).`
         );
       } else {
         setGenerationError('No se encontraron estancias rotuladas en el plano.');
@@ -543,7 +441,7 @@ export function App() {
     if (detectedBlueprintBoxRef.current) {
       try {
         const dataUrl = `data:${baseImg.mimeType};base64,${baseImg.base64}`;
-        const cropRes = await cropImageToBoundingBox(dataUrl, detectedBlueprintBoxRef.current, 2.5);
+        const cropRes = await cropImageToBoundingBox(dataUrl, detectedBlueprintBoxRef.current, 5.0);
         setSourceImage({
           ...baseImg,
           base64: cropRes.cleanBase64,
@@ -564,7 +462,7 @@ export function App() {
       // Auto-recorte inteligente local inmediato para aislar el plano y llenar el 75%
       try {
         const dataUrl = `data:${baseImg.mimeType};base64,${baseImg.base64}`;
-        const trimRes = await autoTrimWhitespace(dataUrl, config.roomMarkers, 2.5);
+        const trimRes = await autoTrimWhitespace(dataUrl, config.roomMarkers, 5.0);
         if (trimRes.wasTrimmed && trimRes.cropBox) {
           detectedBlueprintBoxRef.current = trimRes.cropBox;
           const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
@@ -623,7 +521,7 @@ export function App() {
         if (isPlanIsolated && detectedBlueprintBoxRef.current) {
           try {
             const dataUrl = `data:${baseImg.mimeType};base64,${cleanBase}`;
-            const cropRes = await cropImageToBoundingBox(dataUrl, detectedBlueprintBoxRef.current, 2.5);
+            const cropRes = await cropImageToBoundingBox(dataUrl, detectedBlueprintBoxRef.current, 5.0);
             cleanBase = cropRes.cleanBase64;
           } catch (cropErr) {
             console.warn('Error recortando versión limpia:', cropErr);
@@ -684,22 +582,8 @@ export function App() {
         };
         originalSourceImageRef.current = rawImg;
 
-        let activeBase64 = res.base64;
-        let wasTrimmed = false;
-        try {
-          const trimRes = await autoTrimWhitespace(`data:image/png;base64,${res.base64}`, undefined, 2.5);
-          if (trimRes.wasTrimmed && trimRes.cropBox) {
-            detectedBlueprintBoxRef.current = trimRes.cropBox;
-            const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
-            activeBase64 = cleanTrimmed.cleanBase64;
-            wasTrimmed = true;
-          }
-        } catch (trimErr) {
-          console.warn('Auto-recorte inicial PDF:', trimErr);
-        }
-
         const loadedImg = {
-          base64: activeBase64,
+          base64: res.base64,
           mimeType: 'image/png',
           name: rawImg.name
         };
@@ -707,9 +591,9 @@ export function App() {
         uncleanedSourceImageRef.current = loadedImg;
         cleanedSourceImageRef.current = null;
         setIsTextCleaned(false);
-        setIsPlanIsolated(wasTrimmed);
+        setIsPlanIsolated(false);
         setRenderedResult(null);
-        triggerPlanAnalysis(activeBase64, 'image/png');
+        triggerPlanAnalysis(res.base64, 'image/png');
       } catch (err: any) {
         console.error('Error al procesar el archivo PDF:', err);
         setGenerationError('No se pudo procesar el archivo PDF. Asegúrate de que no esté protegido con contraseña.');
@@ -752,26 +636,9 @@ export function App() {
       };
       originalSourceImageRef.current = rawImg;
 
-      // Auto-recorte inteligente inmediato para eliminar márgenes vacíos y marcos CAD
-      let activeBase64 = cleanBase64;
-      let activeMime = mimeType;
-      let wasTrimmed = false;
-      try {
-        const trimRes = await autoTrimWhitespace(dataUrl, undefined, 2.5);
-        if (trimRes.wasTrimmed && trimRes.cropBox) {
-          detectedBlueprintBoxRef.current = trimRes.cropBox;
-          const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
-          activeBase64 = cleanTrimmed.cleanBase64;
-          activeMime = cleanTrimmed.mimeType;
-          wasTrimmed = true;
-        }
-      } catch (trimErr) {
-        console.warn('Auto-recorte inicial imagen:', trimErr);
-      }
-
       const loadedImg = {
-        base64: activeBase64,
-        mimeType: activeMime,
+        base64: cleanBase64,
+        mimeType,
         name: file.name,
         mediaId
       };
@@ -779,11 +646,11 @@ export function App() {
       uncleanedSourceImageRef.current = loadedImg;
       cleanedSourceImageRef.current = null;
       setIsTextCleaned(false);
-      setIsPlanIsolated(wasTrimmed);
+      setIsPlanIsolated(false);
       setRenderedResult(null);
       setGenerationError(null);
-      // Extraer estancias y aislar plano automáticamente con IA
-      triggerPlanAnalysis(activeBase64, activeMime);
+      // Extraer estancias y analizar plano automáticamente con IA
+      triggerPlanAnalysis(cleanBase64, mimeType);
     };
 
     reader.readAsDataURL(file);
@@ -805,22 +672,8 @@ export function App() {
       };
       originalSourceImageRef.current = rawImg;
 
-      let activeBase64 = res.base64;
-      let wasTrimmed = false;
-      try {
-        const trimRes = await autoTrimWhitespace(`data:image/png;base64,${res.base64}`, undefined, 2.5);
-        if (trimRes.wasTrimmed && trimRes.cropBox) {
-          detectedBlueprintBoxRef.current = trimRes.cropBox;
-          const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
-          activeBase64 = cleanTrimmed.cleanBase64;
-          wasTrimmed = true;
-        }
-      } catch (trimErr) {
-        console.warn('Auto-recorte PDF página:', trimErr);
-      }
-
       const loadedImg = {
-        base64: activeBase64,
+        base64: res.base64,
         mimeType: 'image/png',
         name: rawImg.name
       };
@@ -828,9 +681,9 @@ export function App() {
       uncleanedSourceImageRef.current = loadedImg;
       cleanedSourceImageRef.current = null;
       setIsTextCleaned(false);
-      setIsPlanIsolated(wasTrimmed);
+      setIsPlanIsolated(false);
       setRenderedResult(null);
-      triggerPlanAnalysis(activeBase64, 'image/png');
+      triggerPlanAnalysis(res.base64, 'image/png');
     } catch (err: any) {
       console.error('Error al cambiar de página en PDF:', err);
       setGenerationError('Error al renderizar la página seleccionada del PDF.');
@@ -924,22 +777,8 @@ export function App() {
         };
         originalSourceImageRef.current = rawImg;
 
-        let activeBase64 = cleanBase64;
-        let wasTrimmed = false;
-        try {
-          const trimRes = await autoTrimWhitespace(dataUrl, undefined, 2.5);
-          if (trimRes.wasTrimmed && trimRes.cropBox) {
-            detectedBlueprintBoxRef.current = trimRes.cropBox;
-            const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
-            activeBase64 = cleanTrimmed.cleanBase64;
-            wasTrimmed = true;
-          }
-        } catch (trimErr) {
-          console.warn('Auto-recorte muestra:', trimErr);
-        }
-
         const loadedImg = {
-          base64: activeBase64,
+          base64: cleanBase64,
           mimeType: 'image/png',
           name: sampleName
         };
@@ -947,10 +786,10 @@ export function App() {
         uncleanedSourceImageRef.current = loadedImg;
         cleanedSourceImageRef.current = null;
         setIsTextCleaned(false);
-        setIsPlanIsolated(wasTrimmed);
+        setIsPlanIsolated(false);
         setRenderedResult(null);
         setGenerationError(null);
-        triggerPlanAnalysis(activeBase64, 'image/png');
+        triggerPlanAnalysis(cleanBase64, 'image/png');
       }
     };
     img.src = sampleUrl;
@@ -1197,16 +1036,8 @@ export function App() {
 
         if (genRes && genRes.base64) {
           const { cleanBase64, mimeType } = cleanBase64Data(genRes.base64);
-          let finalBase64 = cleanBase64;
-          let finalMime = genRes.mimeType || mimeType;
-          try {
-            const trimRes = await autoTrimWhitespace(`data:${finalMime};base64,${finalBase64}`, undefined, 2.0);
-            if (trimRes.wasTrimmed) {
-              const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
-              finalBase64 = cleanTrimmed.cleanBase64;
-              finalMime = cleanTrimmed.mimeType;
-            }
-          } catch (e) {}
+          const finalBase64 = cleanBase64;
+          const finalMime = genRes.mimeType || mimeType;
           const result = { base64: finalBase64, mimeType: finalMime };
           setRenderedResult(result);
 
@@ -1309,18 +1140,7 @@ export function App() {
       }
 
       if (generatedImage) {
-        let finalRender = generatedImage;
-        try {
-          const trimRes = await autoTrimWhitespace(`data:${generatedImage.mimeType};base64,${generatedImage.base64}`, undefined, 2.0);
-          if (trimRes.wasTrimmed) {
-            const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
-            finalRender = {
-              base64: cleanTrimmed.cleanBase64,
-              mimeType: cleanTrimmed.mimeType
-            };
-          }
-        } catch (e) {}
-
+        const finalRender = generatedImage;
         setRenderedResult(finalRender);
 
         const historyItem: RenderHistoryItem = {
@@ -1432,16 +1252,8 @@ export function App() {
 
         if (genRes && genRes.base64) {
           const { cleanBase64, mimeType } = cleanBase64Data(genRes.base64);
-          let finalBase64 = cleanBase64;
-          let finalMime = genRes.mimeType || mimeType;
-          try {
-            const trimRes = await autoTrimWhitespace(`data:${finalMime};base64,${finalBase64}`, undefined, 2.0);
-            if (trimRes.wasTrimmed) {
-              const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
-              finalBase64 = cleanTrimmed.cleanBase64;
-              finalMime = cleanTrimmed.mimeType;
-            }
-          } catch (e) {}
+          const finalBase64 = cleanBase64;
+          const finalMime = genRes.mimeType || mimeType;
           const result = { base64: finalBase64, mimeType: finalMime };
           setRenderedResult(result);
           setCurrentVersionNumber(nextVersion);
@@ -1558,18 +1370,7 @@ export function App() {
       }
 
       if (generatedImage) {
-        let finalRender = generatedImage;
-        try {
-          const trimRes = await autoTrimWhitespace(`data:${generatedImage.mimeType};base64,${generatedImage.base64}`, undefined, 2.0);
-          if (trimRes.wasTrimmed) {
-            const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
-            finalRender = {
-              base64: cleanTrimmed.cleanBase64,
-              mimeType: cleanTrimmed.mimeType
-            };
-          }
-        } catch (e) {}
-
+        const finalRender = generatedImage;
         setRenderedResult(finalRender);
         setCurrentVersionNumber(nextVersion);
 
