@@ -969,7 +969,10 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       unitIdentifier: 'PORTAL 1 - 1º A',
       extraDetails: '',
       strictBlueprintFidelity: true,
-      renderEngine: 'auto'
+      renderEngine: 'auto',
+      seed: 42,
+      lockSeed: true,
+      generationTemperature: 0.15
     }
   },
   {
@@ -1003,7 +1006,11 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
       agencyPhone: '983 34 21 32',
       extraDetails: '',
-      strictBlueprintFidelity: true
+      strictBlueprintFidelity: true,
+      renderEngine: 'auto',
+      seed: 42,
+      lockSeed: true,
+      generationTemperature: 0.15
     }
   },
   {
@@ -1037,7 +1044,11 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
       agencyPhone: '983 34 21 32',
       extraDetails: 'Vigas vistas y lino natural',
-      strictBlueprintFidelity: true
+      strictBlueprintFidelity: true,
+      renderEngine: 'auto',
+      seed: 42,
+      lockSeed: true,
+      generationTemperature: 0.15
     }
   },
   {
@@ -1071,7 +1082,11 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
       agencyPhone: '983 34 21 32',
       extraDetails: 'Líneas limpias y mobiliario bajo',
-      strictBlueprintFidelity: true
+      strictBlueprintFidelity: true,
+      renderEngine: 'auto',
+      seed: 42,
+      lockSeed: true,
+      generationTemperature: 0.15
     }
   },
   {
@@ -1105,7 +1120,11 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
       agencyPhone: '983 34 21 32',
       extraDetails: '',
-      strictBlueprintFidelity: true
+      strictBlueprintFidelity: true,
+      renderEngine: 'auto',
+      seed: 42,
+      lockSeed: true,
+      generationTemperature: 0.15
     }
   }
 ];

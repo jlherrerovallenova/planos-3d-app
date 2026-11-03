@@ -214,6 +214,9 @@ export interface RenderConfig {
   extraDetails: string;
   strictBlueprintFidelity: boolean;
   renderEngine?: RenderEngine;           // Motor de render Gemini seleccionado (ej. 'auto', 'gemini-3.1-flash-image', etc.)
+  seed?: number;                         // Semilla fija para reproducibilidad y consistencia visual
+  lockSeed?: boolean;                    // Mantener la misma semilla entre renders (evita cambios aleatorios de muebles/colores)
+  generationTemperature?: number;        // Nivel de aleatoriedad (por defecto 0.15 para máxima fidelidad arquitectónica)
 }
 export interface PresetConfig {
   id: string;
@@ -233,6 +236,7 @@ export interface RenderHistoryItem {
   versionNumber?: number;
   appliedInstruction?: string;
   usedEngine?: string;
+  seed?: number;
   defectMark?: DefectMark | null;
 }
 

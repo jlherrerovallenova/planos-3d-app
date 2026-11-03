@@ -923,6 +923,115 @@ export function StyleSelector({
                 </div>
               </div>
             </div>
+
+            {/* 6. Consistencia Visual & Determinismo (Semilla / Seed) */}
+            <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200/90 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[16px] text-emerald-600">tune</span>
+                  <span>Consistencia Visual y Mobiliario (Semilla IA)</span>
+                </span>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full font-mono ${
+                  config.lockSeed !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-600'
+                }`}>
+                  {config.lockSeed !== false ? `Fijada #${config.seed || 42}` : 'Aleatoria'}
+                </span>
+              </div>
+
+              <p className="text-[11px] text-stone-600 leading-snug">
+                Controla si los renders sucesivos deben mantener exactamente el mismo mobiliario, colores y texturas, o explorar variaciones aleatorias.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => updateField('lockSeed', true)}
+                  className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
+                    config.lockSeed !== false
+                      ? 'border-emerald-600 bg-white ring-2 ring-emerald-500/20 shadow-xs'
+                      : 'border-stone-200 bg-white/70 hover:bg-white hover:border-stone-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className={`material-symbols-outlined text-[16px] ${
+                        config.lockSeed !== false ? 'text-emerald-600' : 'text-stone-400'
+                      }`}>
+                        lock
+                      </span>
+                      <span className={`text-xs font-bold truncate ${
+                        config.lockSeed !== false ? 'text-emerald-700' : 'text-stone-800'
+                      }`}>
+                        Consistencia Estricta
+                      </span>
+                    </div>
+                    {config.lockSeed !== false && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700">
+                        Activo ✓
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10.5px] text-stone-500 leading-tight">
+                    Fija la semilla (#{config.seed || 42}) y temperatura (0.15). El mobiliario y colores no cambian al re-renderizar.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => updateField('lockSeed', false)}
+                  className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
+                    config.lockSeed === false
+                      ? 'border-[#c25e38] bg-white ring-2 ring-[#c25e38]/30 shadow-xs'
+                      : 'border-stone-200 bg-white/70 hover:bg-white hover:border-stone-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className={`material-symbols-outlined text-[16px] ${
+                        config.lockSeed === false ? 'text-[#c25e38]' : 'text-stone-400'
+                      }`}>
+                        casino
+                      </span>
+                      <span className={`text-xs font-bold truncate ${
+                        config.lockSeed === false ? 'text-[#c25e38]' : 'text-stone-800'
+                      }`}>
+                        Modo Exploración
+                      </span>
+                    </div>
+                    {config.lockSeed === false && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-orange-50 text-[#c25e38]">
+                        Activo ✓
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10.5px] text-stone-500 leading-tight">
+                    Semilla variable en cada render. Explora distribuciones y combinaciones alternativas de forma libre.
+                  </p>
+                </button>
+              </div>
+
+              {config.lockSeed !== false && (
+                <div className="flex items-center justify-between gap-2 pt-1 border-t border-stone-200/60">
+                  <div className="text-[11px] text-stone-600 font-medium">
+                    Semilla actual: <span className="font-mono font-bold text-stone-800">#{config.seed || 42}</span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => {
+                      const newSeed = Math.floor(Math.random() * 900000) + 100000;
+                      updateField('seed', newSeed);
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-200/80 hover:bg-stone-300 text-[11px] font-semibold text-stone-800 transition-colors cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">shuffle</span>
+                    <span>Probar otra variante</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

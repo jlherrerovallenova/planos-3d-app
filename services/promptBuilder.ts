@@ -340,7 +340,10 @@ export function buildTargetedCorrectionPrompt(
 /**
  * Añade una pequeña variación de entropía y token temporal para evitar respuestas cacheadas en Gemini
  */
-export function appendPromptVariation(basePrompt: string): string {
+export function appendPromptVariation(basePrompt: string, forceEntropy = false): string {
+  if (!forceEntropy) {
+    return basePrompt.trim();
+  }
   const variations = [
     '',
     ' Render with pristine crisp clarity.',
@@ -349,7 +352,7 @@ export function appendPromptVariation(basePrompt: string): string {
     ' Achieve ultra-clean material textures.'
   ];
   const randomSuffix = variations[Math.floor(Math.random() * variations.length)];
-  return `${basePrompt}${randomSuffix} [ref_${Date.now().toString(36)}]`;
+  return `${basePrompt.trim()}${randomSuffix} [ref_${Date.now().toString(36)}]`;
 }
 
 

@@ -1054,6 +1054,14 @@ export function App() {
       let usedEngineName = '';
       let lastErrorMessage = '';
 
+      // Semilla efectiva: si lockSeed !== false, fijar semilla constante (por defecto 42 si no hay)
+      const effectiveSeed = config.lockSeed !== false
+        ? (typeof config.seed === 'number' && config.seed > 0 ? config.seed : 42)
+        : Math.floor(Math.random() * 1000000) + 1;
+
+      // Generar prompt determinista sin variaciones ni timestamps a menos que lockSeed sea false
+      const promptToSend = appendPromptVariation(currentPrompt, config.lockSeed === false);
+
       for (const model of candidateModels) {
         try {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -1069,8 +1077,12 @@ export function App() {
             });
           }
 
-          const promptWithVariation = appendPromptVariation(currentPrompt);
-          parts.push({ text: promptWithVariation });
+          parts.push({ text: promptToSend });
+
+          const generationConfig: { temperature: number; seed?: number } = {
+            temperature: typeof config.generationTemperature === 'number' ? config.generationTemperature : 0.15,
+            seed: effectiveSeed
+          };
 
           const response = await fetchGeminiWithBackoff(endpoint, {
             systemInstruction: {
@@ -1078,9 +1090,9 @@ export function App() {
                 text: 'You are an elite architectural 3D visualizer and delineator. Render clean architectural plans with high-end materials and furniture only. Never print or render text, typography, room titles, dimensions, or numerical labels on floor or wall surfaces.'
               }]
             },
-            contents: [{ parts }]
+            contents: [{ parts }],
+            generationConfig
           });
-
 
           if (!response.ok) {
             const errText = await response.text();
@@ -1119,16 +1131,20 @@ export function App() {
           base64: finalRender.base64,
           mimeType: finalRender.mimeType,
           prompt: currentPrompt,
-          config: { ...config },
+          config: { ...config, seed: effectiveSeed },
           timestamp: Date.now(),
           versionNumber: 1,
           appliedInstruction: 'Render inicial',
-          usedEngine: usedEngineName
+          usedEngine: usedEngineName,
+          seed: effectiveSeed
         };
+        if (config.seed !== effectiveSeed) {
+          setConfig((prev) => ({ ...prev, seed: effectiveSeed }));
+        }
         setCurrentVersionNumber(1);
         setHistory((prev) => [historyItem, ...prev]);
         setGenerationSuccessMessage(
-          `¡Render completado con éxito! (Motor: ${usedEngineName.replace('gemini-', '')})`
+          `¡Render completado con éxito! (Motor: ${usedEngineName.replace('gemini-', '')} | Semilla: #${effectiveSeed})`
         );
         setIsGenerating(false);
         return;
@@ -1292,8 +1308,12 @@ export function App() {
         });
       }
 
-      const promptWithVariation = appendPromptVariation(targetedPrompt);
-      parts.push({ text: promptWithVariation });
+      const effectiveSeed = config.lockSeed !== false
+        ? (typeof config.seed === 'number' && config.seed > 0 ? config.seed : 42)
+        : Math.floor(Math.random() * 1000000) + 1;
+
+      const promptToSend = appendPromptVariation(targetedPrompt, config.lockSeed === false);
+      parts.push({ text: promptToSend });
 
       let generatedImage: { base64: string; mimeType: string } | null = null;
       let usedEngineName = '';
@@ -1302,13 +1322,18 @@ export function App() {
       for (const model of candidateModels) {
         try {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const generationConfig: { temperature: number; seed?: number } = {
+            temperature: typeof config.generationTemperature === 'number' ? config.generationTemperature : 0.15,
+            seed: effectiveSeed
+          };
           const response = await fetchGeminiWithBackoff(endpoint, {
             systemInstruction: {
               parts: [{
                 text: 'You are an elite architectural 3D visualizer and delineator. Render clean architectural plans with high-end materials and furniture only. Never print or render text, typography, room titles, dimensions, or numerical labels on floor or wall surfaces.'
               }]
             },
-            contents: [{ parts }]
+            contents: [{ parts }],
+            generationConfig
           });
 
 
@@ -1429,7 +1454,10 @@ export function App() {
       for (const model of candidateModels) {
         try {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-          const promptWithVariation = appendPromptVariation(interiorPrompt);
+          const effectiveSeed = config.lockSeed !== false
+            ? (typeof config.seed === 'number' && config.seed > 0 ? config.seed : 42)
+            : Math.floor(Math.random() * 1000000) + 1;
+          const promptToSend = appendPromptVariation(interiorPrompt, config.lockSeed === false);
           const parts: any[] = [
             {
               inlineData: {
@@ -1437,8 +1465,13 @@ export function App() {
                 data: markedPlan.base64
               }
             },
-            { text: promptWithVariation }
+            { text: promptToSend }
           ];
+
+          const generationConfig: { temperature: number; seed?: number } = {
+            temperature: typeof config.generationTemperature === 'number' ? config.generationTemperature : 0.2,
+            seed: effectiveSeed
+          };
 
           const response = await fetchGeminiWithBackoff(endpoint, {
             systemInstruction: {
@@ -1446,7 +1479,8 @@ export function App() {
                 text: 'You are an elite architectural interior photographer and 3D visualizer. Render photorealistic eye-level indoor photographs from the viewpoint specified on the floor plan. Never print or render text, titles, or watermarks.'
               }]
             },
-            contents: [{ parts }]
+            contents: [{ parts }],
+            generationConfig
           });
 
 
