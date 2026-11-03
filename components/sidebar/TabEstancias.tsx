@@ -115,6 +115,7 @@ export function TabEstancias({
     setNewRoomCoords(null);
     onSelectMarker(null);
     if (onSetPendingPinCoords) onSetPendingPinCoords(null);
+    if (!isPinningMode) onTogglePinningMode();
   };
 
   // Cancelar flujo de añadir estancia
@@ -323,27 +324,38 @@ export function TabEstancias({
               type="button"
               onClick={handleTogglePinningForNew}
               className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer border shadow-xs ${
-                isPinningMode
+                newRoomCoords
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-md ring-2 ring-emerald-300'
+                  : isPinningMode
                   ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 animate-pulse ring-2 ring-amber-300'
-                  : newRoomCoords
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
                   : 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600'
               }`}
             >
               <span className="material-symbols-outlined text-[18px]">
-                {isPinningMode ? 'ads_click' : newRoomCoords ? 'check_circle' : 'pin_drop'}
+                {newRoomCoords ? 'check_circle' : isPinningMode ? 'ads_click' : 'pin_drop'}
               </span>
               <span>
-                {isPinningMode
+                {newRoomCoords
+                  ? `✓ Número ${nextNumber} ubicado en el plano (${Math.round(newRoomCoords.x)}%, ${Math.round(newRoomCoords.y)}%)`
+                  : isPinningMode
                   ? `👉 Haz clic en la estancia del plano para colocar el número ${nextNumber}`
-                  : newRoomCoords
-                  ? `✓ Número ${nextNumber} ubicado en el plano (clic para mover)`
                   : `Colocar número ${nextNumber} en el plano`}
               </span>
             </button>
-            <p className="text-[10px] text-slate-500">
-              Solo se mostrará el número identificador dentro del círculo azul, sin textos molestos ni mobiliario.
-            </p>
+            {newRoomCoords ? (
+              <p className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1 mt-1">
+                <span className="material-symbols-outlined text-[14px]">check</span>
+                <span>Número situado con éxito en el plano. Si quieres moverlo, haz clic en otro punto.</span>
+              </p>
+            ) : isPinningMode ? (
+              <p className="text-[11px] text-amber-700 font-medium animate-pulse mt-1">
+                👉 Haz clic sobre la habitación en el plano para situar el círculo del número {nextNumber}.
+              </p>
+            ) : (
+              <p className="text-[10px] text-slate-500 mt-1">
+                Pulsa el botón y después haz clic sobre la estancia en el plano.
+              </p>
+            )}
           </div>
 
           {/* Botones de acción del formulario */}

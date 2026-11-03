@@ -126,22 +126,24 @@ export function ClaudeCanvas({
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!imageRef.current) return;
     const rect = imageRef.current.getBoundingClientRect();
-    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+    const x = Math.round(Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)) * 10) / 10;
+    const y = Math.round(Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100)) * 10) / 10;
 
-    // Si está en modo borrador de textos
+    // Prioridad 1: Si está en modo colocar pin de estancia en el plano
+    if (isPinningMode && onCanvasClickToPositionMarker) {
+      e.preventDefault();
+      e.stopPropagation();
+      onCanvasClickToPositionMarker(x, y);
+      return;
+    }
+
+    // Prioridad 2: Si está en modo borrador de textos
     if (isEraserMode && onEraseAtPoint) {
       onEraseAtPoint(x, y);
       return;
     }
 
-    // Si está en modo colocar pin de nueva estancia
-    if (isPinningMode && onCanvasClickToPositionMarker) {
-      onCanvasClickToPositionMarker(x, y);
-      return;
-    }
-
-    // Si está en modo SEÑALAR ERROR / MARCAR ZONA
+    // Prioridad 3: Si está en modo SEÑALAR ERROR / MARCAR ZONA
     if (isPaintingMode) {
       if (annotationTool === 'pin') {
         const nearest = findNearestRoom(x, y);
@@ -448,12 +450,15 @@ export function ClaudeCanvas({
               </div>
             ) : (
               /* Vista Estándar (Plano o Amueblado) */
-              <div className="relative">
+              <div
+                className={`relative ${isPinningMode ? 'cursor-crosshair' : ''}`}
+                onPointerDown={handlePointerDown}
+              >
                 <img
                   ref={imageRef}
                   src={currentImageSrc}
                   alt="Plano"
-                  className="max-h-[72vh] max-w-full object-contain pointer-events-none block"
+                  className="max-h-[72vh] max-w-full object-contain pointer-events-none block select-none"
                 />
 
                 {/* Overlay de Trazos de Brocha (Inpainting / Defectos) */}
@@ -518,43 +523,42 @@ export function ClaudeCanvas({
                 )}
 
                 {/* Marcadores numerados de estancia (Círculos azul marino profesional con número blanco) */}
-                {viewMode === 'plano' &&
-                  roomMarkers.map((marker, idx) => {
-                    const isSelected = activeMarkerId === marker.id;
-                    const num = idx + 1;
+                {roomMarkers.map((marker, idx) => {
+                  const isSelected = activeMarkerId === marker.id;
+                  const num = idx + 1;
 
-                    return (
-                      <div
-                        key={marker.id}
-                        onPointerDown={(e) => {
-                          e.stopPropagation();
-                          onSelectMarker(marker.id);
-                          setDraggingMarkerId(marker.id);
-                        }}
-                        style={{
-                          left: `${marker.x}%`,
-                          top: `${marker.y}%`,
-                          transform: 'translate(-50%, -50%)'
-                        }}
-                        className={`absolute z-20 w-7 h-7 rounded-full bg-[#0F2C59] text-white flex items-center justify-center text-xs font-bold cursor-grab active:cursor-grabbing shadow-lg border-2 border-white transition-transform hover:scale-110 ${
-                          isSelected ? 'ring-3 ring-blue-400 scale-110' : ''
-                        }`}
-                        title={`${num}. ${marker.name || 'Estancia'}`}
-                      >
-                        {num}
-                      </div>
-                    );
-                  })}
+                  return (
+                    <div
+                      key={marker.id}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        onSelectMarker(marker.id);
+                        setDraggingMarkerId(marker.id);
+                      }}
+                      style={{
+                        left: `${marker.x}%`,
+                        top: `${marker.y}%`,
+                        transform: 'translate(-50%, -50%)'
+                      }}
+                      className={`absolute z-20 w-7 h-7 rounded-full bg-[#0F2C59] text-white flex items-center justify-center text-xs font-bold cursor-grab active:cursor-grabbing shadow-lg border-2 border-white transition-transform hover:scale-110 ${
+                        isSelected ? 'ring-3 ring-blue-400 scale-110' : ''
+                      }`}
+                      title={`${num}. ${marker.name || 'Estancia'}`}
+                    >
+                      {num}
+                    </div>
+                  );
+                })}
 
                 {/* Vista previa de ubicación para la nueva estancia en creación */}
-                {pendingPinCoords && viewMode === 'plano' && (
+                {pendingPinCoords && (
                   <div
                     style={{
                       left: `${pendingPinCoords.x}%`,
                       top: `${pendingPinCoords.y}%`,
                       transform: 'translate(-50%, -50%)'
                     }}
-                    className="absolute z-30 w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-xl border-2 border-white ring-4 ring-blue-300 animate-bounce pointer-events-none"
+                    className="absolute z-30 w-7 h-7 rounded-full bg-[#0F2C59] text-white flex items-center justify-center text-xs font-bold shadow-2xl border-2 border-white ring-4 ring-blue-400 animate-bounce pointer-events-none"
                     title="Ubicación seleccionada en el plano"
                   >
                     {roomMarkers.length + 1}
