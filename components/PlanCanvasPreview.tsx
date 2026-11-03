@@ -1921,7 +1921,7 @@ export function PlanCanvasPreview({
 
                   {/* Bloque Inferior Anclado: PROMUEVE, COMERCIALIZA e INFORMACIÓN Y VENTA */}
                   <div className="mt-auto pt-4">
-                    {/* Grid de 2 Columnas: PROMUEVE a la izquierda, COMERCIALIZA + INFORMACIÓN Y VENTA a la derecha */}
+                    {/* Grid de 2 Columnas: PROMUEVE a la izquierda y COMERCIALIZA a la derecha */}
                     <div className="grid grid-cols-2 gap-4 items-start">
                       {/* Columna Izquierda: PROMUEVE */}
                       <div>
@@ -1937,35 +1937,34 @@ export function PlanCanvasPreview({
                         </div>
                       </div>
 
-                      {/* Columna Derecha: COMERCIALIZA + INFORMACIÓN Y VENTA debajo */}
-                      <div className="flex flex-col gap-2">
-                        <div>
-                          <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-1">
-                            COMERCIALIZA
-                          </span>
-                          <div className="flex items-center min-h-[44px]">
-                            <img
-                              src={commercialAgencyLogo || DEFAULT_AGENCY_LOGO}
-                              alt="TERRAVALL Servicios Inmobiliarios"
-                              className="h-9 sm:h-10 w-auto max-w-[130px] object-contain"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Bloque: INFORMACIÓN Y VENTA (debajo del logo de TERRAVALL) */}
-                        <div className="pt-0.5">
-                          <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-0.5">
-                            INFORMACIÓN Y VENTA
-                          </span>
-                          <a
-                            href={`tel:${(agencyPhone || '983342132').replace(/\s+/g, '')}`}
-                            className="text-2xl sm:text-3xl font-black text-[#C5221F] tracking-tight hover:underline block"
-                            title="Llamar a Información y Venta"
-                          >
-                            {agencyPhone || '983 34 21 32'}
-                          </a>
+                      {/* Columna Derecha: COMERCIALIZA */}
+                      <div>
+                        <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-1">
+                          COMERCIALIZA
+                        </span>
+                        <div className="flex items-center min-h-[44px]">
+                          <img
+                            src={commercialAgencyLogo || DEFAULT_AGENCY_LOGO}
+                            alt="TERRAVALL Servicios Inmobiliarios"
+                            className="h-9 sm:h-10 w-auto max-w-[130px] object-contain"
+                          />
                         </div>
                       </div>
+                    </div>
+
+                    {/* Bloque Centrado entre PROMUEVE y COMERCIALIZA: INFORMACIÓN Y VENTA */}
+                    <div className="pt-3 text-center">
+                      <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-0.5">
+                        INFORMACIÓN Y VENTA
+                      </span>
+                      <a
+                        href={`tel:${(agencyPhone || '983342132').replace(/\s+/g, '')}`}
+                        style={{ color: 'rgb(138, 26, 26)' }}
+                        className="text-2xl sm:text-3xl font-black tracking-tight hover:underline inline-block"
+                        title="Llamar a Información y Venta"
+                      >
+                        {agencyPhone || '983 34 21 32'}
+                      </a>
                     </div>
                   </div>
                 </div>

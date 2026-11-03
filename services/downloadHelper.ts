@@ -227,9 +227,8 @@ export async function generateBrochureCanvas({
   width?: number;
   height?: number;
 }): Promise<HTMLCanvasElement | null> {
-  const trimRes = await autoTrimWhitespace(imageSrc, markers as any, 2.0);
-  const effectiveImageSrc = trimRes.trimmedDataUrl;
-  const effectiveMarkers = trimRes.markers;
+  const effectiveImageSrc = imageSrc;
+  const effectiveMarkers = markers || [];
 
   return new Promise((resolve) => {
     const img = new Image();
@@ -461,8 +460,8 @@ export async function generateBrochureCanvas({
 
         rightY += navyCardH + 24 * scale;
 
-        // Tabla de Superficies Útiles
-        const tableRowH = 28 * scale;
+        // Tabla de Superficies Útiles (Interlineado amplio y legible)
+        const tableRowH = 36 * scale;
         const totalInterior = schedule.interiorRooms.length > 0 ? schedule.interiorRooms : [
           { name: 'Vestíbulo', areaSqMeters: 4.80 },
           { name: 'Cocina', areaSqMeters: 10.25 },
@@ -477,14 +476,14 @@ export async function generateBrochureCanvas({
         totalInterior.forEach((room: any) => {
           ctx.fillStyle = '#1C1917';
           ctx.font = `500 ${Math.round(14 * scale)}px sans-serif`;
-          ctx.fillText(room.name, rightColX + 8 * scale, rightY + 18 * scale);
+          ctx.fillText(room.name, rightColX + 8 * scale, rightY + 23 * scale);
 
           const areaVal = room.areaSqMeters || 0;
           const areaText = areaVal > 0 ? `${areaVal.toFixed(2).replace('.', ',')} m²` : '— m²';
           ctx.textAlign = 'right';
           ctx.fillStyle = '#102A45';
           ctx.font = `600 ${Math.round(14 * scale)}px sans-serif`;
-          ctx.fillText(areaText, rightColX + rightColW - 8 * scale, rightY + 18 * scale);
+          ctx.fillText(areaText, rightColX + rightColW - 8 * scale, rightY + 23 * scale);
           ctx.textAlign = 'left';
 
           ctx.strokeStyle = '#E7E5E4';
@@ -501,11 +500,11 @@ export async function generateBrochureCanvas({
         rightY += 4 * scale;
         ctx.fillStyle = '#102A45';
         ctx.font = `bold ${Math.round(14 * scale)}px sans-serif`;
-        ctx.fillText('Superficie útil interior', rightColX + 8 * scale, rightY + 18 * scale);
+        ctx.fillText('Superficie útil interior', rightColX + 8 * scale, rightY + 23 * scale);
 
         const interiorTotalNum = schedule.interiorTotal > 0 ? schedule.interiorTotal : 76.55;
         ctx.textAlign = 'right';
-        ctx.fillText(`${interiorTotalNum.toFixed(2).replace('.', ',')} m²`, rightColX + rightColW - 8 * scale, rightY + 18 * scale);
+        ctx.fillText(`${interiorTotalNum.toFixed(2).replace('.', ',')} m²`, rightColX + rightColW - 8 * scale, rightY + 23 * scale);
         ctx.textAlign = 'left';
 
         ctx.strokeStyle = '#D6D3D1';
@@ -525,14 +524,14 @@ export async function generateBrochureCanvas({
         exteriorList.forEach((extRoom: any) => {
           ctx.fillStyle = '#1C1917';
           ctx.font = `500 ${Math.round(14 * scale)}px sans-serif`;
-          ctx.fillText(extRoom.name, rightColX + 8 * scale, rightY + 18 * scale);
+          ctx.fillText(extRoom.name, rightColX + 8 * scale, rightY + 23 * scale);
 
           const areaVal = extRoom.areaSqMeters || 0;
           const areaText = areaVal > 0 ? `${areaVal.toFixed(2).replace('.', ',')} m²` : '— m²';
           ctx.textAlign = 'right';
           ctx.fillStyle = '#102A45';
           ctx.font = `600 ${Math.round(14 * scale)}px sans-serif`;
-          ctx.fillText(areaText, rightColX + rightColW - 8 * scale, rightY + 18 * scale);
+          ctx.fillText(areaText, rightColX + rightColW - 8 * scale, rightY + 23 * scale);
           ctx.textAlign = 'left';
 
           ctx.strokeStyle = '#E7E5E4';
@@ -547,19 +546,19 @@ export async function generateBrochureCanvas({
 
         // Fila Total Destacada en Azul Cielo (#E1EEF9)
         rightY += 8 * scale;
-        const totalBarH = 38 * scale;
+        const totalBarH = 42 * scale;
         ctx.fillStyle = '#E1EEF9';
         drawCanvasRoundedRect(ctx, rightColX + 4 * scale, rightY, rightColW - 8 * scale, totalBarH, 8 * scale);
         ctx.fill();
 
         ctx.fillStyle = '#102A45';
         ctx.font = `bold ${Math.round(15 * scale)}px sans-serif`;
-        ctx.fillText('SUPERFICIE ÚTIL TOTAL', rightColX + 16 * scale, rightY + 24 * scale);
+        ctx.fillText('SUPERFICIE ÚTIL TOTAL', rightColX + 16 * scale, rightY + 26 * scale);
 
         const grandTotalNum = schedule.grandTotal > 0 ? schedule.grandTotal : 86.15;
         ctx.textAlign = 'right';
         ctx.font = `900 ${Math.round(16 * scale)}px sans-serif`;
-        ctx.fillText(`${grandTotalNum.toFixed(2).replace('.', ',')} m²`, rightColX + rightColW - 16 * scale, rightY + 24 * scale);
+        ctx.fillText(`${grandTotalNum.toFixed(2).replace('.', ',')} m²`, rightColX + rightColW - 16 * scale, rightY + 26 * scale);
         ctx.textAlign = 'left';
         rightY += totalBarH + 24 * scale;
 
@@ -635,16 +634,19 @@ export async function generateBrochureCanvas({
           }
         }
 
+        const centerInfoX = rightColX + rightColW / 2;
         const infoVentaY = entityY + 68 * scale;
 
-        // INFORMACIÓN Y VENTA (A la derecha, debajo de TERRAVALL)
+        // INFORMACIÓN Y VENTA (Centrado horizontalmente entre PROMUEVE y COMERCIALIZA)
+        ctx.textAlign = 'center';
         ctx.fillStyle = '#78716C';
         ctx.font = `bold ${Math.round(11 * scale)}px sans-serif`;
-        ctx.fillText('INFORMACIÓN Y VENTA', comColX, infoVentaY);
+        ctx.fillText('INFORMACIÓN Y VENTA', centerInfoX, infoVentaY);
 
-        ctx.fillStyle = '#C5221F';
+        ctx.fillStyle = 'rgb(138, 26, 26)';
         ctx.font = `900 ${Math.round(34 * scale)}px sans-serif`;
-        ctx.fillText(agencyPhone || '983 34 21 32', comColX, infoVentaY + 36 * scale);
+        ctx.fillText(agencyPhone || '983 34 21 32', centerInfoX, infoVentaY + 36 * scale);
+        ctx.textAlign = 'left';
 
         // 4. Pie de página legal
         const footerY = height - 26 * scale;
@@ -756,9 +758,8 @@ export async function exportCommercialBrochurePDF({
   customTotalUsefulArea?: number;
   filename?: string;
 }): Promise<boolean> {
-  const trimRes = await autoTrimWhitespace(imageSrc, markers as any, 2.0);
-  const effectiveImageSrc = trimRes.trimmedDataUrl;
-  const effectiveMarkers = trimRes.markers;
+  const effectiveImageSrc = imageSrc;
+  const effectiveMarkers = markers || [];
 
   return new Promise((resolve) => {
     const img = new Image();
@@ -956,8 +957,8 @@ export async function exportCommercialBrochurePDF({
 
         curY += navyCardH + 4.5;
 
-        // Filas de estancias interiores
-        const rowH = 4.3;
+        // Filas de estancias interiores (Interlineado amplio y cómodo)
+        const rowH = 6.0;
         const totalInterior = schedule.interiorRooms.length > 0 ? schedule.interiorRooms : [
           { name: 'Vestíbulo', areaSqMeters: 4.80 },
           { name: 'Cocina', areaSqMeters: 10.25 },
@@ -973,14 +974,14 @@ export async function exportCommercialBrochurePDF({
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(7.5);
           doc.setTextColor(28, 25, 23); // #1C1917
-          doc.text(room.name, rightColX + 2, curY + 3);
+          doc.text(room.name, rightColX + 2, curY + 3.8);
 
           const areaVal = room.areaSqMeters || 0;
           const areaText = areaVal > 0 ? `${areaVal.toFixed(2).replace('.', ',')} m²` : '— m²';
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(7.5);
           doc.setTextColor(16, 42, 69);
-          doc.text(areaText, rightColX + rightColW - 2, curY + 3, { align: 'right' });
+          doc.text(areaText, rightColX + rightColW - 2, curY + 3.8, { align: 'right' });
 
           doc.setDrawColor(231, 229, 228);
           doc.setLineWidth(0.15);
@@ -994,10 +995,10 @@ export async function exportCommercialBrochurePDF({
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(7.8);
         doc.setTextColor(16, 42, 69);
-        doc.text('Superficie útil interior', rightColX + 2, curY + 3.2);
+        doc.text('Superficie útil interior', rightColX + 2, curY + 4.0);
 
         const interiorTotalNum = schedule.interiorTotal > 0 ? schedule.interiorTotal : 76.55;
-        doc.text(`${interiorTotalNum.toFixed(2).replace('.', ',')} m²`, rightColX + rightColW - 2, curY + 3.2, { align: 'right' });
+        doc.text(`${interiorTotalNum.toFixed(2).replace('.', ',')} m²`, rightColX + rightColW - 2, curY + 4.0, { align: 'right' });
 
         doc.setDrawColor(214, 211, 209);
         doc.setLineWidth(0.25);
@@ -1014,14 +1015,14 @@ export async function exportCommercialBrochurePDF({
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(7.5);
           doc.setTextColor(28, 25, 23);
-          doc.text(extRoom.name, rightColX + 2, curY + 3);
+          doc.text(extRoom.name, rightColX + 2, curY + 3.8);
 
           const areaVal = extRoom.areaSqMeters || 0;
           const areaText = areaVal > 0 ? `${areaVal.toFixed(2).replace('.', ',')} m²` : '— m²';
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(7.5);
           doc.setTextColor(16, 42, 69);
-          doc.text(areaText, rightColX + rightColW - 2, curY + 3, { align: 'right' });
+          doc.text(areaText, rightColX + rightColW - 2, curY + 3.8, { align: 'right' });
 
           doc.setDrawColor(231, 229, 228);
           doc.setLineWidth(0.15);
@@ -1032,14 +1033,14 @@ export async function exportCommercialBrochurePDF({
 
         // Franja Superficie Útil Total (#E1EEF9)
         curY += 2;
-        const totalBarH = 7;
+        const totalBarH = 7.5;
         doc.setFillColor(225, 238, 249); // #E1EEF9
         doc.roundedRect(rightColX + 1, curY, rightColW - 2, totalBarH, 2, 2, 'F');
 
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(8);
         doc.setTextColor(16, 42, 69);
-        doc.text('SUPERFICIE ÚTIL TOTAL', rightColX + 3.5, curY + 4.8);
+        doc.text('SUPERFICIE ÚTIL TOTAL', rightColX + 3.5, curY + 5.0);
 
         const grandTotalNum = schedule.grandTotal > 0 ? schedule.grandTotal : 86.15;
         doc.setFontSize(8.5);
@@ -1106,18 +1107,19 @@ export async function exportCommercialBrochurePDF({
           }
         }
 
+        const centerInfoX = rightColX + rightColW / 2;
         const infoVentaY = entityY + 12;
 
-        // INFORMACIÓN Y VENTA (A la derecha, debajo de TERRAVALL)
+        // INFORMACIÓN Y VENTA (Centrado horizontalmente entre PROMUEVE y COMERCIALIZA)
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(6.5);
         doc.setTextColor(120, 113, 108);
-        doc.text('INFORMACIÓN Y VENTA', comColX, infoVentaY);
+        doc.text('INFORMACIÓN Y VENTA', centerInfoX, infoVentaY, { align: 'center' });
 
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(15);
-        doc.setTextColor(197, 34, 31); // #C5221F
-        doc.text(agencyPhone || '983 34 21 32', comColX, infoVentaY + 6);
+        doc.setTextColor(138, 26, 26); // (R 138, G 26, B 26)
+        doc.text(agencyPhone || '983 34 21 32', centerInfoX, infoVentaY + 6, { align: 'center' });
 
         // 4. Pie de página legal
         doc.setDrawColor(226, 232, 240);
@@ -1170,9 +1172,8 @@ export async function exportPlanOnlyPDF({
   agencyLogo?: string | null;
   filename?: string;
 }): Promise<boolean> {
-  const trimRes = await autoTrimWhitespace(imageSrc, markers as any, 2.0);
-  const effectiveImageSrc = trimRes.trimmedDataUrl;
-  const effectiveMarkers = trimRes.markers;
+  const effectiveImageSrc = imageSrc;
+  const effectiveMarkers = markers || [];
 
   return new Promise((resolve) => {
     const img = new Image();

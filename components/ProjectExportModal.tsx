@@ -48,10 +48,14 @@ export function ProjectExportModal({
     await exportCommercialBrochurePDF({
       imageSrc: `data:${renderedResult.mimeType};base64,${renderedResult.base64}`,
       projectTitle,
+      unitIdentifier: config.unitIdentifier,
       markers: config.roomMarkers || [],
+      customTotalUsefulArea: config.customTotalUsefulArea,
       markerBadgeColor: config.markerBadgeColor,
       promotionLogo: config.promotionLogo,
+      promotorLogo: config.promotorLogo,
       agencyLogo: config.commercialAgencyLogo,
+      agencyPhone: config.agencyPhone,
       filename: `ficha_vectorial_${projectTitle.toLowerCase().replace(/[^\w]/g, '_')}.pdf`
     });
     setIsExportingFicha(false);
@@ -63,10 +67,14 @@ export function ProjectExportModal({
     await exportCommercialBrochureImage({
       imageSrc: `data:${renderedResult.mimeType};base64,${renderedResult.base64}`,
       projectTitle,
+      unitIdentifier: config.unitIdentifier,
       markers: config.roomMarkers || [],
+      customTotalUsefulArea: config.customTotalUsefulArea,
       markerBadgeColor: config.markerBadgeColor,
       promotionLogo: config.promotionLogo,
+      promotorLogo: config.promotorLogo,
       agencyLogo: config.commercialAgencyLogo,
+      agencyPhone: config.agencyPhone,
       filename: `ficha_comercial_${projectTitle.toLowerCase().replace(/[^\w]/g, '_')}.png`
     });
     setIsExportingFicha(false);
