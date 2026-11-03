@@ -805,7 +805,7 @@ export function App() {
     };
     setConfig((prev) => ({
       ...prev,
-      roomMarkers: sortRoomMarkers([...(prev.roomMarkers || []), newMarker])
+      roomMarkers: [...(prev.roomMarkers || []), newMarker]
     }));
     setActiveMarkerId(newMarker.id);
     setPendingPinCoords(null);
@@ -834,14 +834,24 @@ export function App() {
   };
 
   const handleUpdateMarker = (id: string, updates: Partial<RoomMarker>) => {
-    setConfig((prev) => {
-      const updated = prev.roomMarkers.map((m) => (m.id === id ? { ...m, ...updates } : m));
-      const shouldSort = updates.name !== undefined || updates.category !== undefined;
-      return {
-        ...prev,
-        roomMarkers: shouldSort ? sortRoomMarkers(updated) : updated
-      };
-    });
+    setConfig((prev) => ({
+      ...prev,
+      roomMarkers: prev.roomMarkers.map((m) => (m.id === id ? { ...m, ...updates } : m))
+    }));
+  };
+
+  const handleReorderMarkers = (newMarkers: RoomMarker[]) => {
+    setConfig((prev) => ({
+      ...prev,
+      roomMarkers: newMarkers
+    }));
+  };
+
+  const handleAutoSortMarkers = () => {
+    setConfig((prev) => ({
+      ...prev,
+      roomMarkers: sortRoomMarkers(prev.roomMarkers || [])
+    }));
   };
 
   const handleDeleteMarker = (id: string) => {
@@ -1689,6 +1699,8 @@ export function App() {
               onUpdateMarker={handleUpdateMarker}
               onDeleteMarker={handleDeleteMarker}
               onClearMarkers={() => setConfig((prev) => ({ ...prev, roomMarkers: [] }))}
+              onReorderMarkers={handleReorderMarkers}
+              onAutoSortMarkers={handleAutoSortMarkers}
               activeMarkerId={activeMarkerId}
               onSelectMarker={setActiveMarkerId}
               isPinningMode={isPinningMode}

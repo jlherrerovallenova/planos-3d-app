@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { RoomMarker, RoomCategory } from '../../types';
-import { isExteriorRoom } from '../../services/roomSorter';
+import { isExteriorRoom, sortRoomMarkers } from '../../services/roomSorter';
 
 interface TabEstanciasProps {
   markers: RoomMarker[];
@@ -8,6 +8,8 @@ interface TabEstanciasProps {
   onUpdateMarker: (id: string, updates: Partial<RoomMarker>) => void;
   onDeleteMarker: (id: string) => void;
   onClearMarkers: () => void;
+  onReorderMarkers?: (newMarkers: RoomMarker[]) => void;
+  onAutoSortMarkers?: () => void;
   activeMarkerId: string | null;
   onSelectMarker: (id: string | null) => void;
   isPinningMode: boolean;
@@ -55,6 +57,8 @@ export function TabEstancias({
   onUpdateMarker,
   onDeleteMarker,
   onClearMarkers,
+  onReorderMarkers,
+  onAutoSortMarkers,
   activeMarkerId,
   onSelectMarker,
   isPinningMode,
@@ -70,6 +74,82 @@ export function TabEstancias({
   const [newRoomCategory, setNewRoomCategory] = useState<RoomCategory>('salon_comedor');
   const [newRoomArea, setNewRoomArea] = useState<string>('');
   const [newRoomCoords, setNewRoomCoords] = useState<{ x: number; y: number } | null>(null);
+
+  // Estado para arrastrar y soltar (Drag & Drop) estancias para alterar números
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData('text/plain', String(index));
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedIdx(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverIdx !== index) {
+      setDragOverIdx(index);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === targetIndex) {
+      setDraggedIdx(null);
+      setDragOverIdx(null);
+      return;
+    }
+
+    const updated = [...markers];
+    const [movedItem] = updated.splice(draggedIdx, 1);
+    updated.splice(targetIndex, 0, movedItem);
+
+    if (onReorderMarkers) {
+      onReorderMarkers(updated);
+    }
+    setDraggedIdx(null);
+    setDragOverIdx(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIdx(null);
+    setDragOverIdx(null);
+  };
+
+  const handleMoveUp = (e: React.MouseEvent, index: number) => {
+    e.stopPropagation();
+    if (index <= 0) return;
+    const updated = [...markers];
+    const [movedItem] = updated.splice(index, 1);
+    updated.splice(index - 1, 0, movedItem);
+    if (onReorderMarkers) {
+      onReorderMarkers(updated);
+    }
+  };
+
+  const handleMoveDown = (e: React.MouseEvent, index: number) => {
+    e.stopPropagation();
+    if (index >= markers.length - 1) return;
+    const updated = [...markers];
+    const [movedItem] = updated.splice(index, 1);
+    updated.splice(index + 1, 0, movedItem);
+    if (onReorderMarkers) {
+      onReorderMarkers(updated);
+    }
+  };
+
+  const handleAutoSort = () => {
+    if (onAutoSortMarkers) {
+      onAutoSortMarkers();
+    } else if (onReorderMarkers) {
+      onReorderMarkers(sortRoomMarkers(markers));
+    }
+  };
 
   // Sincronizar coordenadas cuando el usuario hace clic en el plano
   useEffect(() => {
@@ -178,15 +258,29 @@ export function TabEstancias({
           </span>
         </div>
 
-        {markers.length > 0 && (
-          <button
-            onClick={onClearMarkers}
-            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
-            title="Borrar todas las estancias"
-          >
-            <span className="material-symbols-outlined text-[17px]">ink_eraser</span>
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {markers.length > 1 && (
+            <button
+              type="button"
+              onClick={handleAutoSort}
+              className="px-2 py-1 text-[11px] font-semibold text-slate-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg border border-slate-200 transition cursor-pointer flex items-center gap-1"
+              title="Auto-ordenar según el estándar comercial inmobiliario"
+            >
+              <span className="material-symbols-outlined text-[14px]">sort</span>
+              <span>Auto-ordenar</span>
+            </button>
+          )}
+
+          {markers.length > 0 && (
+            <button
+              onClick={onClearMarkers}
+              className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
+              title="Borrar todas las estancias"
+            >
+              <span className="material-symbols-outlined text-[17px]">ink_eraser</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Botones de acción principales */}
@@ -380,25 +474,77 @@ export function TabEstancias({
         </div>
       )}
 
+      {/* Pista informativa de arrastrar y soltar */}
+      {markers.length > 1 && !isAddingRoom && (
+        <div className="flex items-center gap-2 text-[11px] text-slate-600 bg-slate-50 border border-slate-200/90 rounded-xl px-2.5 py-1.5 shadow-2xs">
+          <span className="material-symbols-outlined text-[16px] text-blue-600 shrink-0">drag_indicator</span>
+          <span className="leading-tight">
+            Arrastra el icono <span className="font-bold text-slate-700">⠿</span> o usa las flechas <span className="font-bold text-slate-700">▲▼</span> para alterar el número de cada estancia en el plano.
+          </span>
+        </div>
+      )}
+
       {/* Lista de estancias existentes */}
       <div className="space-y-2 mt-1">
         {markers.map((marker, idx) => {
           const isSelected = activeMarkerId === marker.id;
           const roomNumber = idx + 1;
+          const isDragging = draggedIdx === idx;
+          const isOver = dragOverIdx === idx && draggedIdx !== null && draggedIdx !== idx;
 
           return (
             <div
               key={marker.id}
+              draggable={true}
+              onDragStart={(e) => handleDragStart(e, idx)}
+              onDragOver={(e) => handleDragOver(e, idx)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, idx)}
+              onDragEnd={handleDragEnd}
               onClick={() => onSelectMarker(marker.id)}
-              className={`flex items-center gap-2 p-2 rounded-xl transition border cursor-pointer ${
-                isSelected
+              className={`group relative flex items-center gap-1.5 p-2 rounded-xl transition border cursor-pointer select-none ${
+                isDragging
+                  ? 'opacity-30 border-dashed border-blue-500 bg-blue-50/50 scale-[0.98]'
+                  : isOver
+                  ? 'border-blue-600 bg-blue-50/80 ring-2 ring-blue-500 shadow-md translate-y-0.5'
+                  : isSelected
                   ? 'bg-blue-50/70 border-blue-400 ring-1 ring-blue-400/40'
-                  : 'bg-white border-slate-200/90 hover:border-slate-300'
+                  : 'bg-white border-slate-200/90 hover:border-slate-300 hover:shadow-2xs'
               }`}
             >
+              {/* Grip para arrastrar + botones flechas arriba/abajo */}
+              <div className="flex items-center gap-0.5 shrink-0 text-slate-400">
+                <div
+                  className="p-0.5 cursor-grab active:cursor-grabbing hover:text-blue-600 rounded transition"
+                  title="Arrastra para cambiar la posición y el número de esta estancia"
+                >
+                  <span className="material-symbols-outlined text-[18px] block">drag_indicator</span>
+                </div>
+                <div className="flex flex-col -space-y-1">
+                  <button
+                    type="button"
+                    disabled={idx === 0}
+                    onClick={(e) => handleMoveUp(e, idx)}
+                    className="p-0.5 text-slate-300 hover:text-blue-600 disabled:opacity-0 disabled:pointer-events-none transition cursor-pointer"
+                    title="Subir posición (número anterior)"
+                  >
+                    <span className="material-symbols-outlined text-[13px] block">keyboard_arrow_up</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={idx === markers.length - 1}
+                    onClick={(e) => handleMoveDown(e, idx)}
+                    className="p-0.5 text-slate-300 hover:text-blue-600 disabled:opacity-0 disabled:pointer-events-none transition cursor-pointer"
+                    title="Bajar posición (número siguiente)"
+                  >
+                    <span className="material-symbols-outlined text-[13px] block">keyboard_arrow_down</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Badge numerado en círculo azul marino con número blanco */}
               <div
-                className="w-7 h-7 rounded-full bg-[#0F2C59] text-white flex items-center justify-center text-xs font-bold shrink-0 border border-white/60 shadow-xs"
+                className="w-7 h-7 rounded-full bg-[#0F2C59] text-white flex items-center justify-center text-xs font-bold shrink-0 border border-white/60 shadow-xs transition-transform group-hover:scale-105"
                 title={`Estancia #${roomNumber}`}
               >
                 {roomNumber}
@@ -408,6 +554,8 @@ export function TabEstancias({
               <input
                 type="text"
                 value={marker.name || ''}
+                draggable={false}
+                onDragStart={(e) => e.stopPropagation()}
                 onChange={(e) => onUpdateMarker(marker.id, { name: e.target.value })}
                 className="flex-1 min-w-0 bg-transparent text-xs font-semibold text-slate-800 focus:outline-none focus:bg-slate-50 px-1.5 py-0.5 rounded"
                 placeholder="Nombre estancia"
@@ -415,12 +563,19 @@ export function TabEstancias({
               />
 
               {/* 2. Input m² */}
-              <div className="flex items-center gap-1 shrink-0 w-24" title="2. Superficie en m²">
+              <div
+                className="flex items-center gap-1 shrink-0 w-24"
+                title="2. Superficie en m²"
+                draggable={false}
+                onDragStart={(e) => e.stopPropagation()}
+              >
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   value={marker.areaSqMeters !== undefined && marker.areaSqMeters > 0 ? marker.areaSqMeters : ''}
+                  draggable={false}
+                  onDragStart={(e) => e.stopPropagation()}
                   onChange={(e) => {
                     const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
                     onUpdateMarker(marker.id, { areaSqMeters: isNaN(val as number) ? 0 : val });
@@ -434,6 +589,8 @@ export function TabEstancias({
               {/* 3. Botón para reubicar número en el plano */}
               <button
                 type="button"
+                draggable={false}
+                onDragStart={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelectMarker(marker.id);
@@ -452,6 +609,8 @@ export function TabEstancias({
               {/* Botón eliminar */}
               <button
                 type="button"
+                draggable={false}
+                onDragStart={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDeleteMarker(marker.id);

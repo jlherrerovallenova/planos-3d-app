@@ -341,7 +341,7 @@ export function PlanCanvasPreview({
   const defectStrokeRef = useRef<{ x: number; y: number }[]>([]);
 
   const is2DMode = cameraAngle === 'plan_2d_furnished';
-  const sortedMarkers = useMemo(() => sortRoomMarkers(roomMarkers || []), [roomMarkers]);
+  const sortedMarkers = useMemo(() => roomMarkers || [], [roomMarkers]);
 
   // Convertir puntos porcentuales a string path de SVG
   const pointsToSvgPath = (points: { x: number; y: number }[]): string => {

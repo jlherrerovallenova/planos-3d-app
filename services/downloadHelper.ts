@@ -350,7 +350,7 @@ export async function generateBrochureCanvas({
 
         // Señalizar marcadores numerados de estancias sobre el plano
         if (markers && markers.length > 0) {
-          const sortedMarkers = sortRoomMarkers(markers);
+          const sortedMarkers = markers;
           const circleRadius = 14 * scale;
           sortedMarkers.forEach((m: any, idx: number) => {
             if (typeof m.x === 'number' && typeof m.y === 'number') {
@@ -867,7 +867,7 @@ export async function exportCommercialBrochurePDF({
 
         // Pines numerados de estancias en el plano del PDF
         if (markers && markers.length > 0) {
-          const sortedMarkers = sortRoomMarkers(markers);
+          const sortedMarkers = markers;
           const circleRadius = 2.8; // mm
           sortedMarkers.forEach((m: any, idx: number) => {
             if (typeof m.x === 'number' && typeof m.y === 'number') {
@@ -1306,7 +1306,7 @@ export async function exportPlanOnlyPDF({
         // Inserción directa en máxima resolución sin pérdida
         doc.addImage(effectiveImageSrc, imgFormat, drawX, drawY, drawW, drawH, undefined, 'SLOW');
 
-        const sortedMarkers = sortRoomMarkers(effectiveMarkers || []);
+        const sortedMarkers = effectiveMarkers || [];
 
         // Señalizar cada estancia en el plano con el color de badge personalizado
         if (sortedMarkers && sortedMarkers.length > 0) {

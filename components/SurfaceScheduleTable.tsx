@@ -138,7 +138,7 @@ export function SurfaceScheduleTable({
     const isThisEditing = editingRoomId === marker.id;
     const roomNumber = typeof displayIndex === 'number'
       ? displayIndex + 1
-      : schedule.sortedMarkers.findIndex((m) => m.id === marker.id) + 1;
+      : (markers && markers.length > 0 ? markers.findIndex((m) => m.id === marker.id) + 1 : schedule.sortedMarkers.findIndex((m) => m.id === marker.id) + 1);
 
     if (isThisEditing) {
       return (

@@ -279,7 +279,8 @@ export function categorizeRoomsForSchedule(
   markers: RoomMarker[],
   customGrandTotal?: number
 ): CategorizedSchedule {
-  const sortedMarkers = sortRoomMarkers(markers || []);
+  // Respetar el orden exacto definido por el usuario (drag & drop o manual)
+  const sortedMarkers = markers || [];
   const interiorRooms: RoomMarker[] = [];
   const exteriorRooms: RoomMarker[] = [];
 
