@@ -562,51 +562,20 @@ export async function generateBrochureCanvas({
         ctx.textAlign = 'left';
         rightY += totalBarH + 24 * scale;
 
-        // Bloque Inferior: PROMUEVE, COMERCIALIZA e INFORMACIÓN Y VENTA (Anclado siempre a la base)
-        const bottomSectionH = 135 * scale;
+        // Bloque Inferior: Organización Vertical Centrada (COMERCIALIZA con teléfono arriba, PROMUEVE abajo)
+        const bottomSectionH = 170 * scale;
         const targetBottomY = bodyY + bodyH - bottomSectionH;
-        const entityY = Math.max(rightY + 20 * scale, targetBottomY);
+        const entityY = Math.max(rightY + 16 * scale, targetBottomY);
+        const centerX = rightColX + rightColW / 2;
 
-        const entityColW = (rightColW - 20 * scale) / 2;
-
-        // PROMUEVE
+        // 1. COMERCIALIZA (Encabezado)
+        ctx.textAlign = 'center';
         ctx.fillStyle = '#78716C';
         ctx.font = `bold ${Math.round(11 * scale)}px sans-serif`;
-        ctx.fillText('PROMUEVE', rightColX + 8 * scale, entityY);
+        ctx.fillText('COMERCIALIZA', centerX, entityY);
 
-        const effectivePromotor = promotorLogo || DEFAULT_PROMUEVE_LOGO;
-        if (effectivePromotor) {
-          try {
-            await new Promise<void>((resolveProm) => {
-              const pImg = new Image();
-              pImg.crossOrigin = 'anonymous';
-              pImg.onload = () => {
-                const maxH = 46 * scale;
-                const maxW = entityColW - 16 * scale;
-                const asp = pImg.width / pImg.height;
-                let w = maxH * asp;
-                let h = maxH;
-                if (w > maxW) {
-                  w = maxW;
-                  h = w / asp;
-                }
-                ctx.drawImage(pImg, rightColX + 8 * scale, entityY + 8 * scale, w, h);
-                resolveProm();
-              };
-              pImg.onerror = () => resolveProm();
-              pImg.src = effectivePromotor;
-            });
-          } catch {
-            // fallback
-          }
-        }
-
-        // COMERCIALIZA
-        const comColX = rightColX + entityColW + 20 * scale;
-        ctx.fillStyle = '#78716C';
-        ctx.font = `bold ${Math.round(11 * scale)}px sans-serif`;
-        ctx.fillText('COMERCIALIZA', comColX, entityY);
-
+        // 2. Logo COMERCIALIZA (TERRAVALL)
+        const comLogoY = entityY + 6 * scale;
         const effectiveAgency = agencyLogo || DEFAULT_AGENCY_LOGO;
         if (effectiveAgency) {
           try {
@@ -614,8 +583,8 @@ export async function generateBrochureCanvas({
               const aImg = new Image();
               aImg.crossOrigin = 'anonymous';
               aImg.onload = () => {
-                const maxH = 46 * scale;
-                const maxW = entityColW - 16 * scale;
+                const maxH = 40 * scale;
+                const maxW = Math.min(220 * scale, rightColW - 32 * scale);
                 const asp = aImg.width / aImg.height;
                 let w = maxH * asp;
                 let h = maxH;
@@ -623,7 +592,7 @@ export async function generateBrochureCanvas({
                   w = maxW;
                   h = w / asp;
                 }
-                ctx.drawImage(aImg, comColX, entityY + 8 * scale, w, h);
+                ctx.drawImage(aImg, centerX - w / 2, comLogoY, w, h);
                 resolveAg();
               };
               aImg.onerror = () => resolveAg();
@@ -634,18 +603,57 @@ export async function generateBrochureCanvas({
           }
         }
 
-        const centerInfoX = rightColX + rightColW / 2;
-        const infoVentaY = entityY + 68 * scale;
-
-        // INFORMACIÓN Y VENTA (Centrado horizontalmente entre PROMUEVE y COMERCIALIZA)
+        // 3. Teléfono de Comercialización (R 138, G 26, B 26)
+        const phoneY = comLogoY + 42 * scale + 22 * scale;
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#78716C';
-        ctx.font = `bold ${Math.round(11 * scale)}px sans-serif`;
-        ctx.fillText('INFORMACIÓN Y VENTA', centerInfoX, infoVentaY);
-
         ctx.fillStyle = 'rgb(138, 26, 26)';
         ctx.font = `900 ${Math.round(34 * scale)}px sans-serif`;
-        ctx.fillText(agencyPhone || '983 34 21 32', centerInfoX, infoVentaY + 36 * scale);
+        ctx.fillText(agencyPhone || '983 34 21 32', centerX, phoneY);
+
+        // 4. Línea divisoria horizontal fina
+        const lineY = phoneY + 14 * scale;
+        const lineW = Math.min(280 * scale, rightColW - 40 * scale);
+        ctx.strokeStyle = '#D6D3D1';
+        ctx.lineWidth = 1 * scale;
+        ctx.beginPath();
+        ctx.moveTo(centerX - lineW / 2, lineY);
+        ctx.lineTo(centerX + lineW / 2, lineY);
+        ctx.stroke();
+
+        // 5. PROMUEVE (Encabezado)
+        const promueveY = lineY + 18 * scale;
+        ctx.fillStyle = '#78716C';
+        ctx.font = `bold ${Math.round(11 * scale)}px sans-serif`;
+        ctx.fillText('PROMUEVE', centerX, promueveY);
+
+        // 6. Logo PROMUEVE (LUBENS Proyecto S.L.)
+        const promLogoY = promueveY + 6 * scale;
+        const effectivePromotor = promotorLogo || DEFAULT_PROMUEVE_LOGO;
+        if (effectivePromotor) {
+          try {
+            await new Promise<void>((resolveProm) => {
+              const pImg = new Image();
+              pImg.crossOrigin = 'anonymous';
+              pImg.onload = () => {
+                const maxH = 36 * scale;
+                const maxW = Math.min(220 * scale, rightColW - 32 * scale);
+                const asp = pImg.width / pImg.height;
+                let w = maxH * asp;
+                let h = maxH;
+                if (w > maxW) {
+                  w = maxW;
+                  h = w / asp;
+                }
+                ctx.drawImage(pImg, centerX - w / 2, promLogoY, w, h);
+                resolveProm();
+              };
+              pImg.onerror = () => resolveProm();
+              pImg.src = effectivePromotor;
+            });
+          } catch {
+            // fallback
+          }
+        }
         ctx.textAlign = 'left';
 
         // 4. Pie de página legal
@@ -1047,26 +1055,71 @@ export async function exportCommercialBrochurePDF({
         doc.text(`${grandTotalNum.toFixed(2).replace('.', ',')} m²`, rightColX + rightColW - 3.5, curY + 4.8, { align: 'right' });
         curY += totalBarH + 4.5;
 
-        // Bloque Inferior: PROMUEVE, COMERCIALIZA e INFORMACIÓN Y VENTA (Anclado siempre a la base)
-        const pdfBottomSectionH = 26; // mm
+        // Bloque Inferior: Organización Vertical Centrada (COMERCIALIZA con teléfono arriba, PROMUEVE abajo)
+        const pdfBottomSectionH = 34; // mm
         const targetPdfBottomY = contentY + contentH - pdfBottomSectionH;
-        const entityY = Math.max(curY + 3, targetPdfBottomY);
+        const entityY = Math.max(curY + 2, targetPdfBottomY);
+        const centerX = rightColX + rightColW / 2;
 
-        const entityColW = (rightColW - 4) / 2;
-
-        // PROMUEVE
+        // 1. COMERCIALIZA (Encabezado)
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(6.5);
         doc.setTextColor(120, 113, 108); // #78716C
-        doc.text('PROMUEVE', rightColX + 2, entityY);
+        doc.text('COMERCIALIZA', centerX, entityY, { align: 'center' });
 
+        // 2. Logo COMERCIALIZA (TERRAVALL)
+        let agH = 7.0;
+        const comLogoY = entityY + 1.2;
+        const effectiveAgency = agencyLogo || DEFAULT_AGENCY_LOGO;
+        if (effectiveAgency) {
+          try {
+            const agProps = doc.getImageProperties(effectiveAgency);
+            const agAspect = agProps.width / (agProps.height || 1);
+            const maxAgW = Math.min(42, rightColW - 8);
+            const maxAgH = 7.0;
+            let agW = maxAgH * agAspect;
+            agH = maxAgH;
+            if (agW > maxAgW) {
+              agW = maxAgW;
+              agH = agW / agAspect;
+            }
+            const isPngAg = effectiveAgency.startsWith('data:image/png') || !effectiveAgency.startsWith('data:image/jpeg');
+            doc.addImage(effectiveAgency, isPngAg ? 'PNG' : 'JPEG', centerX - agW / 2, comLogoY, agW, agH, undefined, 'SLOW');
+          } catch {
+            // fallback
+          }
+        }
+
+        // 3. Teléfono de Comercialización (R 138, G 26, B 26)
+        const phoneY = comLogoY + agH + 4.5;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(138, 26, 26); // (R 138, G 26, B 26)
+        doc.text(agencyPhone || '983 34 21 32', centerX, phoneY, { align: 'center' });
+
+        // 4. Línea divisoria horizontal fina
+        const lineY = phoneY + 2.5;
+        const lineW = Math.min(48, rightColW - 10);
+        doc.setDrawColor(214, 211, 209);
+        doc.setLineWidth(0.2);
+        doc.line(centerX - lineW / 2, lineY, centerX + lineW / 2, lineY);
+
+        // 5. PROMUEVE (Encabezado)
+        const promTextY = lineY + 3.8;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(6.5);
+        doc.setTextColor(120, 113, 108);
+        doc.text('PROMUEVE', centerX, promTextY, { align: 'center' });
+
+        // 6. Logo PROMUEVE (LUBENS Proyecto S.L.)
+        const promLogoY = promTextY + 1.2;
         const effectivePromotor = promotorLogo || DEFAULT_PROMUEVE_LOGO;
         if (effectivePromotor) {
           try {
             const promProps = doc.getImageProperties(effectivePromotor);
             const promAspect = promProps.width / (promProps.height || 1);
-            const maxPromW = entityColW - 4;
-            const maxPromH = 7.5;
+            const maxPromW = Math.min(42, rightColW - 8);
+            const maxPromH = 6.5;
             let promW = maxPromH * promAspect;
             let promH = maxPromH;
             if (promW > maxPromW) {
@@ -1074,52 +1127,11 @@ export async function exportCommercialBrochurePDF({
               promH = promW / promAspect;
             }
             const isPngProm = effectivePromotor.startsWith('data:image/png') || !effectivePromotor.startsWith('data:image/jpeg');
-            doc.addImage(effectivePromotor, isPngProm ? 'PNG' : 'JPEG', rightColX + 2, entityY + 1.5, promW, promH, undefined, 'SLOW');
+            doc.addImage(effectivePromotor, isPngProm ? 'PNG' : 'JPEG', centerX - promW / 2, promLogoY, promW, promH, undefined, 'SLOW');
           } catch {
             // fallback
           }
         }
-
-        // COMERCIALIZA
-        const comColX = rightColX + entityColW + 2;
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(6.5);
-        doc.setTextColor(120, 113, 108);
-        doc.text('COMERCIALIZA', comColX, entityY);
-
-        const effectiveAgency = agencyLogo || DEFAULT_AGENCY_LOGO;
-        if (effectiveAgency) {
-          try {
-            const agProps = doc.getImageProperties(effectiveAgency);
-            const agAspect = agProps.width / (agProps.height || 1);
-            const maxAgW = entityColW - 4;
-            const maxAgH = 7.5;
-            let agW = maxAgH * agAspect;
-            let agH = maxAgH;
-            if (agW > maxAgW) {
-              agW = maxAgW;
-              agH = agW / agAspect;
-            }
-            const isPngAg = effectiveAgency.startsWith('data:image/png') || !effectiveAgency.startsWith('data:image/jpeg');
-            doc.addImage(effectiveAgency, isPngAg ? 'PNG' : 'JPEG', comColX, entityY + 1.5, agW, agH, undefined, 'SLOW');
-          } catch {
-            // fallback
-          }
-        }
-
-        const centerInfoX = rightColX + rightColW / 2;
-        const infoVentaY = entityY + 12;
-
-        // INFORMACIÓN Y VENTA (Centrado horizontalmente entre PROMUEVE y COMERCIALIZA)
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(6.5);
-        doc.setTextColor(120, 113, 108);
-        doc.text('INFORMACIÓN Y VENTA', centerInfoX, infoVentaY, { align: 'center' });
-
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(15);
-        doc.setTextColor(138, 26, 26); // (R 138, G 26, B 26)
-        doc.text(agencyPhone || '983 34 21 32', centerInfoX, infoVentaY + 6, { align: 'center' });
 
         // 4. Pie de página legal
         doc.setDrawColor(226, 232, 240);

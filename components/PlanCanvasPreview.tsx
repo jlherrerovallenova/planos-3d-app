@@ -1919,52 +1919,43 @@ export function PlanCanvasPreview({
                   />
                   </div>
 
-                  {/* Bloque Inferior Anclado: PROMUEVE, COMERCIALIZA e INFORMACIÓN Y VENTA */}
-                  <div className="mt-auto pt-4">
-                    {/* Grid de 2 Columnas: PROMUEVE a la izquierda y COMERCIALIZA a la derecha */}
-                    <div className="grid grid-cols-2 gap-4 items-start">
-                      {/* Columna Izquierda: PROMUEVE */}
-                      <div>
-                        <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-1">
-                          PROMUEVE
-                        </span>
-                        <div className="flex items-center min-h-[44px]">
-                          <img
-                            src={promotorLogo || DEFAULT_PROMUEVE_LOGO}
-                            alt="LUBENS Proyecto S.L."
-                            className="h-9 sm:h-10 w-auto max-w-[130px] object-contain"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Columna Derecha: COMERCIALIZA */}
-                      <div>
-                        <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-1">
-                          COMERCIALIZA
-                        </span>
-                        <div className="flex items-center min-h-[44px]">
-                          <img
-                            src={commercialAgencyLogo || DEFAULT_AGENCY_LOGO}
-                            alt="TERRAVALL Servicios Inmobiliarios"
-                            className="h-9 sm:h-10 w-auto max-w-[130px] object-contain"
-                          />
-                        </div>
-                      </div>
+                  {/* Bloque Inferior Anclado: Organización Vertical Centrada (COMERCIALIZA arriba con teléfono, PROMUEVE abajo) */}
+                  <div className="mt-auto pt-4 flex flex-col items-center text-center">
+                    {/* 1. COMERCIALIZA */}
+                    <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-1">
+                      COMERCIALIZA
+                    </span>
+                    <div className="flex items-center justify-center min-h-[42px] mb-1">
+                      <img
+                        src={commercialAgencyLogo || DEFAULT_AGENCY_LOGO}
+                        alt="TERRAVALL Servicios Inmobiliarios"
+                        className="h-9 sm:h-10 w-auto max-w-[200px] object-contain"
+                      />
                     </div>
 
-                    {/* Bloque Centrado entre PROMUEVE y COMERCIALIZA: INFORMACIÓN Y VENTA */}
-                    <div className="pt-3 text-center">
-                      <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-0.5">
-                        INFORMACIÓN Y VENTA
-                      </span>
-                      <a
-                        href={`tel:${(agencyPhone || '983342132').replace(/\s+/g, '')}`}
-                        style={{ color: 'rgb(138, 26, 26)' }}
-                        className="text-2xl sm:text-3xl font-black tracking-tight hover:underline inline-block"
-                        title="Llamar a Información y Venta"
-                      >
-                        {agencyPhone || '983 34 21 32'}
-                      </a>
+                    {/* 2. Teléfono de Comercialización */}
+                    <a
+                      href={`tel:${(agencyPhone || '983342132').replace(/\s+/g, '')}`}
+                      style={{ color: 'rgb(138, 26, 26)' }}
+                      className="text-2xl sm:text-3xl font-black tracking-tight hover:underline inline-block mb-2"
+                      title="Llamar a Comercialización"
+                    >
+                      {agencyPhone || '983 34 21 32'}
+                    </a>
+
+                    {/* 3. Línea divisoria horizontal fina */}
+                    <div className="w-full max-w-[280px] border-t border-stone-300/80 my-2" />
+
+                    {/* 4. PROMUEVE */}
+                    <span className="text-[11px] font-bold tracking-wider text-stone-500 uppercase block mb-1">
+                      PROMUEVE
+                    </span>
+                    <div className="flex items-center justify-center min-h-[38px]">
+                      <img
+                        src={promotorLogo || DEFAULT_PROMUEVE_LOGO}
+                        alt="LUBENS Proyecto S.L."
+                        className="h-8 sm:h-9 w-auto max-w-[200px] object-contain"
+                      />
                     </div>
                   </div>
                 </div>
