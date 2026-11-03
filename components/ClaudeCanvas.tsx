@@ -47,6 +47,7 @@ interface ClaudeCanvasProps {
   onUploadFile?: () => void;
   onEraseAtPoint?: (x: number, y: number) => void;
   isEraserMode?: boolean;
+  pendingPinCoords?: { x: number; y: number } | null;
 }
 
 export function ClaudeCanvas({
@@ -59,6 +60,7 @@ export function ClaudeCanvas({
   isPinningMode,
   onCanvasClickToPositionMarker,
   onUpdateMarkerPosition,
+  pendingPinCoords,
   isPaintingMode,
   onTogglePaintingMode,
   brushSize,
@@ -359,7 +361,7 @@ export function ClaudeCanvas({
         {currentImageSrc ? (
           <div
             className={`relative bg-white shadow-2xl rounded-sm p-4 border border-slate-200/80 max-h-[75vh] max-w-[80vw] flex items-center justify-center ${
-              isPaintingMode ? 'cursor-crosshair' : 'cursor-default'
+              isPaintingMode || isPinningMode ? 'cursor-crosshair' : 'cursor-default'
             }`}
             onPointerDown={handlePointerDown}
           >
@@ -507,7 +509,15 @@ export function ClaudeCanvas({
                   </div>
                 )}
 
-                {/* Marcadores numerados de estancia (Círculos oscuros estilo Claude) */}
+                {/* Banner de ayuda para ubicar en plano */}
+                {isPinningMode && (
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 px-3.5 py-1.5 rounded-full bg-[#0F2C59]/90 text-white text-xs font-semibold shadow-lg flex items-center gap-2 pointer-events-none animate-pulse">
+                    <span className="material-symbols-outlined text-[16px] text-amber-300">pin_drop</span>
+                    <span>Haz clic en la estancia del plano para colocar su número</span>
+                  </div>
+                )}
+
+                {/* Marcadores numerados de estancia (Círculos azul marino profesional con número blanco) */}
                 {viewMode === 'plano' &&
                   roomMarkers.map((marker, idx) => {
                     const isSelected = activeMarkerId === marker.id;
@@ -526,8 +536,8 @@ export function ClaudeCanvas({
                           top: `${marker.y}%`,
                           transform: 'translate(-50%, -50%)'
                         }}
-                        className={`absolute z-20 w-6 h-6 rounded-full bg-[#1e293b] text-white flex items-center justify-center text-xs font-bold cursor-grab active:cursor-grabbing shadow-md border border-white/60 transition-transform hover:scale-110 ${
-                          isSelected ? 'ring-2 ring-blue-500 scale-110' : ''
+                        className={`absolute z-20 w-7 h-7 rounded-full bg-[#0F2C59] text-white flex items-center justify-center text-xs font-bold cursor-grab active:cursor-grabbing shadow-lg border-2 border-white transition-transform hover:scale-110 ${
+                          isSelected ? 'ring-3 ring-blue-400 scale-110' : ''
                         }`}
                         title={`${num}. ${marker.name || 'Estancia'}`}
                       >
@@ -536,16 +546,33 @@ export function ClaudeCanvas({
                     );
                   })}
 
-                {/* Capa de Mobiliario Interactivo (Arrastrar, Tecla R para girar, Supr para borrar) */}
-                <FurnitureLayer
-                  furnitureItems={furnitureItems}
-                  selectedFurnitureId={selectedFurnitureId}
-                  onSelectFurniture={onSelectFurniture}
-                  onUpdateFurniture={onUpdateFurniture}
-                  onDeleteFurniture={onDeleteFurniture}
-                  canvasContainerRef={canvasContainerRef}
-                  imageRef={imageRef}
-                />
+                {/* Vista previa de ubicación para la nueva estancia en creación */}
+                {pendingPinCoords && viewMode === 'plano' && (
+                  <div
+                    style={{
+                      left: `${pendingPinCoords.x}%`,
+                      top: `${pendingPinCoords.y}%`,
+                      transform: 'translate(-50%, -50%)'
+                    }}
+                    className="absolute z-30 w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-xl border-2 border-white ring-4 ring-blue-300 animate-bounce pointer-events-none"
+                    title="Ubicación seleccionada en el plano"
+                  >
+                    {roomMarkers.length + 1}
+                  </div>
+                )}
+
+                {/* Capa de Mobiliario Interactivo: SOLO visible en vista amueblada, NUNCA en el plano */}
+                {viewMode === 'amueblado' && (
+                  <FurnitureLayer
+                    furnitureItems={furnitureItems}
+                    selectedFurnitureId={selectedFurnitureId}
+                    onSelectFurniture={onSelectFurniture}
+                    onUpdateFurniture={onUpdateFurniture}
+                    onDeleteFurniture={onDeleteFurniture}
+                    canvasContainerRef={canvasContainerRef}
+                    imageRef={imageRef}
+                  />
+                )}
               </div>
             )}
           </div>

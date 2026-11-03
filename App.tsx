@@ -231,31 +231,17 @@ export function App() {
   const [externalPrefillText, setExternalPrefillText] = useState<string | null>(null);
 
   // 4.8 Estado de Mobiliario Interactivo (Mover, Rotar, Eliminar)
+  // Omitido por defecto para que NO aparezca mobiliario al añadir estancias
   const [furnitureItems, setFurnitureItems] = useState<FurnitureItem[]>(() => {
     try {
-      const saved = localStorage.getItem('planos3d_furniture_items');
-      if (saved) return JSON.parse(saved);
+      localStorage.removeItem('planos3d_furniture_items');
     } catch {}
     return [];
   });
   const [selectedFurnitureId, setSelectedFurnitureId] = useState<string | null>(null);
 
-  // Persistir muebles
-  useEffect(() => {
-    try {
-      localStorage.setItem('planos3d_furniture_items', JSON.stringify(furnitureItems));
-    } catch {}
-  }, [furnitureItems]);
-
-  // Si no hay muebles inicializados pero sí estancias, autogenerar la distribución estándar
-  useEffect(() => {
-    if (furnitureItems.length === 0 && config.roomMarkers && config.roomMarkers.length > 0) {
-      const generated = generateDefaultFurnitureForRooms(config.roomMarkers);
-      if (generated.length > 0) {
-        setFurnitureItems(generated);
-      }
-    }
-  }, [config.roomMarkers]);
+  // Estado para ubicar nueva estancia en el plano
+  const [pendingPinCoords, setPendingPinCoords] = useState<{ x: number; y: number } | null>(null);
 
   const handleUpdateFurniture = (id: string, updates: Partial<FurnitureItem>) => {
     setFurnitureItems((prev) => prev.map((f) => (f.id === id ? { ...f, ...updates } : f)));
@@ -822,6 +808,7 @@ export function App() {
       roomMarkers: sortRoomMarkers([...(prev.roomMarkers || []), newMarker])
     }));
     setActiveMarkerId(newMarker.id);
+    setPendingPinCoords(null);
   };
 
   // Manejo de Pines en el Canvas
@@ -837,40 +824,13 @@ export function App() {
           m.id === activeMarkerId ? { ...m, x, y } : m
         )
       }));
+      setGenerationSuccessMessage('Número reubicado en el plano');
+      setTimeout(() => setGenerationSuccessMessage(null), 1500);
       return;
     }
 
-    // Si NO hay estancia seleccionada, crear automáticamente la siguiente estancia numerada en esa posición del plano
-    const currentCount = config.roomMarkers?.length || 0;
-    const defaultTemplates: { name: string; cat: RoomCategory }[] = [
-      { name: 'Salón - Comedor', cat: 'salon_comedor' },
-      { name: 'Cocina', cat: 'cocina' },
-      { name: 'Dormitorio 1', cat: 'dormitorio_principal' },
-      { name: 'Dormitorio 2', cat: 'dormitorio_secundario' },
-      { name: 'Baño 1', cat: 'bano_principal' },
-      { name: 'Aseo', cat: 'aseo_cortesia' },
-      { name: 'Terraza', cat: 'terraza_balcon' },
-      { name: 'Vestíbulo / Pasillo', cat: 'recibidor_distribuidor' }
-    ];
-    const template = defaultTemplates[currentCount] || {
-      name: `Estancia ${currentCount + 1}`,
-      cat: 'otro' as RoomCategory
-    };
-
-    const newMarker: RoomMarker = {
-      id: `room_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      name: template.name,
-      category: template.cat,
-      x,
-      y,
-      notes: ''
-    };
-
-    setConfig((prev) => ({
-      ...prev,
-      roomMarkers: sortRoomMarkers([...(prev.roomMarkers || []), newMarker])
-    }));
-    setActiveMarkerId(newMarker.id);
+    // Si no hay estancia seleccionada, registrar la coordenada para la nueva estancia
+    setPendingPinCoords({ x, y });
   };
 
   const handleUpdateMarker = (id: string, updates: Partial<RoomMarker>) => {
@@ -1737,6 +1697,8 @@ export function App() {
               onChangeCustomTotalUsefulArea={(val) =>
                 setConfig((prev) => ({ ...prev, customTotalUsefulArea: val }))
               }
+              pendingPinCoords={pendingPinCoords}
+              onSetPendingPinCoords={setPendingPinCoords}
             />
           )}
 
@@ -1862,6 +1824,7 @@ export function App() {
             isPinningMode={isPinningMode}
             onCanvasClickToPositionMarker={handleCanvasClickToPositionMarker}
             onUpdateMarkerPosition={(id, x, y) => handleUpdateMarker(id, { x, y })}
+            pendingPinCoords={pendingPinCoords}
             isPaintingMode={isPaintingMode}
             onTogglePaintingMode={() => {
               const next = !isPaintingMode;
