@@ -45,6 +45,7 @@ In all kitchens and open-plan kitchen areas (in both 2D floor plans and 3D cutaw
    - ABSOLUTE PROHIBITION of any other visible appliances or objects: DO NOT show, draw, or render refrigerators (frigoríficos), microwaves (microondas), ovens above the counter, tall appliance towers, range hoods, coffee makers, toasters, blenders, air fryers, dish drainers, cutting boards, knives, dishware, bottles, pots, pans, food, or decorative knick-knacks.
    - The countertop surface (${selectedCountertop.promptKeyword}) must be completely flat, bare, continuous, and pristine with zero clutter.
 3. Underneath the countertop there are only clean, seamless base cabinetry units.
+4. PARTITION WALL PRESERVATION: If the kitchen is separated by walls in the blueprint, KEEP ALL WALLS FULLY INTACT. NEVER demolish partition walls, do NOT create open-plan American kitchens, and do NOT replace walls with kitchen island bars unless the blueprint specifically shows an open kitchen.
 STRICT MANDATE: In kitchens, ONLY the vitrocerámica and the fregadero are visible; the rest is strictly bare, clean countertop surface with zero other appliances and zero clutter.`;
 
   // DIRECTIVA ESTRICTA DE SUPERFICIES Y ACABADOS LIMPIOS
@@ -98,11 +99,27 @@ STRICT MANDATE: In kitchens, ONLY the vitrocerámica and the fregadero are visib
   const commercialWardrobes2dDirective = `BUILT-IN WARDROBES ARCHITECTURAL STANDARD (ARMARIOS EMPOTRADOS):
 In all bedrooms, dressing areas, and hallway closets, render built-in wardrobes (armarios empotrados) using standard top-down 2D CAD blueprint presentation: an open wardrobe compartment showing the longitudinal hanging rod with clothing hangers, flush with adjoining partition walls. Never render an opaque solid black box or cartoon graphics.`;
 
+    // DIRECTIVA CRÍTICA: PROHIBICIÓN TOTAL DE INVENTAR ESPACIOS EN EL FONDO EXTERIOR
+  const strictExteriorVoidDirective = `ABSOLUTE EXTERIOR VOID MANDATE:
+1. The exterior facade walls of the apartment shown in the reference blueprint define the absolute boundary of the home.
+2. The entire canvas area OUTSIDE these perimeter facade walls must be completely blank, solid, neutral pure white (#FFFFFF) background with zero drawings.
+3. ABSOLUTELY DO NOT invent wraparound terraces, side balconies, exterior decks, gardens, patio chairs, outdoor tables, or exterior furniture in the margins outside the apartment walls.`;
+
+  const hasTerraceMarker = config.roomMarkers && config.roomMarkers.some(
+    m => m.category === 'terraza_balcon' || /terraza|balc[oó]n|porche|solarium/i.test(m.name)
+  );
+  const terraceDirective = hasTerraceMarker
+    ? `Terrace flooring: ${selectedTerraceFloor.promptKeyword}. Render ONLY the terrace boundary clearly drawn inside the blueprint.`
+    : `STRICT PROHIBITION OF EXTERIOR TERRACES OR BALCONIES: This residence has NO terrace or balcony. DO NOT invent, draw, or render ANY outdoor terrace, balcony, veranda, deck, patio, or outdoor furniture anywhere. All areas outside exterior walls MUST REMAIN 100% PURE EMPTY WHITE BACKGROUND.`;
+
   // MANDATO DE FIDELIDAD ESTRUCTURAL 1:1 (CALCO INMUTABLE)
   const strictFidelityMandate = config.strictBlueprintFidelity !== false
     ? `CRITICAL ARCHITECTURAL MANDATE — ZERO-HALLUCINATION BLUEPRINT FIDELITY (CALCO 1:1 ESTRUCTURAL):
 1. The input image is an official architectural CAD master blueprint. Every wall line, exterior boundary, interior partition, structural column, door opening, and window is 100% FIXED AND UNALTERABLE.
-2. ABSOLUTE PROHIBITION OF HALLUCINATIONS: DO NOT add walls, DO NOT delete walls, DO NOT invent phantom hallways or corridors, and DO NOT move doors or windows.
+2. ABSOLUTE PROHIBITION OF HALLUCINATIONS:
+   - DO NOT add walls, DO NOT delete walls, DO NOT knock down kitchen partitions.
+   - DO NOT invent phantom hallways, corridors, or outdoor terraces.
+   - DO NOT change windows into doors, and DO NOT move door openings.
 3. Every room's exact shape, perimeter, and wall thickness must correspond 1:1 with topological precision to the source blueprint.
 4. DO NOT invent extra rooms or exterior spaces that do not exist in the source blueprint.`
     : `Maintain overall architectural layout and room boundaries from the reference blueprint.`;
@@ -142,7 +159,8 @@ DO NOT displace, duplicate, or invent a different furniture layout.`
       kitchenMinimalistRule,
       `Bathrooms flooring: ${selectedBathGres60.promptKeyword}.`,
       `${showerTrayRule}`,
-      `Terrace flooring: ${selectedTerraceFloor.promptKeyword}.`,
+      terraceDirective,
+      strictExteriorVoidDirective,
       `Windows: ${selectedWindowType.promptKeyword} in ${selectedWindowFinish.promptKeyword}.`,
       `Doors & wardrobes: ${selectedDoor.promptKeyword}.`,
       `Color scheme: ${selectedPalette.promptKeyword}.`,
