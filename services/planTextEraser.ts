@@ -190,14 +190,55 @@ function inpaintPatchSurgically(
       const compW = maxX - minX + 1;
       const compH = maxY - minY + 1;
 
-      // Un trazo pertenece a una línea de muro o tabique estructural SÓLO SI:
-      // es un trazo continuo fino que atraviesa el parche de extremo a extremo
-      const spansFullHeight = (minY <= 1 && maxY >= patchH - 2 && compH >= patchH - 2);
-      const spansFullWidth = (minX <= 1 && maxX >= patchW - 2 && compW >= patchW - 2);
-      const isStructuralWall = (spansFullHeight && compW <= 7) || (spansFullWidth && compH <= 7);
+      // Un trazo pertenece a la estructura del plano (muro, tabique, puerta, cota, carpintería) si:
+      // 1. Toca cualquiera de los bordes del parche y se extiende al exterior (los textos de estancias están en el centro del espacio).
+      // 2. O es un trazo continuo largo (muro divisorio o arco de puerta).
+      // 3. O tiene conexión comprobada con píxeles oscuros en la periferia exterior.
+      const touchesLeft = minX <= 1;
+      const touchesRight = maxX >= patchW - 2;
+      const touchesTop = minY <= 1;
+      const touchesBottom = maxY >= patchH - 2;
+      const touchesAnyEdge = touchesLeft || touchesRight || touchesTop || touchesBottom;
 
-      // Si no es un muro estructural que atraviesa de lado a lado, es texto (letras, cifras o símbolos) -> BORRAR
-      if (!isStructuralWall) {
+      let connectsToExteriorInk = false;
+      if (touchesAnyEdge) {
+        for (let i = 0; i < compPixels.length && !connectsToExteriorInk; i++) {
+          const pIdx = compPixels[i];
+          const px = pIdx % patchW;
+          const py = Math.floor(pIdx / patchW);
+          if (px <= 1 || px >= patchW - 2 || py <= 1 || py >= patchH - 2) {
+            const globalX = patchX + px;
+            const globalY = patchY + py;
+            for (let ody = -2; ody <= 2 && !connectsToExteriorInk; ody++) {
+              for (let odx = -2; odx <= 2 && !connectsToExteriorInk; odx++) {
+                const ex = globalX + odx;
+                const ey = globalY + ody;
+                if (ex < patchX || ex >= patchX + patchW || ey < patchY || ey >= patchY + patchH) {
+                  if (ex >= 0 && ex < imgW && ey >= 0 && ey < imgH) {
+                    try {
+                      const extP = ctx.getImageData(ex, ey, 1, 1).data;
+                      const extLuma = 0.299 * extP[0] + 0.587 * extP[1] + 0.114 * extP[2];
+                      const extDist = Math.hypot(extP[0] - floor.r, extP[1] - floor.g, extP[2] - floor.b);
+                      if (floor.luma - extLuma > 25 || extDist > 30) {
+                        connectsToExteriorInk = true;
+                      }
+                    } catch {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      const isStructuralLine =
+        connectsToExteriorInk ||
+        (touchesAnyEdge && (compW > 12 || compH > 12)) ||
+        compW > patchW * 0.7 ||
+        compH > patchH * 0.7;
+
+      // Si es un trazo estructural (muro, tabique, arco de puerta, pilar) -> PRESERVAR AL 100%
+      if (!isStructuralLine) {
         for (let i = 0; i < compPixels.length; i++) {
           const idx = compPixels[i] * 4;
           data[idx] = floor.r;

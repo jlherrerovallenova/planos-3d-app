@@ -213,6 +213,7 @@ export interface RenderConfig {
   // Ajustes auxiliares
   extraDetails: string;
   strictBlueprintFidelity: boolean;
+  removeOriginalFurniture?: boolean;     // Respetar mobiliario original del plano (false) o amueblar de cero (true)
   renderEngine?: RenderEngine;           // Motor de render Gemini seleccionado (ej. 'auto', 'gemini-3.1-flash-image', etc.)
   seed?: number;                         // Semilla fija para reproducibilidad y consistencia visual
   lockSeed?: boolean;                    // Mantener la misma semilla entre renders (evita cambios aleatorios de muebles/colores)

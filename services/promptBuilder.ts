@@ -95,12 +95,25 @@ STRICT MANDATE: In kitchens, ONLY the vitrocerámica and the fregadero are visib
   const strictNoTablesDirective = `ABSOLUTE PROHIBITION OF GRAPHIC TABLES OR TEXT SCHEDULES: DO NOT render or draw ANY table, chart, list of materials, legend, schedule box, text banner, or spreadsheet in or beside the floor plan. The output image must ONLY contain the pure architectural floor plan and its interior rooms/furniture. Absolutely NO side tables, NO material charts, NO text lists anywhere in the generated image.`;
 
   // DIRECTIVA ESTRICTA: DETALLE GRÁFICO ARQUITECTÓNICO EXACTO DE ARMARIOS EMPOTRADOS (BARRA Y PERCHAS CAD)
-  const commercialWardrobes2dDirective = `CRITICAL ARCHITECTURAL DRAWING STANDARD FOR BUILT-IN WARDROBES (ARMARIOS EMPOTRADOS CON BARRA Y ROPA COLGADA):
-In all built-in wardrobes, fitted closets, and dressing areas (in master bedroom, secondary bedrooms, dressing rooms, and hallway/entry closets):
-Render them strictly in the standard top-down 2D CAD architectural blueprint symbol for clothes hanging closets:
-1. Draw an open wardrobe compartment with a continuous horizontal longitudinal centerline representing the hanging rod / clothes rail (barra de colgar longitudinal central que va de lado a lado).
-2. Across this central hanging rod, draw a continuous repeating rhythm of vertical and alternating slightly slanted/diagonal hatching line strokes crossing through the rail (trazos técnicos lineales verticales e inclinados alternados: / | \\ | / | \\ / | \\ que representan las perchas y prendas de ropa colgadas vistas en planta superior).
-3. The interior of every built-in wardrobe must clearly exhibit this exact linear CAD blueprint symbol (continuous longitudinal rod crossed by alternating slanted and vertical hanger ticks), exactly as shown in standard Spanish commercial catalog blueprints. Never draw an opaque solid closed box, never leave the wardrobe area blank/empty, and never draw cartoon plastic hangers.`;
+  const commercialWardrobes2dDirective = `BUILT-IN WARDROBES ARCHITECTURAL STANDARD (ARMARIOS EMPOTRADOS):
+In all bedrooms, dressing areas, and hallway closets, render built-in wardrobes (armarios empotrados) using standard top-down 2D CAD blueprint presentation: an open wardrobe compartment showing the longitudinal hanging rod with clothing hangers, flush with adjoining partition walls. Never render an opaque solid black box or cartoon graphics.`;
+
+  // MANDATO DE FIDELIDAD ESTRUCTURAL 1:1 (CALCO INMUTABLE)
+  const strictFidelityMandate = config.strictBlueprintFidelity !== false
+    ? `CRITICAL ARCHITECTURAL MANDATE — ZERO-HALLUCINATION BLUEPRINT FIDELITY (CALCO 1:1 ESTRUCTURAL):
+1. The input image is an official architectural CAD master blueprint. Every wall line, exterior boundary, interior partition, structural column, door opening, and window is 100% FIXED AND UNALTERABLE.
+2. ABSOLUTE PROHIBITION OF HALLUCINATIONS: DO NOT add walls, DO NOT delete walls, DO NOT invent phantom hallways or corridors, and DO NOT move doors or windows.
+3. Every room's exact shape, perimeter, and wall thickness must correspond 1:1 with topological precision to the source blueprint.
+4. DO NOT invent extra rooms or exterior spaces that do not exist in the source blueprint.`
+    : `Maintain overall architectural layout and room boundaries from the reference blueprint.`;
+
+  // MANDATO DE MOBILIARIO SEGÚN OPCIÓN DE USUARIO
+  const furnitureMandate = config.removeOriginalFurniture === false
+    ? `FURNITURE FIDELITY (CONSERVAR MOBILIARIO CAD ORIGINAL):
+The reference blueprint already contains technical 2D CAD furniture symbols (beds, sofas, tables, sanitarios).
+Render high-end photorealistic materials and textures DIRECTLY OVER these exact indicated furniture locations and orientations.
+DO NOT displace, duplicate, or invent a different furniture layout.`
+    : `FURNITURE STANDARD: Furnish each room cleanly and proportionately according to its architectural designation. Ensure all furniture respects circulation clearances and never obstructs doors or windows.`;
 
   const cleanedExtraDetails = config.extraDetails
     ? config.extraDetails
@@ -113,6 +126,8 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
     return [
       `Clean top-down 2D architectural presentation floor plan rendered strictly from the reference blueprint layout.`,
       `Zero perspective distortion, completely flat 2D graphic catalog floor plan with furniture symbols placed in top view.`,
+      strictFidelityMandate,
+      furnitureMandate,
       strictSinglePlanMandate,
       strictExtractOnlyPlanDirective,
       strictFramingAndOccupancyDirective,
@@ -130,14 +145,9 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
       `Terrace flooring: ${selectedTerraceFloor.promptKeyword}.`,
       `Windows: ${selectedWindowType.promptKeyword} in ${selectedWindowFinish.promptKeyword}.`,
       `Doors & wardrobes: ${selectedDoor.promptKeyword}.`,
-      commercialWardrobes2dDirective,
       `Color scheme: ${selectedPalette.promptKeyword}.`,
       cleanedExtraDetails ? `Extra notes: ${cleanedExtraDetails}.` : '',
       strictNoTablesDirective,
-      strictExtractOnlyPlanDirective,
-      strictSinglePlanMandate,
-      strictFramingAndOccupancyDirective,
-      kitchenMinimalistRule,
       `High-end architectural presentation graphics with clean, pristine, unbroken floor surfaces and top-view furniture.`
     ].filter(Boolean).join(' ');
   }
@@ -174,7 +184,8 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
   }
   return [
     `Transform this clean architectural blueprint into an ultra-realistic ${angleDesc}.`,
-    `Strictly follow the room boundaries and wall positions of the reference blueprint without adding extra rooms.`,
+    strictFidelityMandate,
+    furnitureMandate,
     strictSinglePlanMandate,
     strictExtractOnlyPlanDirective,
     strictFramingAndOccupancyDirective,
@@ -192,13 +203,11 @@ Render them strictly in the standard top-down 2D CAD architectural blueprint sym
     `Terrace flooring: ${selectedTerraceFloor.promptKeyword}.`,
     `Windows: ${selectedWindowType.promptKeyword} with ${selectedWindowFinish.promptKeyword}.`,
     `Doors: ${selectedDoor.promptKeyword}.`,
-    config.cameraAngle === 'cenital_90' ? `Built-in wardrobes (armarios empotrados): top-down open cut showing central longitudinal hanging rod crossed by alternating vertical and slanted strokes representing clothes hung on hangers (CAD wardrobe hatching standard).` : '',
+    config.cameraAngle === 'cenital_90' ? `Built-in wardrobes (armarios empotrados): top-down open cut showing central longitudinal hanging rod with clothing hangers flush with walls.` : '',
     `Color palette: ${selectedPalette.promptKeyword}.`,
     `Lighting: warm soft natural daylight streaming through exterior windows with gentle ambient occlusion.`,
     cleanedExtraDetails ? `Client details: ${cleanedExtraDetails}.` : '',
-    strictExtractOnlyPlanDirective,
-    kitchenMinimalistRule,
-    strictNoTextInRoomsDirective,
+    strictNoTablesDirective,
     `Unreal Engine 5 archviz render quality, crisp geometry, clean photorealistic textures, unbroken seamless floors with furniture only, kitchens strictly showing solely the ceramic cooktop and sink with bare pristine countertops.`
   ].filter(Boolean).join(' ');
 }

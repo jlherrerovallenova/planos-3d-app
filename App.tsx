@@ -224,7 +224,7 @@ export function App() {
   const [brushSize, setBrushSize] = useState<number>(25);
   const [isPaintingMode, setIsPaintingMode] = useState<boolean>(false);
   const [isEraserMode, setIsEraserMode] = useState<boolean>(false);
-  const [removeOriginalFurniture, setRemoveOriginalFurniture] = useState<boolean>(true);
+  const [removeOriginalFurniture, setRemoveOriginalFurniture] = useState<boolean>(() => config.removeOriginalFurniture ?? true);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [isPromptModalOpen, setIsPromptModalOpen] = useState<boolean>(false);
   const [activeDefectMark, setActiveDefectMark] = useState<DefectMark | null>(null);
@@ -1039,11 +1039,11 @@ export function App() {
       // Priorizar el motor de render seleccionado por el usuario en config.renderEngine
       const chosenEngine = config.renderEngine && config.renderEngine !== 'auto' ? config.renderEngine : null;
       const defaultSequence = [
-        'gemini-3.1-flash-image',
         'gemini-3-pro-image',
+        'gemini-3.1-flash-image',
         'gemini-2.5-flash-image',
-        'gemini-3.1-flash-image-preview',
         'gemini-3-pro-image-preview',
+        'gemini-3.1-flash-image-preview',
         'gemini-3.1-flash-lite-image'
       ];
       const candidateModels = chosenEngine
@@ -1087,7 +1087,7 @@ export function App() {
           const response = await fetchGeminiWithBackoff(endpoint, {
             systemInstruction: {
               parts: [{
-                text: 'You are an elite architectural 3D visualizer and delineator. Render clean architectural plans with high-end materials and furniture only. Never print or render text, typography, room titles, dimensions, or numerical labels on floor or wall surfaces.'
+                text: 'You are an elite architectural delineator and technical drafting engine. Your supreme directive is 100% geometric and structural fidelity to the reference blueprint. Never move, delete, or hallucinate walls, partitions, doors, or windows. Render clean architectural presentation graphics with pristine floor materials and photorealistic furniture only. Absolute prohibition of printed text, numbers, room titles, dimensions, or graphic tables.'
               }]
             },
             contents: [{ parts }],
@@ -1329,7 +1329,7 @@ export function App() {
           const response = await fetchGeminiWithBackoff(endpoint, {
             systemInstruction: {
               parts: [{
-                text: 'You are an elite architectural 3D visualizer and delineator. Render clean architectural plans with high-end materials and furniture only. Never print or render text, typography, room titles, dimensions, or numerical labels on floor or wall surfaces.'
+                text: 'You are an elite architectural delineator and technical drafting engine. Your supreme directive is 100% geometric and structural fidelity to the reference blueprint. Never move, delete, or hallucinate walls, partitions, doors, or windows. Render clean architectural presentation graphics with pristine floor materials and photorealistic furniture only. Absolute prohibition of printed text, numbers, room titles, dimensions, or graphic tables.'
               }]
             },
             contents: [{ parts }],
@@ -1717,7 +1717,10 @@ export function App() {
               isTextCleaned={isTextCleaned}
               onToggleCleanText={handleToggleCleanText}
               removeOriginalFurniture={removeOriginalFurniture}
-              onToggleRemoveOriginalFurniture={setRemoveOriginalFurniture}
+              onToggleRemoveOriginalFurniture={(val) => {
+                setRemoveOriginalFurniture(val);
+                setConfig((prev) => ({ ...prev, removeOriginalFurniture: val }));
+              }}
               isEraserMode={isEraserMode}
               onToggleEraserMode={() => setIsEraserMode(!isEraserMode)}
               detectedTextCount={3}
