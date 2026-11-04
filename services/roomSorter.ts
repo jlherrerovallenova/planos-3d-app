@@ -292,12 +292,12 @@ export function categorizeRoomsForSchedule(
     }
   });
 
-  const interiorTotal = interiorRooms.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0);
-  const exteriorTotal = exteriorRooms.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0);
-  const calculatedGrandTotal = interiorTotal + exteriorTotal;
+  const interiorTotal = Math.round((interiorRooms.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0) + Number.EPSILON) * 100) / 100;
+  const exteriorTotal = Math.round((exteriorRooms.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0) + Number.EPSILON) * 100) / 100;
+  const calculatedGrandTotal = Math.round((interiorTotal + exteriorTotal + Number.EPSILON) * 100) / 100;
 
   const hasCustomTotal = typeof customGrandTotal === 'number' && !isNaN(customGrandTotal) && customGrandTotal > 0;
-  const grandTotal = hasCustomTotal ? customGrandTotal : calculatedGrandTotal;
+  const grandTotal = hasCustomTotal ? Math.round((customGrandTotal + Number.EPSILON) * 100) / 100 : calculatedGrandTotal;
 
   return {
     sortedMarkers,

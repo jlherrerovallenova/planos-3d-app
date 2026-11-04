@@ -180,8 +180,8 @@ export function TabEstancias({
     });
 
     return {
-      usefulInterior: interior,
-      usefulExterior: exterior,
+      usefulInterior: Math.round((interior + Number.EPSILON) * 100) / 100,
+      usefulExterior: Math.round((exterior + Number.EPSILON) * 100) / 100,
       missingAreaCount: missing
     };
   }, [markers]);
@@ -655,16 +655,26 @@ export function TabEstancias({
             <div className="flex items-center gap-1">
               <input
                 type="number"
-                step="0.1"
-                value={customTotalUsefulArea !== undefined ? customTotalUsefulArea : (usefulInterior + usefulExterior) || ''}
+                step="0.01"
+                value={
+                  customTotalUsefulArea !== undefined
+                    ? Math.round((customTotalUsefulArea + Number.EPSILON) * 100) / 100
+                    : (usefulInterior + usefulExterior > 0
+                        ? Math.round((usefulInterior + usefulExterior + Number.EPSILON) * 100) / 100
+                        : '')
+                }
                 onChange={(e) => {
                   const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
                   if (onChangeCustomTotalUsefulArea) {
-                    onChangeCustomTotalUsefulArea(isNaN(val as number) ? undefined : val);
+                    onChangeCustomTotalUsefulArea(
+                      val === undefined || isNaN(val)
+                        ? undefined
+                        : Math.round((val + Number.EPSILON) * 100) / 100
+                    );
                   }
                 }}
                 placeholder="0"
-                className="w-18 text-right text-xs bg-slate-50 border border-slate-200 focus:border-blue-500 rounded px-2 py-1 font-bold text-slate-900 focus:outline-none"
+                className="w-20 text-right text-xs bg-slate-50 border border-slate-200 focus:border-blue-500 rounded px-2 py-1 font-bold text-slate-900 focus:outline-none"
               />
               <span className="text-xs text-slate-500 font-bold">m²</span>
             </div>

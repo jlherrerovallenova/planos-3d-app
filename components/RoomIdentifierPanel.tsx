@@ -600,22 +600,19 @@ export function RoomIdentifierPanel({
                     <div className="flex items-center gap-1.5">
                       <span className="font-black text-[#0F2C59] font-mono text-xs">
                         {((typeof customTotalUsefulArea === 'number' && customTotalUsefulArea > 0)
-                          ? customTotalUsefulArea
-                          : markers.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0)
-                        ).toLocaleString('es-ES', { minimumFractionDigits: 2 })}{' '}
+                          ? Math.round((customTotalUsefulArea + Number.EPSILON) * 100) / 100
+                          : Math.round((markers.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0) + Number.EPSILON) * 100) / 100
+                        ).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
                         m²
                       </span>
                       {onChangeCustomTotalUsefulArea && (
                         <button
                           type="button"
                           onClick={() => {
-                            setTempTotalInPanel(
-                              String(
-                                (typeof customTotalUsefulArea === 'number' && customTotalUsefulArea > 0)
-                                  ? customTotalUsefulArea
-                                  : markers.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0) || ''
-                              )
-                            );
+                            const calculated = (typeof customTotalUsefulArea === 'number' && customTotalUsefulArea > 0)
+                              ? Math.round((customTotalUsefulArea + Number.EPSILON) * 100) / 100
+                              : Math.round((markers.reduce((acc, m) => acc + (m.areaSqMeters || 0), 0) + Number.EPSILON) * 100) / 100;
+                            setTempTotalInPanel(calculated > 0 ? String(calculated) : '');
                             setIsEditingTotalInPanel(true);
                           }}
                           className="p-0.5 text-stone-400 hover:text-amber-700 rounded cursor-pointer"
