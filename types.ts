@@ -9,6 +9,9 @@ export type IsometricOrientation =
   | 'north'      // N (Posterior directa)
   | 'west';      // O (Lateral izquierda)
 export type InteriorStyle =
+  | 'estilo_vectorial'
+  | 'estilo_pryconsa'
+  | 'estilo_metrovacesa'
   | 'nordic_scandi'
   | 'contemporary_minimal'
   | 'mediterranean_warm'
@@ -22,6 +25,9 @@ export type RenderEngine =
   | 'gemini-2.5-flash-image'
   | 'gemini-3.1-flash-lite-image';
 export type ColorPaletteScheme =
+  | 'vectorial_navy_pure'
+  | 'pryconsa_roble_teja'
+  | 'metrovacesa_azul_pastel'
   | 'light_soft_pastel'      // Colores claros y suaves (blancos rotos, crudos, greige sedoso, arenas y pasteles sutiles)
   | 'warm_sand_cream'        // Arena cálida, crema y marfil luminoso
   | 'soft_sage_light'        // Salvia suave, lino y blanco empolvado
@@ -35,6 +41,9 @@ export type ColorPaletteScheme =
   | 'cognac_leather_walnut'  // Cuero Coñac, Nogal Oscuro & Piedra Pizarra
   | 'coastal_turquoise_coral'; // Turquesa Mediterráneo, Coral & Blanco Ibicenco
 export type FlooringType =
+  | 'white_vector_pure'
+  | 'roble_listonado_vertical'
+  | 'alabaster_pure_smooth'
   | 'light_oak_wood'
   | 'herringbone_parquet'
   | 'polished_concrete'
@@ -42,6 +51,7 @@ export type FlooringType =
   | 'warm_microcement'
   | 'porcelain_gres_tile';
 export type KitchenFlooringType =
+  | 'metrovacesa_pastel_blue'
   | 'gres_porcelanico_cocina'
   | 'porcelain_gres_kitchen'
   | 'continuous_microcement'
@@ -65,6 +75,8 @@ export type KitchenCountertopType =
   | 'stainless_steel_satin'
   | 'quartz_black_marquina';
 export type BathroomFlooring60x60Tone =
+  | 'gres_gris_medio_pryconsa'
+  | 'metrovacesa_bano_periwinkle'
   | 'gres_60_blanco_puro'
   | 'gres_60_arena_marfil'
   | 'gres_60_gris_perla'
@@ -72,6 +84,7 @@ export type BathroomFlooring60x60Tone =
   | 'gres_60_beige_travertino'
   | 'gres_60_greige_calido';
 export type TerraceFlooringType =
+  | 'terracota_teja_pryconsa'
   | 'teak_deck_wood'
   | 'grey_outdoor_porcelain'
   | 'rustic_terracotta_tiles'
@@ -97,6 +110,9 @@ export type DoorFinish =
   | 'cashmere_sand'
   | 'anthracite_grey';
 export type WallColorType =
+  | 'grafito_antracita_promotor'
+  | 'azul_marino_vectorial'
+  | 'azul_tecnico_cad'
   | 'blanco_roto_luz'
   | 'blanco_puro'
   | 'greige_suave'

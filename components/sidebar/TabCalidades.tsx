@@ -35,6 +35,7 @@ export function TabCalidades({
   ];
 
   const kitchenFlooringSwatches: { id: KitchenFlooringType; label: string; bg: string }[] = [
+    { id: 'metrovacesa_pastel_blue', label: 'Azul pastel (Metrovacesa)', bg: '#d0d7ec' },
     { id: 'gres_porcelanico_cocina', label: 'Gres porcelánico', bg: '#e5e7eb' },
     { id: 'matching_living_oak', label: 'Continuo con salón', bg: '#dfc6a3' },
     { id: 'continuous_microcement', label: 'Microcemento', bg: '#c5c8cc' },
@@ -52,6 +53,8 @@ export function TabCalidades({
   ];
 
   const bathroomTones: { id: BathroomFlooring60x60Tone; label: string; bg: string }[] = [
+    { id: 'gres_gris_medio_pryconsa', label: 'Gris Pryconsa', bg: '#8e9298' },
+    { id: 'metrovacesa_bano_periwinkle', label: 'Azul Metrovacesa', bg: '#d0d7ec' },
     { id: 'gres_60_blanco_puro', label: 'Blanco puro', bg: '#ffffff' },
     { id: 'gres_60_arena_marfil', label: 'Arena caliza', bg: '#e5d7c3' },
     { id: 'gres_60_gris_perla', label: 'Gris perla', bg: '#b9c1c9' },
@@ -61,6 +64,7 @@ export function TabCalidades({
   ];
 
   const terraceFlooringSwatches: { id: TerraceFlooringType; label: string; bg: string }[] = [
+    { id: 'terracota_teja_pryconsa', label: 'Teja tostada (Pryconsa)', bg: '#b88d88' },
     { id: 'teak_deck_wood', label: 'Madera técnica', bg: '#875128' },
     { id: 'grey_outdoor_porcelain', label: 'Porcelánico gris', bg: '#86919c' },
     { id: 'rustic_terracotta_tiles', label: 'Barro cocido', bg: '#b85434' },

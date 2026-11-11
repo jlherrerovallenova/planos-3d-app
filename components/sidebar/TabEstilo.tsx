@@ -9,6 +9,7 @@ interface TabEstiloProps {
   activePresetId: string | null;
   onApplyPreset: (preset: PresetConfig) => void;
   onSavePreset: (name: string) => void;
+  onDeletePreset?: (id: string) => void;
   onApplyChangesInstant: () => void;
 }
 
@@ -19,6 +20,7 @@ export function TabEstilo({
   activePresetId,
   onApplyPreset,
   onSavePreset,
+  onDeletePreset,
   onApplyChangesInstant
 }: TabEstiloProps) {
   const [newPresetName, setNewPresetName] = useState('');
@@ -57,6 +59,18 @@ export function TabEstilo({
     desc: string;
     chips: string[];
   }[] = [
+    {
+      id: 'estilo_pryconsa',
+      title: 'Estilo Pryconsa',
+      desc: 'Roble listonado vertical, muros grafito y terraza teja',
+      chips: ['#4A4D52', '#F2EAD8', '#8E9298', '#B88D88']
+    },
+    {
+      id: 'estilo_metrovacesa',
+      title: 'Estilo Metrovacesa',
+      desc: 'Alabastro con zonas húmedas en azul pastel',
+      chips: ['#484C51', '#F4F5F7', '#D0D7EC', '#FFFFFF']
+    },
     {
       id: 'nordic_scandi',
       title: 'Nórdico',

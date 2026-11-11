@@ -51,7 +51,7 @@ export const ROOM_CATEGORIES: {
       icon: 'bed',
       color: '#4F46E5',
       bgLight: '#EEF2FF',
-      promptDesc: 'Master Bedroom with double/king-size bed, nightstands, decorative headboard and built-in wardrobe (showing top-down interior hanging bar with 6-7 clothes hangers)'
+      promptDesc: 'Master Bedroom with double/king-size bed, nightstands, decorative headboard and built-in wardrobe (showing top-down interior hanging bar with simple straight parallel lines representing hung clothes, strictly no triangular hangers)'
     },
     {
       id: 'dormitorio_secundario',
@@ -59,7 +59,7 @@ export const ROOM_CATEGORIES: {
       icon: 'single_bed',
       color: '#2563EB',
       bgLight: '#EFF6FF',
-      promptDesc: 'Secondary Bedroom with bed, bedside table, study desk and built-in closet (showing top-down hanging bar with clothes hangers)'
+      promptDesc: 'Secondary Bedroom with bed, bedside table, study desk and built-in closet (showing top-down hanging bar with simple straight parallel line strokes for clothes)'
     },
     {
       id: 'bano_principal',
@@ -67,7 +67,7 @@ export const ROOM_CATEGORIES: {
       icon: 'bathtub',
       color: '#0284C7',
       bgLight: '#E0F2FE',
-      promptDesc: 'Full Bathroom with vanity sink, mirror, toilet and pure white shower tray with glass partition'
+      promptDesc: 'Full Bathroom with vanity sink, mirror, toilet and a distinctly SOLID PURE CHALK WHITE (#FFFFFF) shower tray / bathtub (never matching the bathroom floor tiles) framed by a transparent glass partition'
     },
     {
       id: 'aseo_cortesia',
@@ -107,7 +107,7 @@ export const ROOM_CATEGORIES: {
       icon: 'checkroom',
       color: '#DB2777',
       bgLight: '#FCE7F3',
-      promptDesc: 'Walk-in Closet / Dressing area lined with custom modular wardrobes showing interior hanging bars with clothes hangers and full-length mirror'
+      promptDesc: 'Walk-in Closet / Dressing area lined with custom modular wardrobes showing interior hanging bars with simple straight parallel line strokes for clothes and full-length mirror'
     },
     {
       id: 'recibidor_distribuidor',
@@ -127,7 +127,7 @@ export const ROOM_CATEGORIES: {
     }
   ];
 // 1.1 Ángulo de Cámara & Modo de Render
-export const CAMERA_ANGLES: { id: CameraAngle; label: string; icon: string; desc: string; badge?: string }[] = [
+const CAMERA_ANGLES: { id: CameraAngle; label: string; icon: string; desc: string; badge?: string }[] = [
   {
     id: 'isometric_45',
     label: 'Corte Isométrico 45°',
@@ -144,7 +144,7 @@ export const CAMERA_ANGLES: { id: CameraAngle; label: string; icon: string; desc
     id: 'plan_2d_furnished',
     label: 'Plano 2D Comercial Amueblado',
     icon: 'space_dashboard',
-    desc: 'Plano 2D ortográfico delineado de catálogo con texturas, armarios con barra y 6-7 perchas, y mobiliario en 2D.',
+    desc: 'Plano 2D ortográfico delineado de catálogo con texturas, armarios con barra y perchas como simples líneas rectas CAD, y mobiliario en 2D.',
     badge: 'Modo 2D'
   },
   {
@@ -156,7 +156,7 @@ export const CAMERA_ANGLES: { id: CameraAngle; label: string; icon: string; desc
 ];
 
 // 1.1b Orientación y Ángulo de Visión para Corte Isométrico (360°)
-export interface IsometricOrientationOption {
+interface IsometricOrientationOption {
   id: IsometricOrientation;
   label: string;
   cardinal: string;
@@ -165,7 +165,7 @@ export interface IsometricOrientationOption {
   icon: string;
 }
 
-export const ISOMETRIC_ORIENTATIONS: IsometricOrientationOption[] = [
+const ISOMETRIC_ORIENTATIONS: IsometricOrientationOption[] = [
   {
     id: 'south_west',
     label: 'Suroeste (Frontal Izquierda)',
@@ -233,7 +233,7 @@ export const ISOMETRIC_ORIENTATIONS: IsometricOrientationOption[] = [
 ];
 
 // 1.1b Motores de Render Gemini Disponibles
-export interface RenderEngineOption {
+interface RenderEngineOption {
   id: RenderEngine;
   label: string;
   modelName: string;
@@ -244,7 +244,7 @@ export interface RenderEngineOption {
   versionTag: string;
 }
 
-export const RENDER_ENGINE_OPTIONS: RenderEngineOption[] = [
+const RENDER_ENGINE_OPTIONS: RenderEngineOption[] = [
   {
     id: 'auto',
     label: 'Automático Inteligente',
@@ -306,6 +306,30 @@ export const COLOR_PALETTE_SCHEMES: {
   colors: string[];
   promptKeyword: string;
 }[] = [
+    {
+      id: 'pryconsa_roble_teja',
+      label: 'Pryconsa: Roble & Teja',
+      badge: 'Pryconsa',
+      desc: 'Muros grafito, parquet de roble con lamas verticales claras, baños gris cemento y terraza teja.',
+      colors: ['#4A4D52', '#F2EAD8', '#8E9298', '#B88D88'],
+      promptKeyword: 'commercial Spanish developer Pryconsa architectural brochure palette: solid dark graphite walls (#4A4D52), light blonde oak parquet with vertical plank lines (#F2EAD8), medium grey bathroom ceramic tiles (#8E9298), warm terracotta/brick terrace decking (#B88D88), crisp white vector furniture with fine outlines'
+    },
+    {
+      id: 'metrovacesa_azul_pastel',
+      label: 'Metrovacesa: Azul Pastel & Alabastro',
+      badge: 'Metrovacesa',
+      desc: 'Muros pizarra, suelo alabastro y zonas húmedas (cocina/baños) destacadas en suave azul periwinkle.',
+      colors: ['#484C51', '#F4F5F7', '#D0D7EC', '#FFFFFF'],
+      promptKeyword: 'commercial Spanish developer Metrovacesa architectural brochure palette (Alyssa, Mesena 80): solid dark slate walls (#484C51), smooth alabaster light grey flooring (#F4F5F7), distinct soft pastel periwinkle blue wash (#D0D7EC) highlighting all wet areas (kitchen, bathrooms, laundry), pure white minimalist vector furniture'
+    },
+    {
+      id: 'vectorial_navy_pure',
+      label: 'Vectorial Azul Marino & Arena',
+      badge: 'Estilo Folleto',
+      desc: 'Muros macizos azul marino, suelo blanco puro y mobiliario vectorial en arena suave.',
+      colors: ['#0B253A', '#FFFFFF', '#EAE6DF', '#B8ACA0'],
+      promptKeyword: 'commercial vector blueprint brochure palette, solid dark navy Prussian blue walls (#0B253A), pure untextured white flooring (#FFFFFF), warm champagne sand beige furniture fills (#EAE6DF) with thin crisp dark contour outlines'
+    },
     {
       id: 'light_soft_pastel',
       label: 'Claros y Suaves',
@@ -413,6 +437,30 @@ export const INTERIOR_STYLES: {
   promptKeyword: string;
 }[] = [
     {
+      id: 'estilo_pryconsa',
+      label: 'Estilo Pryconsa Promotor',
+      badge: 'Santa Victoria / Campus',
+      desc: 'Muros grafito, tarima de lamas verticales de roble claro, baños gris cemento y terraza teja tostada.',
+      palette: ['#4A4D52', '#F2EAD8', '#8E9298', '#B88D88'],
+      promptKeyword: 'Pryconsa commercial catalog architectural style: solid dark charcoal walls (#4A4D52), light natural oak flooring with clear continuous vertical plank seams, medium grey tiled bathrooms, warm terracotta outdoor terrace, built-in wardrobes with simple parallel line clothes hangers, white 2D furniture outlines'
+    },
+    {
+      id: 'estilo_metrovacesa',
+      label: 'Estilo Metrovacesa Promoción',
+      badge: 'Alyssa / Mesena',
+      desc: 'Muros pizarra, estancias secas en blanco alabastro y zonas de agua (cocina/baños) en azul pastel periwinkle.',
+      palette: ['#484C51', '#F4F5F7', '#D0D7EC', '#FFFFFF'],
+      promptKeyword: 'Metrovacesa commercial catalog architectural style: solid dark slate walls (#484C51), smooth unbroken light alabaster floor across living rooms and bedrooms, soft pastel lavender/periwinkle blue (#D0D7EC) tint specifically on kitchen, laundry, and all bathroom floors, minimalist white vector furniture with crisp dark outline'
+    },
+    {
+      id: 'estilo_vectorial',
+      label: 'Estilo Vectorial Comercial',
+      badge: 'Nira / Nuba / Vega',
+      desc: 'Muros macizos azul marino/CAD, suelo blanco puro, muebles vectoriales en arena suave y baños con cuadrícula sutil.',
+      palette: ['#0B253A', '#FFFFFF', '#EAE6DF', '#B8ACA0'],
+      promptKeyword: 'commercial 2D vector brochure style as seen in high-end Spanish real estate developments (Nira, Nuba Gardens, Terrazas de la Vega): solid dark navy structural walls (#0B253A), pure clean white flooring without texture or grain, minimalist 2D vector furniture filled with soft champagne-beige (#EAE6DF) and thin crisp contour lines, subtle light grey square tile grid in bathrooms, sand porcelain terrace'
+    },
+    {
       id: 'nordic_scandi',
       label: 'Nórdico Escandinavo',
       badge: 'Maderas Claras & Lino',
@@ -462,7 +510,7 @@ export const INTERIOR_STYLES: {
     }
   ];
 // 1.4 Iluminación y Sol
-export const LIGHTING_PRESETS = [
+const LIGHTING_PRESETS = [
   { id: 'daylight_warm', label: 'Luz Diurna Natural (11:00h)', icon: 'wb_sunny', desc: 'Sombras nítidas de 30° proyectadas por los tabiques.' },
   { id: 'ambient_studio', label: 'Estudio Arquitectónico Neutro', icon: 'wb_incandescent', desc: 'Difusión de luz homogénea tipo render de catálogo.' },
   { id: 'golden_hour', label: 'Atardecer Dorado (18:30h)', icon: 'flare', desc: 'Tonos miel cálidos y largos haces de luz en terrazas.' },
@@ -479,6 +527,7 @@ export const FLOORING_LIVING_OPTIONS: { id: FlooringType; label: string; desc: s
 ];
 // 2.2 Pavimento: Cocina
 export const KITCHEN_FLOORING_OPTIONS: { id: KitchenFlooringType; label: string; desc: string; isGres?: boolean }[] = [
+  { id: 'metrovacesa_pastel_blue', label: 'Azul Pastel Periwinkle (Metrovacesa)', desc: 'Tono pastel azul grisáceo distintivo de Metrovacesa para cocina y tendedero.' },
   { id: 'gres_porcelanico_cocina', label: 'Gres Cerámico / Porcelánico', desc: 'Pavimento de gres con juntas finas rectificadas y color seleccionable.', isGres: true },
   { id: 'porcelain_gres_kitchen', label: 'Porcelánico Técnico Arena / Antideslizante', desc: 'Gran formato 120x60cm resistente y luminoso.' },
   { id: 'continuous_microcement', label: 'Microcemento Continuo Impermeable', desc: 'Suelo continuo integrado sin juntas con el mobiliario.' },
@@ -612,7 +661,7 @@ export const KITCHEN_COUNTERTOP_OPTIONS: {
     }
   ];
 // Paleta de colores predeterminados para los puntos identificadores de estancias
-export const MARKER_COLOR_PRESETS: { label: string; hex: string }[] = [
+const MARKER_COLOR_PRESETS: { label: string; hex: string }[] = [
   { label: 'Azul Marino Clásico', hex: '#0F2C59' },
   { label: 'Negro Arquitectónico', hex: '#18181B' },
   { label: 'Teja Terracota', hex: '#C25E38' },
@@ -631,6 +680,20 @@ export const BATHROOM_GRES_60X60_TONES: {
   previewColor: string;
   promptKeyword: string;
 }[] = [
+    {
+      id: 'gres_gris_medio_pryconsa',
+      label: 'Gris Cemento Medio (Pryconsa)',
+      desc: 'Pavimento cerámico gris neutro de catálogo promotor.',
+      previewColor: '#8E9298',
+      promptKeyword: 'medium neutral cement grey ceramic tile floor in bathroom'
+    },
+    {
+      id: 'metrovacesa_bano_periwinkle',
+      label: 'Azul Periwinkle Suave (Metrovacesa)',
+      desc: 'Tono azul pastel agua característico de baños en planos Metrovacesa.',
+      previewColor: '#D0D7EC',
+      promptKeyword: 'soft pastel lavender periwinkle blue wash floor surface in bathroom'
+    },
     {
       id: 'gres_60_blanco_puro',
       label: 'Gres 60x60cm Blanco Nieve Satinado',
@@ -682,6 +745,13 @@ export const TERRACE_FLOORING_OPTIONS: {
   previewColor: string;
   promptKeyword: string;
 }[] = [
+    {
+      id: 'terracota_teja_pryconsa',
+      label: 'Gres / Tarima Teja Tostada (Pryconsa)',
+      desc: 'Pavimento exterior color teja/arcilla tostada cálido.',
+      previewColor: '#B88D88',
+      promptKeyword: 'warm reddish-brown terracotta brick ceramic tile or slatted decking on exterior terrace floor'
+    },
     {
       id: 'teak_deck_wood',
       label: 'Tarima de Madera Ipe / Teka Exterior',
@@ -892,6 +962,27 @@ export const WALL_COLOR_OPTIONS: {
   promptKeyword: string;
 }[] = [
     {
+      id: 'grafito_antracita_promotor',
+      label: 'Grafito Antracita Promotor (Pryconsa / Metrovacesa)',
+      desc: 'Muro macizo gris oscuro (#4A4D52) de alta definición gráfica comercial.',
+      hex: '#4A4D52',
+      promptKeyword: 'solid dark graphite anthracite walls (#4A4D52) with crisp vector borders'
+    },
+    {
+      id: 'azul_marino_vectorial',
+      label: 'Azul Marino Vectorial (Nira / Nuba)',
+      desc: 'Muro macizo azul marino oscuro (#0B253A) de alta visibilidad comercial.',
+      hex: '#0B253A',
+      promptKeyword: 'solid dark Prussian navy blue walls (#0B253A) with crisp vector edges'
+    },
+    {
+      id: 'azul_tecnico_cad',
+      label: 'Azul Técnico CAD (Terrazas)',
+      desc: 'Muro azul arquitectónico intenso (#1E3A8A) para planos comerciales.',
+      hex: '#1E3A8A',
+      promptKeyword: 'solid architectural technical blue walls (#1E3A8A) with sharp CAD outlines'
+    },
+    {
       id: 'blanco_roto_luz',
       label: 'Blanco Roto / Lino Suave',
       desc: 'Blanco ligeramente cálido, refleja la luz sin destellos fríos.',
@@ -936,6 +1027,279 @@ export const WALL_COLOR_OPTIONS: {
   ];
 // Presets arquitectónicos predeterminados
 export const DEFAULT_PRESETS: PresetConfig[] = [
+  {
+    id: 'preset_estilo_vectorial_nira',
+    name: 'ESTILO VECTORIAL — Edificio Nira (Azul Marino & Blanco)',
+    createdAt: 0,
+    isDefault: true,
+    config: {
+      cameraAngle: 'plan_2d_furnished',
+      isometricOrientation: 'south_west',
+      isometricRotationAngle: 0,
+      colorPalette: 'vectorial_navy_pure',
+      interiorStyle: 'estilo_vectorial',
+      lighting: 'ambient_studio',
+      aspectRatio: '16:9',
+      flooringLiving: 'white_vector_pure',
+      flooringKitchen: 'matching_living_oak',
+      kitchenGresColor: 'gres_blanco_nieve',
+      kitchenCountertop: 'quartz_calacatta_white',
+      flooringBathroomGres60: 'gres_60_gris_perla',
+      flooringTerrace: 'light_sandstone_slabs',
+      windowType: 'oscilobatiente',
+      windowFrames: 'black_anthracite_metal',
+      doorFinish: 'white_lacquer',
+      interiorWallColor: 'azul_marino_vectorial',
+      exteriorWallColor: 'azul_marino_vectorial',
+      roomMarkers: [],
+      markerBadgeColor: '#0B253A',
+      promotionLogo: DEFAULT_PROMOTION_LOGO,
+      promotorLogo: DEFAULT_PROMUEVE_LOGO,
+      commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
+      agencyPhone: '983 34 21 32',
+      unitIdentifier: 'EDIFICIO NIRA - 1º A',
+      extraDetails: 'Muros macizos azul marino, suelo blanco puro, muebles en arena suave con contorno fino, armarios con perchas como simples líneas rectas CAD paralelas',
+      strictBlueprintFidelity: true,
+      renderEngine: 'auto',
+      seed: 42,
+      lockSeed: true,
+      generationTemperature: 0.15
+    }
+  },
+  {
+    id: 'preset_estilo_vectorial_nuba',
+    name: 'ESTILO VECTORIAL — Nuba Gardens (Azul Petróleo & Arena)',
+    createdAt: 1,
+    isDefault: true,
+    config: {
+      cameraAngle: 'plan_2d_furnished',
+      isometricOrientation: 'south_west',
+      isometricRotationAngle: 0,
+      colorPalette: 'vectorial_navy_pure',
+      interiorStyle: 'estilo_vectorial',
+      lighting: 'ambient_studio',
+      aspectRatio: '16:9',
+      flooringLiving: 'white_vector_pure',
+      flooringKitchen: 'matching_living_oak',
+      kitchenGresColor: 'gres_blanco_nieve',
+      kitchenCountertop: 'quartz_calacatta_white',
+      flooringBathroomGres60: 'gres_60_blanco_puro',
+      flooringTerrace: 'light_sandstone_slabs',
+      windowType: 'corredera_minimal',
+      windowFrames: 'black_anthracite_metal',
+      doorFinish: 'white_lacquer',
+      interiorWallColor: 'azul_marino_vectorial',
+      exteriorWallColor: 'azul_marino_vectorial',
+      roomMarkers: [],
+      markerBadgeColor: '#0B253A',
+      promotionLogo: DEFAULT_PROMOTION_LOGO,
+      promotorLogo: DEFAULT_PROMUEVE_LOGO,
+      commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
+      agencyPhone: '983 34 21 32',
+      unitIdentifier: 'NUBA GARDENS - PLANTA 1ª',
+      extraDetails: 'Muros oscuros macizos, suelos blancos limpios, baño con cuadrícula sutil y terraza arena, armarios con perchas como simples líneas rectas CAD paralelas',
+      strictBlueprintFidelity: true,
+      renderEngine: 'auto',
+      seed: 42,
+      lockSeed: true,
+      generationTemperature: 0.15
+    }
+  },
+  {
+    id: 'preset_estilo_vectorial_terrazas',
+    name: 'ESTILO VECTORIAL — Terrazas de la Vega (Azul CAD & Tarima)',
+    createdAt: 2,
+    isDefault: true,
+    config: {
+      cameraAngle: 'plan_2d_furnished',
+      isometricOrientation: 'south_west',
+      isometricRotationAngle: 0,
+      colorPalette: 'vectorial_navy_pure',
+      interiorStyle: 'estilo_vectorial',
+      lighting: 'ambient_studio',
+      aspectRatio: '16:9',
+      flooringLiving: 'white_vector_pure',
+      flooringKitchen: 'matching_living_oak',
+      kitchenGresColor: 'gres_blanco_nieve',
+      kitchenCountertop: 'quartz_calacatta_white',
+      flooringBathroomGres60: 'gres_60_gris_perla',
+      flooringTerrace: 'teak_deck_wood',
+      windowType: 'balconera_abatible',
+      windowFrames: 'black_anthracite_metal',
+      doorFinish: 'white_lacquer',
+      interiorWallColor: 'azul_tecnico_cad',
+      exteriorWallColor: 'azul_tecnico_cad',
+      roomMarkers: [],
+      markerBadgeColor: '#1E3A8A',
+      promotionLogo: DEFAULT_PROMOTION_LOGO,
+      promotorLogo: DEFAULT_PROMUEVE_LOGO,
+      commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
+      agencyPhone: '983 34 21 32',
+      unitIdentifier: 'TERRAZAS DE LA VEGA - PLANTA BAJA D',
+      extraDetails: 'Muros técnicos azul CAD, suelo blanco puro, gran terraza con tarima exterior, armarios empotrados con perchas representadas únicamente como simples líneas rectas CAD paralelas (sin triángulos ni ganchos)',
+      strictBlueprintFidelity: true,
+      renderEngine: 'auto',
+      seed: 42,
+      lockSeed: true,
+      generationTemperature: 0.15
+    }
+  },
+  {
+    id: 'preset_pryconsa_santa_victoria',
+    name: 'ESTILO PRYCONSA — Santa Victoria (Roble & Teja)',
+    createdAt: 3,
+    isDefault: true,
+    config: {
+      cameraAngle: 'plan_2d_furnished',
+      isometricOrientation: 'south_west',
+      isometricRotationAngle: 0,
+      colorPalette: 'pryconsa_roble_teja',
+      interiorStyle: 'estilo_pryconsa',
+      lighting: 'ambient_studio',
+      aspectRatio: '16:9',
+      flooringLiving: 'roble_listonado_vertical',
+      flooringKitchen: 'matching_living_oak',
+      kitchenGresColor: 'gres_blanco_nieve',
+      kitchenCountertop: 'quartz_calacatta_white',
+      flooringBathroomGres60: 'gres_gris_medio_pryconsa',
+      flooringTerrace: 'terracota_teja_pryconsa',
+      windowType: 'oscilobatiente',
+      windowFrames: 'black_anthracite_metal',
+      doorFinish: 'white_lacquer',
+      interiorWallColor: 'grafito_antracita_promotor',
+      exteriorWallColor: 'grafito_antracita_promotor',
+      roomMarkers: [],
+      markerBadgeColor: '#4A4D52',
+      promotionLogo: DEFAULT_PROMOTION_LOGO,
+      promotorLogo: DEFAULT_PROMUEVE_LOGO,
+      commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
+      agencyPhone: '983 34 21 32',
+      unitIdentifier: 'RESIDENCIAL SANTA VICTORIA - VIVIENDA TIPO R',
+      extraDetails: 'Estilo Pryconsa: Muros grafito, parquet de roble claro con lamas verticales continuas, baños gris cemento, terraza en teja tostada y armarios con perchas como simples líneas rectas',
+      strictBlueprintFidelity: true,
+      renderEngine: 'auto',
+      seed: 42,
+      lockSeed: true,
+      generationTemperature: 0.15
+    }
+  },
+  {
+    id: 'preset_pryconsa_campus',
+    name: 'ESTILO PRYCONSA — Campus Valdebernardo (Roble Listonado & Gris)',
+    createdAt: 4,
+    isDefault: true,
+    config: {
+      cameraAngle: 'plan_2d_furnished',
+      isometricOrientation: 'south_west',
+      isometricRotationAngle: 0,
+      colorPalette: 'pryconsa_roble_teja',
+      interiorStyle: 'estilo_pryconsa',
+      lighting: 'ambient_studio',
+      aspectRatio: '16:9',
+      flooringLiving: 'roble_listonado_vertical',
+      flooringKitchen: 'matching_living_oak',
+      kitchenGresColor: 'gres_blanco_nieve',
+      kitchenCountertop: 'quartz_calacatta_white',
+      flooringBathroomGres60: 'gres_gris_medio_pryconsa',
+      flooringTerrace: 'terracota_teja_pryconsa',
+      windowType: 'corredera_minimal',
+      windowFrames: 'black_anthracite_metal',
+      doorFinish: 'white_lacquer',
+      interiorWallColor: 'grafito_antracita_promotor',
+      exteriorWallColor: 'grafito_antracita_promotor',
+      roomMarkers: [],
+      markerBadgeColor: '#4A4D52',
+      promotionLogo: DEFAULT_PROMOTION_LOGO,
+      promotorLogo: DEFAULT_PROMUEVE_LOGO,
+      commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
+      agencyPhone: '983 34 21 32',
+      unitIdentifier: 'RESIDENCIAL CAMPUS - VALDEBERNARDO',
+      extraDetails: 'Estilo Pryconsa: Suelo con patrón de lamas de madera verticales delgadas, baños en gris medio, terraza en cuadrícula teja',
+      strictBlueprintFidelity: true,
+      renderEngine: 'auto',
+      seed: 42,
+      lockSeed: true,
+      generationTemperature: 0.15
+    }
+  },
+  {
+    id: 'preset_metrovacesa_alyssa',
+    name: 'ESTILO METROVACESA — Alyssa (Zonas Húmedas Azul Pastel)',
+    createdAt: 5,
+    isDefault: true,
+    config: {
+      cameraAngle: 'plan_2d_furnished',
+      isometricOrientation: 'south_west',
+      isometricRotationAngle: 0,
+      colorPalette: 'metrovacesa_azul_pastel',
+      interiorStyle: 'estilo_metrovacesa',
+      lighting: 'ambient_studio',
+      aspectRatio: '16:9',
+      flooringLiving: 'alabaster_pure_smooth',
+      flooringKitchen: 'metrovacesa_pastel_blue',
+      kitchenGresColor: 'gres_blanco_nieve',
+      kitchenCountertop: 'quartz_calacatta_white',
+      flooringBathroomGres60: 'metrovacesa_bano_periwinkle',
+      flooringTerrace: 'light_sandstone_slabs',
+      windowType: 'oscilobatiente',
+      windowFrames: 'black_anthracite_metal',
+      doorFinish: 'white_lacquer',
+      interiorWallColor: 'grafito_antracita_promotor',
+      exteriorWallColor: 'grafito_antracita_promotor',
+      roomMarkers: [],
+      markerBadgeColor: '#3B82F6',
+      promotionLogo: DEFAULT_PROMOTION_LOGO,
+      promotorLogo: DEFAULT_PROMUEVE_LOGO,
+      commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
+      agencyPhone: '983 34 21 32',
+      unitIdentifier: 'METROVACESA ALYSSA - PORTAL 3 1º A',
+      extraDetails: 'Estilo Metrovacesa: Muros pizarra, suelo alabastro continuo, cocina, tendedero y baños teñidos en azul pastel periwinkle, mobiliario blanco con contorno fino',
+      strictBlueprintFidelity: true,
+      renderEngine: 'auto',
+      seed: 42,
+      lockSeed: true,
+      generationTemperature: 0.15
+    }
+  },
+  {
+    id: 'preset_metrovacesa_mesena',
+    name: 'ESTILO METROVACESA — Mesena 80 (Alabastro & Periwinkle)',
+    createdAt: 6,
+    isDefault: true,
+    config: {
+      cameraAngle: 'plan_2d_furnished',
+      isometricOrientation: 'south_west',
+      isometricRotationAngle: 0,
+      colorPalette: 'metrovacesa_azul_pastel',
+      interiorStyle: 'estilo_metrovacesa',
+      lighting: 'ambient_studio',
+      aspectRatio: '16:9',
+      flooringLiving: 'alabaster_pure_smooth',
+      flooringKitchen: 'metrovacesa_pastel_blue',
+      kitchenGresColor: 'gres_blanco_nieve',
+      kitchenCountertop: 'quartz_calacatta_white',
+      flooringBathroomGres60: 'metrovacesa_bano_periwinkle',
+      flooringTerrace: 'light_sandstone_slabs',
+      windowType: 'corredera_minimal',
+      windowFrames: 'black_anthracite_metal',
+      doorFinish: 'white_lacquer',
+      interiorWallColor: 'grafito_antracita_promotor',
+      exteriorWallColor: 'grafito_antracita_promotor',
+      roomMarkers: [],
+      markerBadgeColor: '#3B82F6',
+      promotionLogo: DEFAULT_PROMOTION_LOGO,
+      promotorLogo: DEFAULT_PROMUEVE_LOGO,
+      commercialAgencyLogo: DEFAULT_AGENCY_LOGO,
+      agencyPhone: '983 34 21 32',
+      unitIdentifier: 'MESENA 80 - PORTAL B 7º D',
+      extraDetails: 'Estilo Metrovacesa: Muros pizarra, estancias de agua en tono azul periwinkle suave, muebles vectoriales blancos limpios',
+      strictBlueprintFidelity: true,
+      renderEngine: 'auto',
+      seed: 42,
+      lockSeed: true,
+      generationTemperature: 0.15
+    }
+  },
   {
     id: 'preset_comercial_2d_neutro',
     name: 'Plano 2D Comercial Neutro Limpio',

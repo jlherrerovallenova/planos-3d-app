@@ -14,13 +14,71 @@ export interface PlanAnalysisResult {
   rawResponse?: string;
 }
 
+function normalizeCategory(rawCategory: string): RoomCategory {
+  const norm = (rawCategory || '').toLowerCase().trim();
+  if (norm === 'lavadero' || norm === 'galeria' || norm === 'tendedero' || norm === 'lavadero_galeria') return 'lavadero_galeria';
+  if (norm === 'bano' || norm === 'baño' || norm === 'bano_principal') return 'bano_principal';
+  if (norm === 'aseo' || norm === 'aseo_cortesia') return 'aseo_cortesia';
+  if (norm === 'salon' || norm === 'comedor' || norm === 'salon_comedor') return 'salon_comedor';
+  if (norm === 'cocina') return 'cocina';
+  if (norm === 'dormitorio_principal' || norm === 'suite' || norm === 'matrimonio') return 'dormitorio_principal';
+  if (norm === 'dormitorio_secundario' || norm === 'dormitorio' || norm === 'habitacion') return 'dormitorio_secundario';
+  if (norm === 'terraza_balcon' || norm === 'terraza' || norm === 'balcon') return 'terraza_balcon';
+  if (norm === 'recibidor_distribuidor' || norm === 'vestibulo' || norm === 'pasillo' || norm === 'distribuidor') return 'recibidor_distribuidor';
+  if (norm === 'despacho_estudio' || norm === 'despacho' || norm === 'estudio') return 'despacho_estudio';
+  if (norm === 'vestidor') return 'vestidor';
+  return 'otro';
+}
+
+async function fetchGeminiVisionWithFallback(apiKey: string, payload: any): Promise<any> {
+  const candidateModels = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-2.0-flash-exp'
+  ];
+
+  let lastErrorMsg = '';
+
+  for (const model of candidateModels) {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          return await response.json();
+        }
+
+        const errText = await response.text();
+        lastErrorMsg = `Modelo ${model} (${response.status}): ${errText}`;
+
+        if (response.status === 429 || response.status === 500 || response.status === 503) {
+          await new Promise((r) => setTimeout(r, 1000 * attempt));
+          continue;
+        }
+        break;
+      } catch (netErr: any) {
+        lastErrorMsg = netErr?.message || 'Error de red con Gemini';
+        await new Promise((r) => setTimeout(r, 800 * attempt));
+      }
+    }
+  }
+
+  throw new Error(`No se pudo analizar el plano con Gemini: ${lastErrorMsg}`);
+}
+
 export async function analyzeBlueprintRooms(
   base64Data: string,
   mimeType: string = 'image/png'
 ): Promise<PlanAnalysisResult> {
   const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('No se encontró VITE_GEMINI_API_KEY en las variables de entorno.');
+  if (!apiKey || apiKey.includes('tu_api_key')) {
+    throw new Error('Configura tu clave de Gemini válida en VITE_GEMINI_API_KEY del archivo .env para analizar planos automáticamente.');
   }
 
   const { cleanBase64 } = cleanBase64Data(base64Data);
@@ -38,7 +96,7 @@ INSTRUCCIONES CLAVE:
 4. Para cada estancia, proporciona:
    - "name": Nombre en mayúsculas (ej. "SALÓN - COMEDOR - COCINA", "DORMITORIO 1", "DORMITORIO 2", "DORMITORIO 3", "BAÑO", "ASEO", "VESTÍBULO", "PASILLO", "TERRAZA").
    - "areaSqMeters": Número flotante con los m² útiles (ej: 4.14).
-   - "category": Una de las siguientes categorías válidas: "salon_comedor", "cocina", "dormitorio_principal", "dormitorio_secundario", "bano_principal", "aseo_cortesia", "terraza_balcon", "recibidor_distribuidor", "despacho_estudio", "lavadero".
+   - "category": Una de las siguientes categorías válidas: "salon_comedor", "cocina", "dormitorio_principal", "dormitorio_secundario", "bano_principal", "aseo_cortesia", "terraza_balcon", "recibidor_distribuidor", "despacho_estudio", "lavadero_galeria", "vestidor", "otro".
    - "x": Posición porcentual horizontal (0 a 100) del centro de la estancia en el plano.
    - "y": Posición porcentual vertical (0 a 100) del centro de la estancia en el plano.
 5. ORDEN ESTRICTO OBLIGATORIO EN EL ARRAY "rooms":
@@ -84,37 +142,26 @@ Devuelve estrictamente un objeto JSON con el siguiente esquema:
   "constructedArea": 109.43
 }`;
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            {
-              inlineData: {
-                mimeType: mimeType || 'image/png',
-                data: cleanBase64
-              }
-            },
-            { text: prompt }
-          ]
-        }
-      ],
-      generationConfig: {
-        responseMimeType: 'application/json'
+  const payload = {
+    contents: [
+      {
+        parts: [
+          {
+            inlineData: {
+              mimeType: mimeType || 'image/png',
+              data: cleanBase64
+            }
+          },
+          { text: prompt }
+        ]
       }
-    })
-  });
+    ],
+    generationConfig: {
+      responseMimeType: 'application/json'
+    }
+  };
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Error en API Gemini (${response.status}): ${errorText}`);
-  }
-
-  const data = await response.json();
+  const data = await fetchGeminiVisionWithFallback(apiKey, payload);
   const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
   if (!textContent) {
@@ -126,7 +173,7 @@ Devuelve estrictamente un objeto JSON con el siguiente esquema:
   const formattedRooms: RoomMarker[] = (parsed.rooms || []).map((r: any, idx: number) => ({
     id: `room_detected_${Date.now()}_${idx}`,
     name: r.name || `Estancia ${idx + 1}`,
-    category: (r.category as RoomCategory) || 'salon_comedor',
+    category: normalizeCategory(r.category),
     x: typeof r.x === 'number' ? Math.max(5, Math.min(95, r.x)) : 50,
     y: typeof r.y === 'number' ? Math.max(5, Math.min(95, r.y)) : 50,
     areaSqMeters: typeof r.areaSqMeters === 'number' ? r.areaSqMeters : undefined,

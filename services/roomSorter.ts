@@ -24,7 +24,7 @@ function cleanText(str: string): string {
  * 9. Terraza (Terraza 1, Terraza 2...)
  * 10. Otras estancias (Lavadero, etc.)
  */
-export function getRoomSortScore(marker: { name: string; category?: string }): number {
+function getRoomSortScore(marker: { name: string; category?: string }): number {
   const name = cleanText(marker.name);
   const cat = (marker.category || '').toLowerCase();
 

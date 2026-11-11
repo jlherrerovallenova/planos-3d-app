@@ -16,9 +16,11 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@oxc-parser/binding-win32-x64-msvc": "^0.155.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "react-doctor": "^0.0.42",
     "typescript": "^5.7.2",
     "vite": "^6.0.7"
   }

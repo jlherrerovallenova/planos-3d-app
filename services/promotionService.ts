@@ -54,7 +54,7 @@ export async function createPromotion(params: {
 /**
  * Elimina una promoción y todos sus planos asociados.
  */
-export async function deletePromotion(promotionId: string): Promise<void> {
+async function deletePromotion(promotionId: string): Promise<void> {
   if (!supabase) return;
 
   // 1. Obtener lista de archivos para borrarlos de Storage
@@ -104,7 +104,7 @@ export async function getPlansByPromotion(promotionId: string): Promise<Promotio
 /**
  * Sube un archivo físico a Supabase Storage y devuelve la ruta y la URL pública.
  */
-export async function uploadPlanToStorage(
+async function uploadPlanToStorage(
   promotionId: string,
   file: File
 ): Promise<{ filePath: string; publicUrl: string }> {
@@ -145,7 +145,7 @@ export async function uploadPlanToStorage(
 /**
  * Registra un plano en la base de datos de Supabase.
  */
-export async function createPlanRecord(planData: {
+async function createPlanRecord(planData: {
   promotion_id: string;
   portal: string;
   typology: string;
@@ -261,13 +261,27 @@ export async function processBatchUpload(
 }
 
 /**
- * Descarga el archivo de un plano (por su storage_url) y lo convierte en un File para cargarlo en el visor.
+ * Descarga el archivo de un plano de forma segura (usando Supabase Storage autenticado o fallback a storage_url)
+ * y lo convierte en un File para cargarlo en el visor.
  */
 export async function fetchPlanFileAsObject(plan: PromotionPlan): Promise<File> {
+  // 1. Intento primario con cliente Supabase (evita problemas de CORS en URLs públicas y soporta buckets privados)
+  if (supabase && plan.file_path) {
+    try {
+      const { data: blob, error } = await supabase.storage.from(BUCKET_NAME).download(plan.file_path);
+      if (!error && blob) {
+        return new File([blob], plan.original_filename, { type: plan.mime_type || blob.type || 'image/png' });
+      }
+    } catch (storageErr) {
+      console.warn('Fallo en descarga directa desde storage, intentando vía URL pública:', storageErr);
+    }
+  }
+
+  // 2. Fallback a fetch por URL pública
   const response = await fetch(plan.storage_url);
   if (!response.ok) {
     throw new Error(`Error al descargar plano: ${response.statusText}`);
   }
   const blob = await response.blob();
-  return new File([blob], plan.original_filename, { type: plan.mime_type || blob.type });
+  return new File([blob], plan.original_filename, { type: plan.mime_type || blob.type || 'image/png' });
 }

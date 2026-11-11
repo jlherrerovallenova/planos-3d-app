@@ -313,9 +313,9 @@ export async function autoTrimWhitespace(
         }
 
         // Margen de seguridad generoso (mínimo 3.5%) para jamás recortar muros ni estancias perimetrales
-        const effectivePadding = Math.max(3.5, paddingPercent);
-        const padX = Math.max(20, Math.round(w * (effectivePadding / 100)));
-        const padY = Math.max(20, Math.round(h * (effectivePadding / 100)));
+        const effectivePadding = Math.max(7.5, paddingPercent);
+        const padX = Math.max(35, Math.round(w * (effectivePadding / 100)));
+        const padY = Math.max(35, Math.round(h * (effectivePadding / 100)));
 
         const cropX = Math.max(0, minX - padX);
         const cropY = Math.max(0, minY - padY);
@@ -380,3 +380,117 @@ export async function autoTrimWhitespace(
   });
 }
 
+
+/**
+ * Verifica si el plano tiene poco margen exterior (< 3.5%) y en tal caso
+ * lo envuelve en un canvas blanco puro con 6.5% de margen holgado para que NUNCA se corte.
+ */
+export async function ensurePlanSafetyPadding(
+  imageSrc: string,
+  minPaddingPercent: number = 6.5
+): Promise<{ paddedDataUrl: string; wasPadded: boolean }> {
+  return new Promise((resolve) => {
+    if (!imageSrc) {
+      resolve({ paddedDataUrl: imageSrc, wasPadded: false });
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        if (w < 50 || h < 50) {
+          resolve({ paddedDataUrl: imageSrc, wasPadded: false });
+          return;
+        }
+
+        const scanCanvas = document.createElement('canvas');
+        scanCanvas.width = w;
+        scanCanvas.height = h;
+        const scanCtx = scanCanvas.getContext('2d');
+        if (!scanCtx) {
+          resolve({ paddedDataUrl: imageSrc, wasPadded: false });
+          return;
+        }
+        scanCtx.drawImage(img, 0, 0, w, h);
+        const data = scanCtx.getImageData(0, 0, w, h).data;
+
+        // Comprobar si hay contenido gráfico a menos del 3.5% del borde
+        const borderBandX = Math.max(4, Math.floor(w * 0.035));
+        const borderBandY = Math.max(4, Math.floor(h * 0.035));
+
+        let hasContentNearEdge = false;
+        const checkIsContent = (x: number, y: number) => {
+          const idx = (y * w + x) * 4;
+          const a = data[idx + 3];
+          if (a < 30) return false;
+          const r = data[idx];
+          const g = data[idx + 1];
+          const b = data[idx + 2];
+          return r < 235 || g < 235 || b < 235;
+        };
+
+        // Comprobar franja izquierda y derecha
+        for (let y = 0; y < h; y += 4) {
+          for (let x = 0; x < borderBandX; x += 2) {
+            if (checkIsContent(x, y)) { hasContentNearEdge = true; break; }
+          }
+          if (hasContentNearEdge) break;
+          for (let x = w - borderBandX; x < w; x += 2) {
+            if (checkIsContent(x, y)) { hasContentNearEdge = true; break; }
+          }
+          if (hasContentNearEdge) break;
+        }
+
+        // Comprobar franja superior e inferior
+        if (!hasContentNearEdge) {
+          for (let x = 0; x < w; x += 4) {
+            for (let y = 0; y < borderBandY; y += 2) {
+              if (checkIsContent(x, y)) { hasContentNearEdge = true; break; }
+            }
+            if (hasContentNearEdge) break;
+            for (let y = h - borderBandY; y < h; y += 2) {
+              if (checkIsContent(x, y)) { hasContentNearEdge = true; break; }
+            }
+            if (hasContentNearEdge) break;
+          }
+        }
+
+        if (!hasContentNearEdge) {
+          resolve({ paddedDataUrl: imageSrc, wasPadded: false });
+          return;
+        }
+
+        // Añadir margen de seguridad blanco del minPaddingPercent
+        const padPxX = Math.round(w * (minPaddingPercent / 100));
+        const padPxY = Math.round(h * (minPaddingPercent / 100));
+        const newW = w + padPxX * 2;
+        const newH = h + padPxY * 2;
+
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = newW;
+        outCanvas.height = newH;
+        const outCtx = outCanvas.getContext('2d');
+        if (!outCtx) {
+          resolve({ paddedDataUrl: imageSrc, wasPadded: false });
+          return;
+        }
+
+        outCtx.fillStyle = '#FFFFFF';
+        outCtx.fillRect(0, 0, newW, newH);
+        outCtx.drawImage(img, padPxX, padPxY, w, h);
+
+        resolve({
+          paddedDataUrl: outCanvas.toDataURL('image/png', 1.0),
+          wasPadded: true
+        });
+      } catch (err) {
+        console.warn('Error al verificar margen de plano:', err);
+        resolve({ paddedDataUrl: imageSrc, wasPadded: false });
+      }
+    };
+    img.onerror = () => resolve({ paddedDataUrl: imageSrc, wasPadded: false });
+    img.src = imageSrc;
+  });
+}

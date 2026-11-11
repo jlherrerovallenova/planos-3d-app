@@ -27,8 +27,7 @@ import {
 import { DEFAULT_PROMOTION_LOGO } from './services/defaultPromotionLogo';
 import { DEFAULT_AGENCY_LOGO } from './services/defaultAgencyLogo';
 import { DEFAULT_PROMUEVE_LOGO } from './services/defaultPromueveLogo';
-import { PlanCanvasPreview } from './components/PlanCanvasPreview';
-import { StyleSelector } from './components/StyleSelector';
+// Components PlanCanvasPreview y StyleSelector retirados para optimización de bundle
 import { LeftRail, ActiveSidebarTab } from './components/sidebar/LeftRail';
 import { TabPlano } from './components/sidebar/TabPlano';
 import { TabEstancias } from './components/sidebar/TabEstancias';
@@ -48,12 +47,14 @@ import { safeDownloadFile, cleanBase64Data } from './services/downloadHelper';
 import { analyzeBlueprintRooms } from './services/planAnalyzer';
 import { sortRoomMarkers } from './services/roomSorter';
 import { eraseTextAtCoordinate } from './services/planTextEraser';
+import { generateBinaryMaskFromDefect } from './services/maskHelper';
 import { convertPdfToImage } from './services/pdfConverter';
 import {
   cropImageToBoundingBox,
   remapMarkersToCrop,
   isSignificantCrop,
-  autoTrimWhitespace
+  autoTrimWhitespace,
+  ensurePlanSafetyPadding
 } from './services/planCropper';
 
 /**
@@ -92,7 +93,26 @@ async function fetchGeminiWithBackoff(endpoint: string, payload: any, maxRetries
   return lastResponse!;
 }
 
-export function App() {
+
+function getValidGeminiApiKey(): string {
+  const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  if (!apiKey || typeof apiKey !== 'string' || apiKey.includes('tu_api_key')) {
+    throw new Error('Configura tu clave válida de Gemini en VITE_GEMINI_API_KEY en el archivo .env para generar renders con IA.');
+  }
+  return apiKey;
+}
+
+const DEFAULT_IMAGE_MODELS = [
+  'gemini-3.1-flash-image',
+  'gemini-3-pro-image',
+  'gemini-2.5-flash-image',
+  'gemini-3.1-flash-image-preview',
+  'gemini-3-pro-image-preview',
+  'gemini-2.0-flash-exp',
+  'gemini-3.1-flash-lite-image'
+];
+
+function App() {
 
   // 1. Título y Configuración de renderizado
   const [projectTitle, setProjectTitle] = useState<string>('Proyecto residencial de 140 viviendas');
@@ -101,7 +121,11 @@ export function App() {
       const saved = localStorage.getItem('planos3d_custom_presets');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          const defaultIds = new Set(DEFAULT_PRESETS.map((dp) => dp.id));
+          const userCustomPresets = parsed.filter((p: PresetConfig) => !defaultIds.has(p.id));
+          return [...DEFAULT_PRESETS, ...userCustomPresets];
+        }
       }
     } catch {}
     return DEFAULT_PRESETS;
@@ -332,9 +356,13 @@ export function App() {
 
       if (processedRooms.length > 0) {
         const sorted = sortRoomMarkers(processedRooms);
+        const hasOpenKitchen = processedRooms.some((r) =>
+          /sal[oó]n.*cocina|cocina.*sal[oó]n|estancia.*cocina|cocina\s*abierta|cocina\s*americana/i.test(r.name)
+        );
         setConfig((prev) => ({
           ...prev,
-          roomMarkers: sorted
+          roomMarkers: sorted,
+          ...(hasOpenKitchen ? { flooringKitchen: 'matching_living_oak' } : {})
         }));
         setGenerationSuccessMessage(
           `¡Plano analizado! Nombres y m² eliminados quirúrgicamente con muros y mobiliario intactos (${processedRooms.length} estancias).`
@@ -427,7 +455,7 @@ export function App() {
     if (detectedBlueprintBoxRef.current) {
       try {
         const dataUrl = `data:${baseImg.mimeType};base64,${baseImg.base64}`;
-        const cropRes = await cropImageToBoundingBox(dataUrl, detectedBlueprintBoxRef.current, 5.0);
+        const cropRes = await cropImageToBoundingBox(dataUrl, detectedBlueprintBoxRef.current, 8.0);
         setSourceImage({
           ...baseImg,
           base64: cropRes.cleanBase64,
@@ -448,7 +476,7 @@ export function App() {
       // Auto-recorte inteligente local inmediato para aislar el plano y llenar el 75%
       try {
         const dataUrl = `data:${baseImg.mimeType};base64,${baseImg.base64}`;
-        const trimRes = await autoTrimWhitespace(dataUrl, config.roomMarkers, 5.0);
+        const trimRes = await autoTrimWhitespace(dataUrl, config.roomMarkers, 8.0);
         if (trimRes.wasTrimmed && trimRes.cropBox) {
           detectedBlueprintBoxRef.current = trimRes.cropBox;
           const cleanTrimmed = cleanBase64Data(trimRes.trimmedDataUrl);
@@ -614,6 +642,22 @@ export function App() {
         }
       }
 
+      // Auto-detectar relación de aspecto natural del plano para evitar deformaciones o recortes
+      const imgAspect = new Image();
+      imgAspect.onload = () => {
+        const w = imgAspect.naturalWidth || imgAspect.width;
+        const h = imgAspect.naturalHeight || imgAspect.height;
+        if (w > 0 && h > 0) {
+          const ratio = w / h;
+          let bestAspect: '16:9' | '4:3' | '1:1' | '3:4' = '16:9';
+          if (ratio >= 1.45) bestAspect = '16:9';
+          else if (ratio >= 1.15) bestAspect = '4:3';
+          else if (ratio >= 0.85) bestAspect = '1:1';
+          else bestAspect = '3:4';
+          setConfig((prev) => ({ ...prev, aspectRatio: bestAspect }));
+        }
+      };
+      imgAspect.src = dataUrl;
       const rawImg = {
         base64: cleanBase64,
         mimeType,
@@ -628,8 +672,24 @@ export function App() {
         name: file.name,
         mediaId
       };
-      setSourceImage(loadedImg);
-      uncleanedSourceImageRef.current = loadedImg;
+      // Proteger plano contra recortes: si los muros tocan los bordes, añadir margen de seguridad blanco
+      let finalImgToLoad = loadedImg;
+      try {
+        const padCheck = await ensurePlanSafetyPadding(dataUrl, 7.0);
+        if (padCheck.wasPadded) {
+          const cleanPadded = cleanBase64Data(padCheck.paddedDataUrl);
+          finalImgToLoad = {
+            ...loadedImg,
+            base64: cleanPadded.cleanBase64,
+            mimeType: cleanPadded.mimeType
+          };
+        }
+      } catch (padErr) {
+        console.warn('Verificación de margen omitida:', padErr);
+      }
+
+      setSourceImage(finalImgToLoad);
+      uncleanedSourceImageRef.current = finalImgToLoad;
       cleanedSourceImageRef.current = null;
       setIsTextCleaned(false);
       setIsPlanIsolated(false);
@@ -1079,15 +1139,24 @@ export function App() {
 
           parts.push({ text: promptToSend });
 
-          const generationConfig: { temperature: number; seed?: number } = {
+          const generationConfig: {
+            temperature: number;
+            seed?: number;
+            responseModalities?: string[];
+            imageConfig?: { aspectRatio?: string };
+          } = {
             temperature: typeof config.generationTemperature === 'number' ? config.generationTemperature : 0.15,
-            seed: effectiveSeed
+            seed: effectiveSeed,
+            responseModalities: ['TEXT', 'IMAGE'],
+            imageConfig: {
+              aspectRatio: config.aspectRatio || '16:9'
+            }
           };
 
           const response = await fetchGeminiWithBackoff(endpoint, {
             systemInstruction: {
               parts: [{
-                text: 'You are an elite architectural delineator and technical drafting engine. Your supreme directive is 100% geometric and structural fidelity to the reference blueprint. Never move, delete, or hallucinate walls, partitions, doors, or windows. Render clean architectural presentation graphics with pristine floor materials and photorealistic furniture only. Absolute prohibition of printed text, numbers, room titles, dimensions, or graphic tables.'
+                text: 'You are an elite architectural delineator and technical drafting engine. Your supreme directive is 100% geometric and structural fidelity to the reference blueprint. Never move, delete, or hallucinate walls, partitions, doors, or windows. Render clean architectural presentation graphics with pristine floor materials and photorealistic furniture only. Absolute prohibition of printed text, numbers, room titles, dimensions, or graphic tables. CRITICAL FRAMING MANDATE: The ENTIRE floor plan and all its perimeter walls must be 100% fully contained within the frame with generous white margins around all edges. OPEN KITCHEN MANDATE: If the kitchen is open-plan or integrated with the living room, it MUST ALWAYS have the exact same continuous flooring as the living room with zero material transitions. SHOWER TRAY MANDATE: In all bathrooms, shower trays and bathtubs MUST ALWAYS be rendered in SOLID PURE WHITE (#FFFFFF). NEVER paint the shower tray with the bathroom floor tile texture or color. The shower tray is always a solid clean white rectangle with high contrast against the bathroom floor.'
               }]
             },
             contents: [{ parts }],
@@ -1183,6 +1252,22 @@ export function App() {
     setGenerationSuccessMessage(null);
 
     // 1. Detección automática de estancia para sincronizar metadatos
+    let effectiveMaskBase64 = maskBase64;
+    if (!effectiveMaskBase64 && (defectMark || paintedStrokes.length > 0)) {
+      const baseImg = renderedResult || sourceImage;
+      if (baseImg?.base64) {
+        try {
+          effectiveMaskBase64 = await generateBinaryMaskFromDefect(
+            baseImg.base64,
+            defectMark,
+            paintedStrokes.map((s) => ({ id: s.id, points: s.points }))
+          );
+        } catch (maskErr) {
+          console.warn("Error generando máscara binaria:", maskErr);
+        }
+      }
+    }
+
     const detection = parseTargetedRoomFromText(instruction, config.roomMarkers || []);
     let updatedMarkers = config.roomMarkers || [];
     if (detection.matchedMarker && typeof detection.roomIndex === 'number') {
@@ -1207,7 +1292,7 @@ export function App() {
       detection.matchedMarker,
       detection.roomIndex,
       defectMark,
-      !!maskBase64
+      !!effectiveMaskBase64
     );
 
 
@@ -1298,8 +1383,8 @@ export function App() {
       }
 
       // Máscara binaria blanco/negro para inpainting quirúrgico
-      if (maskBase64) {
-        const { cleanBase64 } = cleanBase64Data(maskBase64);
+      if (effectiveMaskBase64) {
+        const { cleanBase64 } = cleanBase64Data(effectiveMaskBase64);
         parts.push({
           inlineData: {
             mimeType: 'image/png',
@@ -1322,14 +1407,23 @@ export function App() {
       for (const model of candidateModels) {
         try {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-          const generationConfig: { temperature: number; seed?: number } = {
+          const generationConfig: {
+            temperature: number;
+            seed?: number;
+            responseModalities?: string[];
+            imageConfig?: { aspectRatio?: string };
+          } = {
             temperature: typeof config.generationTemperature === 'number' ? config.generationTemperature : 0.15,
-            seed: effectiveSeed
+            seed: effectiveSeed,
+            responseModalities: ['TEXT', 'IMAGE'],
+            imageConfig: {
+              aspectRatio: config.aspectRatio || '16:9'
+            }
           };
           const response = await fetchGeminiWithBackoff(endpoint, {
             systemInstruction: {
               parts: [{
-                text: 'You are an elite architectural delineator and technical drafting engine. Your supreme directive is 100% geometric and structural fidelity to the reference blueprint. Never move, delete, or hallucinate walls, partitions, doors, or windows. Render clean architectural presentation graphics with pristine floor materials and photorealistic furniture only. Absolute prohibition of printed text, numbers, room titles, dimensions, or graphic tables.'
+                text: 'You are an elite architectural delineator and technical drafting engine. Your supreme directive is 100% geometric and structural fidelity to the reference blueprint. Never move, delete, or hallucinate walls, partitions, doors, or windows. Render clean architectural presentation graphics with pristine floor materials and photorealistic furniture only. Absolute prohibition of printed text, numbers, room titles, dimensions, or graphic tables. CRITICAL FRAMING MANDATE: The ENTIRE floor plan and all its perimeter walls must be 100% fully contained within the frame with generous white margins around all edges. OPEN KITCHEN MANDATE: If the kitchen is open-plan with the living room, it MUST have the exact same flooring as the living room.'
               }]
             },
             contents: [{ parts }],
@@ -1759,6 +1853,7 @@ export function App() {
               activePresetId={activePresetId}
               onApplyPreset={handleApplyPreset}
               onSavePreset={(name) => handleSavePreset(name, config)}
+              onDeletePreset={handleDeletePreset}
               onApplyChangesInstant={() => {
                 setGenerationSuccessMessage('Estilo de renderizado actualizado');
                 setTimeout(() => setGenerationSuccessMessage(null), 3000);
@@ -1957,6 +2052,7 @@ export function App() {
         currentPrompt={currentPrompt}
         projectTitle={projectTitle}
         renderedResult={renderedResult}
+        sourceImage={sourceImage}
         history={history}
       />
       <InteriorSceneModal

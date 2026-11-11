@@ -10,7 +10,7 @@ import { DEFAULT_PROMOTION_LOGO } from './defaultPromotionLogo';
 import { DEFAULT_AGENCY_LOGO } from './defaultAgencyLogo';
 import { DEFAULT_PROMUEVE_LOGO } from './defaultPromueveLogo';
 
-export function sanitizeFilename(filename: string): string {
+function sanitizeFilename(filename: string): string {
   // Mantener solo caracteres alfanuméricos, guiones y puntos
   return filename
     .replace(/[^\w.-]/g, '_')
@@ -200,7 +200,7 @@ function countRoomTypes(markers: Array<{ id: string; name: string; category?: st
   };
 }
 
-export async function generateBrochureCanvas({
+async function generateBrochureCanvas({
   imageSrc,
   projectTitle,
   markers,
@@ -1165,7 +1165,7 @@ export async function exportCommercialBrochurePDF({
   });
 }
 
-export async function exportPlanOnlyPDF({
+async function exportPlanOnlyPDF({
   imageSrc,
   projectTitle = 'Plano',
   paperFormat = 'a4',

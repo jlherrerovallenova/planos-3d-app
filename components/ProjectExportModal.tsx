@@ -13,6 +13,7 @@ interface ProjectExportModalProps {
   config: RenderConfig;
   currentPrompt: string;
   projectTitle?: string;
+  sourceImage?: { base64: string; mimeType: string; name?: string } | null;
   renderedResult: { base64: string; mimeType: string } | null;
   history: RenderHistoryItem[];
 }
@@ -23,6 +24,7 @@ export function ProjectExportModal({
   config,
   currentPrompt,
   projectTitle = 'Proyecto residencial de 140 viviendas',
+  sourceImage,
   renderedResult,
   history
 }: ProjectExportModalProps) {
@@ -30,6 +32,8 @@ export function ProjectExportModal({
   const [isExportingFicha, setIsExportingFicha] = useState(false);
 
   if (!isOpen) return null;
+
+  const activeImage = renderedResult || sourceImage;
 
   const handleCopyPrompt = () => {
     navigator.clipboard.writeText(currentPrompt);
@@ -43,41 +47,51 @@ export function ProjectExportModal({
   };
 
   const handleDownloadFichaPDF = async () => {
-    if (!renderedResult) return;
+    if (!activeImage) return;
     setIsExportingFicha(true);
-    await exportCommercialBrochurePDF({
-      imageSrc: `data:${renderedResult.mimeType};base64,${renderedResult.base64}`,
-      projectTitle,
-      unitIdentifier: config.unitIdentifier,
-      markers: config.roomMarkers || [],
-      customTotalUsefulArea: config.customTotalUsefulArea,
-      markerBadgeColor: config.markerBadgeColor,
-      promotionLogo: config.promotionLogo,
-      promotorLogo: config.promotorLogo,
-      agencyLogo: config.commercialAgencyLogo,
-      agencyPhone: config.agencyPhone,
-      filename: `ficha_vectorial_${projectTitle.toLowerCase().replace(/[^\w]/g, '_')}.pdf`
-    });
-    setIsExportingFicha(false);
+    try {
+      await exportCommercialBrochurePDF({
+        imageSrc: `data:${activeImage.mimeType};base64,${activeImage.base64}`,
+        projectTitle,
+        unitIdentifier: config.unitIdentifier,
+        markers: config.roomMarkers || [],
+        customTotalUsefulArea: config.customTotalUsefulArea,
+        markerBadgeColor: config.markerBadgeColor,
+        promotionLogo: config.promotionLogo,
+        promotorLogo: config.promotorLogo,
+        agencyLogo: config.commercialAgencyLogo,
+        agencyPhone: config.agencyPhone,
+        filename: `ficha_vectorial_${projectTitle.toLowerCase().replace(/[^\w]/g, '_')}.pdf`
+      });
+    } catch (err) {
+      console.error('Error exportando PDF:', err);
+    } finally {
+      setIsExportingFicha(false);
+    }
   };
 
   const handleDownloadFichaComercial = async () => {
-    if (!renderedResult) return;
+    if (!activeImage) return;
     setIsExportingFicha(true);
-    await exportCommercialBrochureImage({
-      imageSrc: `data:${renderedResult.mimeType};base64,${renderedResult.base64}`,
-      projectTitle,
-      unitIdentifier: config.unitIdentifier,
-      markers: config.roomMarkers || [],
-      customTotalUsefulArea: config.customTotalUsefulArea,
-      markerBadgeColor: config.markerBadgeColor,
-      promotionLogo: config.promotionLogo,
-      promotorLogo: config.promotorLogo,
-      agencyLogo: config.commercialAgencyLogo,
-      agencyPhone: config.agencyPhone,
-      filename: `ficha_comercial_${projectTitle.toLowerCase().replace(/[^\w]/g, '_')}.png`
-    });
-    setIsExportingFicha(false);
+    try {
+      await exportCommercialBrochureImage({
+        imageSrc: `data:${activeImage.mimeType};base64,${activeImage.base64}`,
+        projectTitle,
+        unitIdentifier: config.unitIdentifier,
+        markers: config.roomMarkers || [],
+        customTotalUsefulArea: config.customTotalUsefulArea,
+        markerBadgeColor: config.markerBadgeColor,
+        promotionLogo: config.promotionLogo,
+        promotorLogo: config.promotorLogo,
+        agencyLogo: config.commercialAgencyLogo,
+        agencyPhone: config.agencyPhone,
+        filename: `ficha_comercial_${projectTitle.toLowerCase().replace(/[^\w]/g, '_')}.png`
+      });
+    } catch (err) {
+      console.error('Error exportando imagen de ficha:', err);
+    } finally {
+      setIsExportingFicha(false);
+    }
   };
 
   const handleDownloadConfigJson = () => {
@@ -96,13 +110,13 @@ export function ProjectExportModal({
                 Exportar Proyecto & Renders
               </h3>
               <p className="text-stone-400 text-xs mt-0.5">
-                Descarga los activos del proyecto, la memoria de calidades o el historial de imágenes.
+                Descarga los activos del proyecto, la memoria de calidades o la ficha comercial oficial.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-stone-400 hover:text-white transition rounded-lg p-1"
+            className="text-stone-400 hover:text-white transition rounded-lg p-1 cursor-pointer"
           >
             <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
@@ -120,15 +134,15 @@ export function ProjectExportModal({
                 <h4 className="text-xs font-bold text-stone-900">Render 3D Actual en Alta Resolución</h4>
                 <p className="text-[11px] text-stone-500">
                   {renderedResult
-                    ? 'Imagen generada lista para dossier de venta o catálogo comercial.'
-                    : 'Aún no se ha generado ningún render en esta sesión.'}
+                    ? 'Imagen 3D generada lista para dossier de venta o catálogo comercial.'
+                    : 'Aún no se ha generado ningún render 3D en esta sesión.'}
                 </p>
               </div>
             </div>
             <button
               disabled={!renderedResult}
               onClick={() => renderedResult && handleDownloadImage(renderedResult.base64, renderedResult.mimeType)}
-              className="px-4 py-2 rounded-xl bg-[#c25e38] hover:bg-[#a84d2b] disabled:opacity-40 text-white text-xs font-semibold transition shrink-0 flex items-center gap-1.5 shadow-xs"
+              className="px-4 py-2 rounded-xl bg-[#c25e38] hover:bg-[#a84d2b] disabled:opacity-40 text-white text-xs font-semibold transition shrink-0 flex items-center gap-1.5 shadow-xs cursor-pointer"
             >
               <span className="material-symbols-outlined text-[16px]">download</span>
               <span>Descargar PNG</span>
@@ -150,33 +164,33 @@ export function ProjectExportModal({
                     Ficha Comercial de Venta (Plano + Superficies Útiles)
                   </h4>
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
-                    Alta Resolución
+                    {renderedResult ? 'Con Render 3D' : activeImage ? 'Con Plano 2D' : 'Alta Resolución'}
                   </span>
                 </div>
                 <p className="text-[11px] text-stone-500">
-                  Genera la lámina comercial completa con el plano amueblado y el Cuadro de Superficies Útiles oficial en azul marino.
+                  Genera la lámina comercial completa con el plano (2D o 3D) y el Cuadro de Superficies Útiles oficial en azul marino.
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
-                disabled={!renderedResult || isExportingFicha}
+                disabled={!activeImage || isExportingFicha}
                 onClick={handleDownloadFichaPDF}
                 className="px-3.5 py-2 rounded-xl bg-red-700 hover:bg-red-800 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-xs disabled:opacity-40 cursor-pointer"
-                title="Descargar Ficha Comercial en PDF vectorial con el logo corporativo de Lubens Arroyo"
+                title="Descargar Ficha Comercial en PDF vectorial con logos y cuadro de superficies"
               >
                 <span className="material-symbols-outlined text-[16px]">picture_as_pdf</span>
-                <span>PDF</span>
+                <span>{isExportingFicha ? 'Exportando...' : 'PDF'}</span>
               </button>
               <button
-                disabled={!renderedResult || isExportingFicha}
+                disabled={!activeImage || isExportingFicha}
                 onClick={handleDownloadFichaComercial}
                 className="px-3.5 py-2 rounded-xl text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-xs disabled:opacity-40 cursor-pointer"
                 style={{ backgroundColor: '#0F2C59' }}
                 title="Descargar Ficha en Imagen PNG"
               >
                 <span className="material-symbols-outlined text-[16px]">image</span>
-                <span>PNG</span>
+                <span>{isExportingFicha ? '...' : 'PNG'}</span>
               </button>
             </div>
           </div>
@@ -196,7 +210,7 @@ export function ProjectExportModal({
             </div>
             <button
               onClick={handleDownloadConfigJson}
-              className="px-4 py-2 rounded-xl bg-white border border-stone-300 hover:bg-stone-100 text-stone-700 text-xs font-semibold transition shrink-0 flex items-center gap-1.5 shadow-xs"
+              className="px-4 py-2 rounded-xl bg-white border border-stone-300 hover:bg-stone-100 text-stone-700 text-xs font-semibold transition shrink-0 flex items-center gap-1.5 shadow-xs cursor-pointer"
             >
               <span className="material-symbols-outlined text-[16px]">file_download</span>
               <span>Guardar JSON</span>
@@ -213,7 +227,7 @@ export function ProjectExportModal({
               <button
                 type="button"
                 onClick={handleCopyPrompt}
-                className="px-2.5 py-1 text-xs font-medium bg-white border border-stone-300 hover:bg-stone-100 rounded-lg text-stone-700 transition flex items-center gap-1"
+                className="px-2.5 py-1 text-xs font-medium bg-white border border-stone-300 hover:bg-stone-100 rounded-lg text-stone-700 transition flex items-center gap-1 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[14px]">
                   {copied ? 'check' : 'content_copy'}
@@ -253,7 +267,7 @@ export function ProjectExportModal({
                       <span>#{idx + 1}</span>
                       <button
                         onClick={() => handleDownloadImage(item.base64, item.mimeType, idx)}
-                        className="text-[#c25e38] hover:underline font-semibold flex items-center gap-0.5"
+                        className="text-[#c25e38] hover:underline font-semibold flex items-center gap-0.5 cursor-pointer"
                       >
                         <span className="material-symbols-outlined text-[13px]">download</span>
                         <span>Bajar</span>
@@ -270,7 +284,7 @@ export function ProjectExportModal({
         <div className="p-4 bg-stone-100 border-t border-stone-200 flex justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-white text-xs font-medium transition shadow-xs"
+            className="px-5 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-white text-xs font-medium transition shadow-xs cursor-pointer"
           >
             Cerrar
           </button>
@@ -280,4 +294,3 @@ export function ProjectExportModal({
   );
 }
 
-export default ProjectExportModal;

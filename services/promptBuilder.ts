@@ -28,12 +28,42 @@ export function buildArchitecturalPrompt(config: RenderConfig): string {
   const selectedInteriorWall = WALL_COLOR_OPTIONS.find(w => w.id === config.interiorWallColor) || WALL_COLOR_OPTIONS[0];
   const selectedExteriorWall = WALL_COLOR_OPTIONS.find(w => w.id === config.exteriorWallColor) || WALL_COLOR_OPTIONS[0];
   const selectedCountertop = KITCHEN_COUNTERTOP_OPTIONS.find(c => c.id === config.kitchenCountertop) || KITCHEN_COUNTERTOP_OPTIONS[0];
-  // Descripción del suelo de cocina teniendo en cuenta si es GRES con color
-  const kitchenFloorPrompt = (config.flooringKitchen === 'gres_porcelanico_cocina' || config.flooringKitchen === 'porcelain_gres_kitchen')
-    ? selectedKitchenGresColor.promptKeyword
-    : `${selectedKitchenFloor.label} in kitchen floor`;
-  // REGLA CRÍTICA ESTRICTA: El plato de ducha SIEMPRE es blanco puro, NUNCA del material ni color del suelo del baño
-  const showerTrayRule = `CRITICAL ARCHITECTURAL DETAIL: In all bathrooms, shower trays MUST ALWAYS BE PURE CHALK WHITE mineral resin or glossy white acrylic (never matching the bathroom floor tile color or material). Every shower tray is distinctly solid clean white with clear contrast against the ${selectedBathGres60.previewColor} floor tiles, framed by a transparent glass screen shower enclosure.`;
+    // Detección de cocina integrada con el salón (cocina abierta / americana / salón-comedor-cocina)
+  const isOpenKitchen = Boolean(
+    config.flooringKitchen === 'matching_living_oak' ||
+    (config.roomMarkers && config.roomMarkers.some(m =>
+      /sal[oó]n.*cocina|cocina.*sal[oó]n|estancia.*cocina|living.*kitchen|abierta|americana/i.test(m.name)
+    ))
+  );
+
+  // DIRECTIVA CRÍTICA UNIVERSAL: SUELO CONTINUO EN COCINAS ABIERTAS / INTEGRADAS CON EL SALÓN (TODOS LOS ESTILOS)
+  const openKitchenUnifiedFlooringDirective = `CRITICAL UNIVERSAL MANDATE FOR OPEN-PLAN KITCHENS (REGLA UNIVERSAL EN TODOS LOS ESTILOS — COCINA INTEGRADA CON EL MISMO SUELO DEL SALÓN):
+If the kitchen is integrated, open-plan, or part of the living/dining room space (cocina abierta, cocina americana, o salón-comedor-cocina sharing the same room without partition walls):
+THE KITCHEN FLOOR MUST 100% ALWAYS HAVE THE EXACT SAME FLOORING AS THE LIVING ROOM (${selectedLivingFloor.label}).
+The living room flooring (${selectedLivingFloor.label}) MUST extend continuously, seamlessly, and uninterrupted throughout the entire open kitchen zone with ZERO floor material changes, ZERO threshold lines, and ZERO tile breaks.
+DO NOT render tiles, microcement, or a contrasting floor in the kitchen if it opens onto or shares space with the living room.
+A separate kitchen flooring is STRICTLY AND EXCLUSIVELY permitted if and only if the kitchen is a 100% closed, separate room completely enclosed by four partition walls and an interior door.`;
+
+  // Descripción del suelo de cocina teniendo en cuenta si está abierta al salón o cerrada
+  const kitchenFloorPrompt = isOpenKitchen
+    ? `Continuous seamless ${selectedLivingFloor.label} (100% matching the living room floor with zero transition across the open-plan living-kitchen)`
+    : config.flooringKitchen === 'matching_living_oak'
+      ? `Continuous seamless ${selectedLivingFloor.label} (identical to living room floor)`
+      : config.flooringKitchen === 'metrovacesa_pastel_blue'
+        ? `Soft pastel periwinkle blue wash floor in closed kitchen (#D0D7EC) (only if closed by walls; if open to living room, strictly use ${selectedLivingFloor.label})`
+        : (config.flooringKitchen === 'gres_porcelanico_cocina' || config.flooringKitchen === 'porcelain_gres_kitchen')
+          ? `${selectedKitchenGresColor.promptKeyword} (only if closed by walls; if open to living room, strictly use ${selectedLivingFloor.label})`
+          : `${selectedKitchenFloor.label} in kitchen floor (only if closed by walls; if open to living room, strictly use ${selectedLivingFloor.label})`;
+
+  // REGLA SUPREMA ESTRICTA: IDENTIFICACIÓN Y PINTADO DE PLATOS DE DUCHA Y BAÑERAS EN BLANCO PURO (#FFFFFF)
+  const showerTrayRule = `CRITICAL MANDATORY SHOWER TRAY & BATHTUB STANDARD (IDENTIFICACIÓN EXACTA Y BLANCO PURO #FFFFFF EN PLATOS DE DUCHA):
+1. SHOWER TRAY & BATHTUB IDENTIFICATION: In all bathrooms and guest half-baths, accurately locate every shower tray (plato de ducha) and bathtub enclosure indicated on the CAD blueprint (typically in corners, marked with a diagonal line, corner drain hole circle, or enclosed by a glass screen line).
+2. 100% SOLID PURE CHALK WHITE COLOR FILL: Every shower tray and bathtub MUST BE RENDERED IN SOLID, OPAQUE, PRISTINE PURE WHITE (#FFFFFF) mineral resin or white acrylic.
+3. ABSOLUTE PROHIBITION OF TILE OR FLOOR COLOR IN SHOWER TRAYS:
+   - NEVER, UNDER ANY CIRCUMSTANCES, paint or extend the bathroom floor tiles, gres, microcement, or floor color into the shower tray!
+   - The shower tray must NEVER match or blend into the bathroom floor tiles.
+   - The shower tray MUST STAND OUT as a sharp, clean, high-contrast solid pure white rectangle against the ${selectedBathGres60.previewColor} floor tiles.
+4. Always frame the white shower tray with a thin, transparent glass partition screen line and a minimal chrome/white drain circle.`;
 
   // REGLA CRÍTICA ESTRICTA DE COCINAS: ÚNICAMENTE VITROCERÁMICA Y FREGADERO (EL RESTO ES EXCLUSIVAMENTE ENCIMERA)
   const kitchenMinimalistRule = `CRITICAL ARCHITECTURAL STANDARD FOR ALL KITCHENS (REGLA ESTRICTA DE COCINA: ÚNICAMENTE VITROCERÁMICA Y FREGADERO, EL RESTO EXCLUSIVAMENTE ENCIMERA LIMPIA):
@@ -86,18 +116,26 @@ STRICT MANDATE: In kitchens, ONLY the vitrocerámica and the fregadero are visib
   }
   const is2D = config.cameraAngle === 'plan_2d_furnished';
 
-  // DIRECTIVA ESTRICTA DE ENCUADRE Y PROPORCIÓN ARQUITECTÓNICA
-  const strictFramingAndOccupancyDirective = `CRITICAL ARCHITECTURAL CAMERA FRAMING & OCCUPANCY:
-1. The single architectural floor plan MUST BE THE CENTRAL HERO SUBJECT, clearly centered on the canvas, maintaining its true structural proportions without stretching.
-2. Frame closely around exterior perimeter walls with clean, balanced, uniform neutral white borders.
-3. DO NOT generate secondary drawings, zoomed room crops, or filler artwork to fill horizontal canvas margins.`;
+  // DIRECTIVA ESTRICTA DE ENCUADRE Y PROPORCIÓN ARQUITECTÓNICA (PROTECCIÓN TOTAL CONTRA RECORTES)
+  const strictFramingAndOccupancyDirective = `CRITICAL ARCHITECTURAL CAMERA FRAMING & MARGINS (ZERO-CROPPING MANDATE — EL PLANO NUNCA DEBE SALIRSE DE LA IMAGEN):
+1. 100% COMPLETE BUILDING FOOTPRINT FIT: The ENTIRE apartment floor plan and ALL of its exterior facade walls, perimeter rooms, bedrooms, bathrooms, corners, balconies, and terraces MUST BE FULLY AND COMPLETELY CONTAINED WITHIN THE CANVAS FRAME.
+2. ABSOLUTE PROHIBITION OF CROPPING OR BLEEDING OUTSIDE THE IMAGE:
+   - NEVER cut off, clip, or slice ANY perimeter wall, room, bedroom, bed, desk, nightstand, or corner.
+   - NEVER let the building boundaries touch or cross the canvas borders.
+3. MANDATORY SAFETY MARGINS (PADDING): Always provide a generous, balanced, uniform pure white (#FFFFFF) breathing margin around all four edges (at least 8% to 12% white space margin on top, bottom, left, and right sides).
+4. The floor plan must be perfectly centered on the solid white canvas with ample clearance on all sides, ensuring zero parts of the home are cut off or spill outside the frame.
+5. DO NOT generate secondary drawings, zoomed room crops, or filler artwork in margins.`;
 
   // DIRECTIVA ESTRICTA: NUNCA DIBUJAR TABLAS, LISTAS DE MATERIALES NI CUADROS DE TEXTO EN LA IMAGEN
   const strictNoTablesDirective = `ABSOLUTE PROHIBITION OF GRAPHIC TABLES OR TEXT SCHEDULES: DO NOT render or draw ANY table, chart, list of materials, legend, schedule box, text banner, or spreadsheet in or beside the floor plan. The output image must ONLY contain the pure architectural floor plan and its interior rooms/furniture. Absolutely NO side tables, NO material charts, NO text lists anywhere in the generated image.`;
 
-  // DIRECTIVA ESTRICTA: DETALLE GRÁFICO ARQUITECTÓNICO EXACTO DE ARMARIOS EMPOTRADOS (BARRA Y PERCHAS CAD)
-  const commercialWardrobes2dDirective = `BUILT-IN WARDROBES ARCHITECTURAL STANDARD (ARMARIOS EMPOTRADOS):
-In all bedrooms, dressing areas, and hallway closets, render built-in wardrobes (armarios empotrados) using standard top-down 2D CAD blueprint presentation: an open wardrobe compartment showing the longitudinal hanging rod with clothing hangers, flush with adjoining partition walls. Never render an opaque solid black box or cartoon graphics.`;
+  // DIRECTIVA ESTRICTA: DETALLE GRÁFICO ARQUITECTÓNICO EXACTO DE ARMARIOS EMPOTRADOS (BARRA Y PERCHAS COMO SIMPLES LÍNEAS CAD)
+  const commercialWardrobes2dDirective = `BUILT-IN WARDROBES ARCHITECTURAL STANDARD (ARMARIOS EMPOTRADOS — PERCHAS Y ROPA COMO SIMPLES LÍNEAS RECTAS):
+In all bedrooms, dressing areas, and hallway closets, render built-in wardrobes (armarios empotrados) using clean minimalist 2D CAD blueprint presentation:
+1. An open rectangular wardrobe compartment flush with adjoining partition walls.
+2. A single straight longitudinal hanging rail bar along the center of the wardrobe.
+3. HANGING CLOTHES / HANGERS MUST BE RENDERED STRICTLY AS SIMPLE STRAIGHT PARALLEL LINES (simples líneas rectas perpendiculares | | | | | | |).
+4. ABSOLUTE PROHIBITION of drawing triangular coat hangers, hanger hooks, diagonal loops, triangles, arrowheads, or complex geometries. DO NOT draw triangular hangers. ONLY draw simple, clean, equidistant straight perpendicular lines across or along the hanging bar to represent hung garments.`;
 
     // DIRECTIVA CRÍTICA: PROHIBICIÓN TOTAL DE INVENTAR ESPACIOS EN EL FONDO EXTERIOR
   const strictExteriorVoidDirective = `ABSOLUTE EXTERIOR VOID MANDATE:
@@ -139,10 +177,45 @@ DO NOT displace, duplicate, or invent a different furniture layout.`
         .trim()
     : '';
 
+  // DIRECTIVA ESTRICTA PARA ESTILO VECTORIAL COMERCIAL (ESTILO FOLLETOS NIRA, NUBA, VEGA)
+  const isVectorialStyle = config.interiorStyle === 'estilo_vectorial' || config.colorPalette === 'vectorial_navy_pure';
+  const vectorBrochureDirective = isVectorialStyle ? `CRITICAL MANDATE — ESTILO VECTORIAL COMMERCIAL BROCHURE GRAPHICS (ESTILO VECTORIAL REAL ESTATE DOSSIER):
+1. STRUCTURAL WALLS: ALL structural exterior walls and interior partitions MUST be rendered as SOLID OPAQUE DARK NAVY BLUE (#0B253A) or ARCHITECTURAL TECHNICAL BLUE (#1E3A8A). Walls must have crisp, razor-sharp straight vector boundaries with zero internal textures, zero noise, and zero gradients.
+2. FLOORS (LIVING ROOM, BEDROOMS, HALLS): 100% PURE UNBROKEN SOLID WHITE (#FFFFFF). Absolutely zero wood grain, zero concrete noise, zero shadows, zero glare.
+3. FURNITURE SILHOUETTES: All interior furniture (beds, sofas, coffee tables, dining tables, chairs, nightstands) must be rendered as minimalist 2D flat vector silhouettes filled with soft warm champagne-beige / sand tone (#EAE6DF) and bounded by a clean, thin 1px dark contour stroke.
+4. BATHROOMS: Pristine white floor surface with a very subtle, thin light-grey 60x60 orthogonal tile grid. Pure solid white rectangular shower tray with a clean transparent glass screen line.
+5. KITCHEN: Solid clean white base countertop with strictly the induction cooktop (vitrocerámica) and sink (fregadero) delineated. 100% bare uncluttered worktop. If the kitchen is open-plan or integrated into the living room, it shares the exact same continuous pure white floor as the living room.
+6. TERRACE: Warm sand-colored porcelain tiles (#B8ACA0) or clean horizontal slatted exterior wood decking.
+7. CAD DOORS: Thin clean 90-degree radial door swing arcs flush with partition openings.
+8. WARDROBES & CLOTHES HANGERS (ARMARIOS Y PERCHAS): Built-in wardrobes must show a single longitudinal hanging rail with hanging clothes represented STRICTLY AS SIMPLE STRAIGHT PARALLEL TICK LINES (| | | | | |). NEVER draw triangular coat hangers, loops, hooks, or distorted shapes. They must look like clean, simple CAD straight lines only.
+9. PRESENTATION: Clean, professional commercial property brochure vector floor plan (as seen in Edificio NIRA and NUBA Gardens dossiers).` : '';
+
+  // DIRECTIVAS ESTRICTAS PARA ESTILOS PROMOTORES PRYCONSA Y METROVACESA
+  const isPryconsaStyle = config.interiorStyle === 'estilo_pryconsa' || config.colorPalette === 'pryconsa_roble_teja';
+  const pryconsaBrochureDirective = isPryconsaStyle ? `CRITICAL MANDATE — ESTILO PRYCONSA COMMERCIAL BROCHURE GRAPHICS (ESTILO PRYCONSA RESIDENCIAL SANTA VICTORIA / CAMPUS):
+1. STRUCTURAL WALLS: All exterior perimeter walls and interior partitions MUST be rendered in solid dark graphite/anthracite (#4A4D52) with crisp, razor-sharp straight vector boundaries.
+2. LIVING ROOM, BEDROOMS & CORRIDORS: Warm light blonde natural oak laminate flooring rendered with clear, delicate, continuous VERTICAL PLANK LINES (#F2EAD8) running longitudinally across each room. If the kitchen is open-plan / integrated with the living room, this exact same vertical oak flooring continues seamlessly across the kitchen area.
+3. BATHROOMS: Medium neutral cement-grey ceramic tiles (#8E9298) with solid clean white sanitary fixtures and bathtub/shower tray.
+4. TERRACE: Warm dusky terracotta/brick tile grid or reddish-wood outdoor decking (#B88D88).
+5. WARDROBES: Built-in closets with a single central longitudinal bar and hanging clothes represented STRICTLY AS SIMPLE STRAIGHT PARALLEL LINES (| | | | | |), zero triangles, zero hooks.
+6. FURNITURE: Minimalist crisp white 2D vector silhouettes with thin dark outlines.` : '';
+
+  const isMetrovacesaStyle = config.interiorStyle === 'estilo_metrovacesa' || config.colorPalette === 'metrovacesa_azul_pastel';
+  const metrovacesaBrochureDirective = isMetrovacesaStyle ? `CRITICAL MANDATE — ESTILO METROVACESA COMMERCIAL BROCHURE GRAPHICS (ESTILO METROVACESA ALYSSA / MESENA 80):
+1. STRUCTURAL WALLS: All structural exterior and interior partition walls MUST be rendered in solid dark slate grey (#484C51) with clean, sharp edges.
+2. DRY ZONES FLOOR (LIVING ROOM, BEDROOMS, VESTIBULE, HALLWAYS): Continuous, smooth, seamless light alabaster / off-white floor (#F4F5F7) without joints, clean and uniform.
+3. WET ZONES SIGNATURE ACCENT TONE (SELLO DISTINTIVO METROVACESA): In closed kitchens (only if fully separated by walls from the salon), laundry/tendedero, and ALL bathrooms, render floor in soft pastel periwinkle blue (#D0D7EC / #CBD4EE). CRITICAL EXCEPTION: If the kitchen is open-plan or integrated into the living room (salón-cocina), it MUST have the EXACT SAME alabaster floor as the living room, with NO blue wash dividing the open living space.
+4. FURNITURE: Pristine white 2D vector shapes with thin crisp dark contour lines.
+5. DOORS: Thin 2D CAD radial 90-degree arc swing lines.
+6. WARDROBES: Simple straight parallel lines for clothes hanging rail, strictly no triangular hangers.` : '';
+
   if (is2D) {
     return [
       `Clean top-down 2D architectural presentation floor plan rendered strictly from the reference blueprint layout.`,
       `Zero perspective distortion, completely flat 2D graphic catalog floor plan with furniture symbols placed in top view.`,
+      vectorBrochureDirective,
+      pryconsaBrochureDirective,
+      metrovacesaBrochureDirective,
       strictFidelityMandate,
       furnitureMandate,
       strictSinglePlanMandate,
@@ -156,6 +229,7 @@ DO NOT displace, duplicate, or invent a different furniture layout.`
       `Flooring living & bedrooms: ${selectedLivingFloor.label}.`,
       `Kitchen flooring: ${kitchenFloorPrompt}.`,
       `Kitchen countertop: ${selectedCountertop.promptKeyword}.`,
+      openKitchenUnifiedFlooringDirective,
       kitchenMinimalistRule,
       `Bathrooms flooring: ${selectedBathGres60.promptKeyword}.`,
       `${showerTrayRule}`,
@@ -221,7 +295,7 @@ DO NOT displace, duplicate, or invent a different furniture layout.`
     `Terrace flooring: ${selectedTerraceFloor.promptKeyword}.`,
     `Windows: ${selectedWindowType.promptKeyword} with ${selectedWindowFinish.promptKeyword}.`,
     `Doors: ${selectedDoor.promptKeyword}.`,
-    config.cameraAngle === 'cenital_90' ? `Built-in wardrobes (armarios empotrados): top-down open cut showing central longitudinal hanging rod with clothing hangers flush with walls.` : '',
+    config.cameraAngle === 'cenital_90' ? `Built-in wardrobes (armarios empotrados): top-down open cut showing central longitudinal hanging rod with simple straight parallel lines representing hung clothes flush with walls (no triangular hangers).` : '',
     `Color palette: ${selectedPalette.promptKeyword}.`,
     `Lighting: warm soft natural daylight streaming through exterior windows with gentle ambient occlusion.`,
     cleanedExtraDetails ? `Client details: ${cleanedExtraDetails}.` : '',
@@ -357,7 +431,8 @@ export function buildTargetedCorrectionPrompt(
     `Seamlessly integrate the requested change into the interior style (${config.interiorStyle || 'contemporary'}) with high archviz realism.`,
     `KITCHEN STANDARD: In all kitchens, strictly ensure ONLY the ceramic cooktop (vitrocerámica) and the sink (fregadero) are visible, and the rest is strictly bare, clean countertop with zero other appliances, zero refrigerators, and zero clutter.`,
     `SURFACE FINISHES: All room floors are seamless, continuous, pristine surfaces with furniture only. No typography or printed labels anywhere on the floor surfaces.`,
-    `CAMERA & CANVAS OCCUPANCY: Maintain the exact same close-up architectural framing where the floor plan occupies at least 75% to 85% of the frame.`,
+    `CAMERA & CANVAS OCCUPANCY: Ensure the entire floor plan fits comfortably within the frame with generous, clean white margins around all perimeter walls, ensuring no walls, rooms, or furniture touch or spill outside the image borders.`,
+    `MANDATORY ZERO-CROPPING RULE: Never crop or cut off any room, bed, desk, or perimeter wall.`,
     `Photorealistic archviz quality, crisp geometry, clean textures, Unreal Engine 5 rendering fidelity.`
   ]
     .filter(Boolean)
