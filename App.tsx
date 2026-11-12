@@ -43,7 +43,7 @@ import { BatchUploadModal } from './components/BatchUploadModal';
 import { PromotionPlansGalleryModal } from './components/PromotionPlansGalleryModal';
 import { isSupabaseConfigured } from './services/supabaseClient';
 
-import { safeDownloadFile, cleanBase64Data } from './services/downloadHelper';
+import { safeDownloadFile, cleanBase64Data, downloadJsonConfig } from './services/downloadHelper';
 import { analyzeBlueprintRooms } from './services/planAnalyzer';
 import { sortRoomMarkers } from './services/roomSorter';
 import { eraseTextAtCoordinate } from './services/planTextEraser';
@@ -1854,6 +1854,12 @@ function App() {
               onApplyPreset={handleApplyPreset}
               onSavePreset={(name) => handleSavePreset(name, config)}
               onDeletePreset={handleDeletePreset}
+              onImportPresetJson={handleImportPresetJson}
+              onExportCurrentJson={() => {
+                downloadJsonConfig(config, `${(config.interiorStyle || 'estilo').toLowerCase()}_config.json`);
+                setGenerationSuccessMessage('Configuración de estilos descargada en .json');
+                setTimeout(() => setGenerationSuccessMessage(null), 3000);
+              }}
               onApplyChangesInstant={() => {
                 setGenerationSuccessMessage('Estilo de renderizado actualizado');
                 setTimeout(() => setGenerationSuccessMessage(null), 3000);
