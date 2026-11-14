@@ -1,4 +1,14 @@
 import React from 'react';
+import {
+  FileImage,
+  MapPin,
+  Palette,
+  Layers,
+  Wand2,
+  FileText,
+  type LucideIcon
+} from 'lucide-react';
+import { cn } from '../ui/primitives';
 
 export type ActiveSidebarTab = 'plano' | 'estancias' | 'estilo' | 'calidades' | 'amueblar' | 'ficha';
 
@@ -9,55 +19,58 @@ interface LeftRailProps {
   changesCount: number;
 }
 
-export function LeftRail({
-  activeTab,
-  onSelectTab,
-  roomCount,
-  changesCount
-}: LeftRailProps) {
+export function LeftRail({ activeTab, onSelectTab, roomCount, changesCount }: LeftRailProps) {
   const items: {
     id: ActiveSidebarTab;
     label: string;
-    icon: string;
+    icon: LucideIcon;
     badge?: number;
   }[] = [
-    { id: 'plano', label: 'Plano', icon: 'description' },
-    { id: 'estancias', label: 'Estancias', icon: 'location_on', badge: roomCount > 0 ? roomCount : undefined },
-    { id: 'estilo', label: 'Estilo', icon: 'palette' },
-    { id: 'calidades', label: 'Calidades', icon: 'layers' },
-    { id: 'amueblar', label: 'Amueblar', icon: 'auto_awesome', badge: changesCount > 0 ? changesCount : undefined },
-    { id: 'ficha', label: 'Ficha', icon: 'article' },
+    { id: 'plano', label: 'Plano', icon: FileImage },
+    { id: 'estancias', label: 'Estancias', icon: MapPin, badge: roomCount > 0 ? roomCount : undefined },
+    { id: 'estilo', label: 'Estilo', icon: Palette },
+    { id: 'calidades', label: 'Calidades', icon: Layers },
+    { id: 'amueblar', label: 'Amueblar', icon: Wand2, badge: changesCount > 0 ? changesCount : undefined },
+    { id: 'ficha', label: 'Ficha', icon: FileText }
   ];
 
   return (
-    <nav className="w-[72px] shrink-0 bg-white border-r border-slate-200 flex flex-col items-center py-3 select-none z-20">
-      <div className="flex flex-col gap-2 w-full px-2">
+    <nav className="w-[72px] shrink-0 bg-paper border-r border-rule flex flex-col items-center py-3 select-none z-20">
+      <div className="flex flex-col gap-1 w-full px-2">
         {items.map((item) => {
           const isActive = activeTab === item.id;
+          const Icon = item.icon;
           return (
             <button
               key={item.id}
               onClick={() => onSelectTab(item.id)}
-              className={`relative flex flex-col items-center justify-center py-2.5 px-1 rounded-xl transition-all duration-150 cursor-pointer group ${
-                isActive
-                  ? 'bg-blue-50 text-blue-700 font-semibold ring-1 ring-blue-500/20 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-              }`}
+              className={cn(
+                'relative flex flex-col items-center justify-center gap-1 py-2.5 px-1 rounded-lg transition-colors group',
+                isActive ? 'text-prussian' : 'text-graphite hover:text-ink hover:bg-ink/[0.05]'
+              )}
               title={item.label}
             >
-              {/* Badge contador */}
-              {item.badge !== undefined && (
-                <span className="absolute top-1.5 right-2 min-w-[17px] h-[17px] px-1 bg-slate-900 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none shadow-xs">
-                  {item.badge}
-                </span>
-              )}
-
-              <span className={`material-symbols-outlined text-[23px] transition-transform group-hover:scale-105 ${isActive ? 'text-blue-700' : 'text-slate-500'}`}>
-                {item.icon}
+              {/* Marca de sección activa */}
+              <span
+                className={cn(
+                  'absolute left-0 top-1/2 -translate-y-1/2 h-8 w-0.5 rounded-full bg-prussian transition-opacity',
+                  isActive ? 'opacity-100' : 'opacity-0'
+                )}
+              />
+              <span
+                className={cn(
+                  'relative flex size-9 items-center justify-center rounded-lg transition-colors',
+                  isActive && 'bg-prussian-soft'
+                )}
+              >
+                <Icon className="size-[18px]" />
+                {item.badge !== undefined && (
+                  <span className="lettering tnum absolute -top-1 -right-1.5 min-w-4 h-4 px-1 bg-ink text-white text-[10px] font-semibold rounded-full flex items-center justify-center leading-none">
+                    {item.badge}
+                  </span>
+                )}
               </span>
-              <span className="text-[11px] mt-1 font-medium tracking-tight">
-                {item.label}
-              </span>
+              <span className="lettering text-[11px] font-semibold tracking-tight">{item.label}</span>
             </button>
           );
         })}

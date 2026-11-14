@@ -1,0 +1,169 @@
+@import 'tailwindcss';
+
+/*
+ * ---------------------------------------------------------------------------
+ * Sistema de diseño "mesa de delineación" (importado de Planos 3D Studio).
+ *
+ * Papel vegetal frío, tinta azul-negra, acento azul de Prusia (cianotipo) y
+ * lápiz rojo para anotaciones. Tipografía Archivo con su eje de anchura:
+ * condensada para rótulos y cifras, normal para el texto corrido.
+ *
+ * Los tokens y clases "heredados" del repositorio original (paleta `brand`,
+ * fuentes Barlow, Material Symbols, blueprint-grid…) se conservan debajo para
+ * que los componentes que todavía no se han restilado sigan funcionando. Se
+ * irán retirando a medida que cada componente adopte el sistema nuevo.
+ * ---------------------------------------------------------------------------
+ */
+@theme {
+  /* --- Sistema nuevo --- */
+  --font-sans: 'Archivo Variable', 'Archivo', 'Barlow Semi Condensed', ui-sans-serif, system-ui, sans-serif;
+  --color-vellum: #e8ebe6;
+  --color-sheet: #f6f7f4;
+  --color-paper: #fdfdfb;
+  --color-ink: #18222f;
+  --color-graphite: #5d6773;
+  --color-faint: #8a939d;
+  --color-rule: #cdd3cc;
+  --color-rule-soft: #dde2dc;
+  --color-prussian: #1f3fae;
+  --color-prussian-soft: #e3e8f8;
+  --color-pencil: #d23a2a;
+  --color-pencil-soft: #fbe6e3;
+  --color-ok: #2f7a4d;
+  --radius-panel: 10px;
+
+  /* --- Heredado del repositorio original (no romper lo existente) --- */
+  --font-condensed: 'Barlow Semi Condensed', 'Roboto Condensed', sans-serif;
+  --font-barlow: 'Barlow', sans-serif;
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+  --color-brand-950: #0f172a;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    background: var(--color-vellum);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-variation-settings: 'wdth' 100;
+    letter-spacing: 0.01em;
+    -webkit-font-smoothing: antialiased;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-prussian);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  ::selection {
+    background: var(--color-prussian);
+    color: white;
+  }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
+
+@layer utilities {
+  /* Rotulación técnica: Archivo condensada. */
+  .lettering {
+    font-variation-settings: 'wdth' 72;
+    letter-spacing: 0.01em;
+  }
+  .lettering-wide {
+    font-variation-settings: 'wdth' 118;
+  }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-rule) transparent;
+  }
+  /* Tablero con cuadrícula milimetrada: el lienzo es la mesa de dibujo. */
+  .drafting-grid {
+    background-color: #eef0eb;
+    background-image:
+      linear-gradient(rgba(31, 63, 174, 0.09) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(31, 63, 174, 0.09) 1px, transparent 1px),
+      linear-gradient(rgba(31, 63, 174, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(31, 63, 174, 0.04) 1px, transparent 1px);
+    background-size:
+      50px 50px,
+      50px 50px,
+      10px 10px,
+      10px 10px;
+  }
+  .checker {
+    background-image: conic-gradient(#eee 25%, #fff 0 50%, #eee 0 75%, #fff 0);
+    background-size: 14px 14px;
+  }
+
+  /* --- Heredado del repositorio original --- */
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .font-serif {
+    font-family: 'Newsreader', Georgia, serif;
+  }
+  .font-schedule {
+    font-family: 'Barlow Semi Condensed', 'Roboto Condensed', 'Barlow Condensed', sans-serif;
+    letter-spacing: 0.01em;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .blueprint-grid {
+    background-color: #f6f7f9;
+    background-image:
+      linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+}
+
+@keyframes scan {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+.scanline {
+  animation: scan 2.4s cubic-bezier(0.5, 0, 0.5, 1) infinite alternate;
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+.pop {
+  animation: pop 160ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scanline,
+  .pop {
+    animation: none;
+  }
+}
