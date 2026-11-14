@@ -9,18 +9,22 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource-variable/archivo": "^5.1.1",
     "@supabase/supabase-js": "^2.118.0",
+    "clsx": "^2.1.1",
     "jspdf": "^4.2.1",
+    "lucide-react": "^0.456.0",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@oxc-parser/binding-win32-x64-msvc": "^0.155.0",
+    "@tailwindcss/vite": "^4.1.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
     "react-doctor": "^0.0.42",
+    "tailwindcss": "^4.1.5",
     "typescript": "^5.7.2",
     "vite": "^6.0.7"
   }
