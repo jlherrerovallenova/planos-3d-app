@@ -98,7 +98,7 @@ STRICT MANDATE: In kitchens, ONLY the vitrocerámica and the fregadero are visib
    - Every room must appear EXACTLY ONCE in the entire image, unified inside the continuous perimeter of the apartment.
 3. Center the single apartment floor plan cleanly on a solid neutral white background.`;
 
-  // CLÁUSULA CRÍTICA: IDENTIFICACIÓN Y MOBILIARIO DE ESTANCIAS (SIN TEXTO)
+  // CLÁUSULA CRÍTICA: IDENTIFICACIÓN Y MOBILIARIO DE ESTANCIAS (CON ESCALA MÉTRICA PROPORCIONAL Y SIN TEXTO)
   let roomsIdentificationClause = '';
   if (config.roomMarkers && config.roomMarkers.length > 0) {
     const roomDescriptions = config.roomMarkers.map((marker, idx) => {
@@ -107,14 +107,32 @@ STRICT MANDATE: In kitchens, ONLY the vitrocerámica and the fregadero are visib
       const vPos = marker.y < 35 ? 'north' : marker.y > 65 ? 'south' : 'middle';
       const specificNotes = marker.notes ? ` with ${marker.notes}` : '';
       const isKitchen = marker.category === 'cocina' || marker.name.toLowerCase().includes('cocina');
+      const areaDesc = marker.areaSqMeters && marker.areaSqMeters > 0
+        ? ` (${marker.areaSqMeters.toFixed(2)} m² useful area)`
+        : '';
+      const scaleGuideline = marker.areaSqMeters && marker.areaSqMeters > 0
+        ? marker.category === 'dormitorio_principal' || marker.areaSqMeters >= 11
+          ? ' fitted with queen/king size bed and nightstands with 80cm circulation clearance'
+          : marker.category === 'dormitorio_secundario'
+            ? ' fitted with proportional single/compact bed, study desk and wardrobe'
+            : marker.category === 'salon_comedor' && marker.areaSqMeters >= 22
+              ? ' with generous modular sofa, coffee table, entertainment console, and 6-person dining table'
+              : ''
+        : '';
       const kitchenConstraint = isKitchen
         ? ' (strictly bare clean countertop with solely induction cooktop and sink visible)'
         : '';
-      return `Space #${idx + 1} (${hPos}-${vPos}): layout as ${cat?.promptDesc || 'functional room'}${specificNotes}${kitchenConstraint}.`;
+      return `Space #${idx + 1} "${marker.name}"${areaDesc} (${hPos}-${vPos}): layout as ${cat?.promptDesc || 'functional room'}${scaleGuideline}${specificNotes}${kitchenConstraint}.`;
     }).join(' ');
-    roomsIdentificationClause = `Interior furnishing layout: ${roomDescriptions} All floors are clean, continuous architectural materials with furniture only.`;
+    roomsIdentificationClause = `Interior furnishing layout: ${roomDescriptions} All furniture must be strictly scaled in realistic ergonomic proportion to each room area (leaving clear 70-80cm circulation paths around beds, doors, and tables). All floors are clean, continuous architectural materials with furniture only.`;
   }
   const is2D = config.cameraAngle === 'plan_2d_furnished';
+
+  // DIRECTIVA CRÍTICA: PROYECCIÓN ORTOGONAL 2D PLANA ESTRICTA (0 GRADOS, SIN PERSPECTIVA)
+  const strictOrthographic2dDirective = `CRITICAL MANDATE — STRICT 0-DEGREE FLAT ORTHOGRAPHIC 2D PROJECTION:
+1. PURE TOP-DOWN CAD BLUEPRINT: The render MUST BE a completely flat, 2D architectural presentation floor plan with exactly 0 degrees of perspective tilt, zero vanishing lines, zero angled shadows, and zero depth extrusion on furniture or walls.
+2. FLAT FURNITURE SYMBOLS: Every piece of furniture (beds, sofas, tables, chairs, sinks, sanitarios) must be rendered as clean, flat, top-down 2D plan symbols as seen in high-end real estate sales dossiers. DO NOT draw 3D perspective volumes or tilted furniture cushions.
+3. CRISP ORTHOGONAL WALL EDGES: All structural walls and partitions must have straight, perpendicular, razor-sharp edges without soft gradients or angled wall tops.`;
 
   // DIRECTIVA ESTRICTA DE ENCUADRE Y PROPORCIÓN ARQUITECTÓNICA (PROTECCIÓN TOTAL CONTRA RECORTES)
   const strictFramingAndOccupancyDirective = `CRITICAL ARCHITECTURAL CAMERA FRAMING & MARGINS (ZERO-CROPPING MANDATE — EL PLANO NUNCA DEBE SALIRSE DE LA IMAGEN):
@@ -213,6 +231,7 @@ DO NOT displace, duplicate, or invent a different furniture layout.`
     return [
       `Clean top-down 2D architectural presentation floor plan rendered strictly from the reference blueprint layout.`,
       `Zero perspective distortion, completely flat 2D graphic catalog floor plan with furniture symbols placed in top view.`,
+      strictOrthographic2dDirective,
       vectorBrochureDirective,
       pryconsaBrochureDirective,
       metrovacesaBrochureDirective,

@@ -10,7 +10,7 @@ import {
   PromotionPlan,
   FurnitureItem
 } from './types';
-import { generateDefaultFurnitureForRooms } from './services/furnitureManager';
+import { generateDefaultFurnitureForRooms, compositePlanWithFurniture } from './services/furnitureManager';
 import {
   DEFAULT_PRESETS,
   SAMPLE_PLANS
@@ -1122,16 +1122,33 @@ function App() {
       // Generar prompt determinista sin variaciones ni timestamps a menos que lockSeed sea false
       const promptToSend = appendPromptVariation(currentPrompt, config.lockSeed === false);
 
+      // Si el usuario configuró muebles interactivos, componer el plano guía amueblado para máxima fidelidad
+      let referenceImgBase64 = currentImg.base64;
+      let referenceImgMime = currentImg.mimeType || 'image/jpeg';
+      if (furnitureItems && furnitureItems.length > 0 && currentImg.base64) {
+        try {
+          const { cleanBase64, mimeType } = cleanBase64Data(currentImg.base64);
+          const rawDataUrl = `data:${mimeType || 'image/png'};base64,${cleanBase64}`;
+          const composited = await compositePlanWithFurniture(rawDataUrl, furnitureItems);
+          if (composited && composited.base64) {
+            referenceImgBase64 = composited.base64;
+            referenceImgMime = composited.mimeType;
+          }
+        } catch (compErr) {
+          console.warn('Advertencia componiendo muebles sobre plano base:', compErr);
+        }
+      }
+
       for (const model of candidateModels) {
         try {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
           const parts: any[] = [];
 
-          if (currentImg && currentImg.base64) {
-            const { cleanBase64, mimeType } = cleanBase64Data(currentImg.base64);
+          if (referenceImgBase64) {
+            const { cleanBase64, mimeType } = cleanBase64Data(referenceImgBase64);
             parts.push({
               inlineData: {
-                mimeType: currentImg.mimeType || mimeType || 'image/jpeg',
+                mimeType: referenceImgMime || mimeType || 'image/jpeg',
                 data: cleanBase64
               }
             });
@@ -1143,13 +1160,14 @@ function App() {
             temperature: number;
             seed?: number;
             responseModalities?: string[];
-            imageConfig?: { aspectRatio?: string };
+            imageConfig?: { aspectRatio?: string; imageSize?: string };
           } = {
             temperature: typeof config.generationTemperature === 'number' ? config.generationTemperature : 0.15,
             seed: effectiveSeed,
             responseModalities: ['TEXT', 'IMAGE'],
             imageConfig: {
-              aspectRatio: config.aspectRatio || '16:9'
+              aspectRatio: config.aspectRatio || '16:9',
+              imageSize: '2K'
             }
           };
 
@@ -1411,13 +1429,14 @@ function App() {
             temperature: number;
             seed?: number;
             responseModalities?: string[];
-            imageConfig?: { aspectRatio?: string };
+            imageConfig?: { aspectRatio?: string; imageSize?: string };
           } = {
             temperature: typeof config.generationTemperature === 'number' ? config.generationTemperature : 0.15,
             seed: effectiveSeed,
             responseModalities: ['TEXT', 'IMAGE'],
             imageConfig: {
-              aspectRatio: config.aspectRatio || '16:9'
+              aspectRatio: config.aspectRatio || '16:9',
+              imageSize: '2K'
             }
           };
           const response = await fetchGeminiWithBackoff(endpoint, {

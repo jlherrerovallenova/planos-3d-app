@@ -581,21 +581,16 @@ export function ClaudeCanvas({
             )}
           </div>
         ) : (
-          /* Estado Vacío: Cargar Plano */
-          <div
-            onClick={onUploadFile}
-            className="w-[480px] h-[340px] bg-white border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center p-6 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50/20 transition shadow-sm group"
-          >
-            <div className="w-16 h-16 rounded-full bg-slate-100 group-hover:bg-blue-100 flex items-center justify-center transition mb-3">
-              <span className="material-symbols-outlined text-[32px] text-slate-400 group-hover:text-blue-600">
-                cloud_upload
-              </span>
+          /* Estado Vacío Limpio: Sin zona duplicada de carga en el centro */
+          <div className="flex flex-col items-center justify-center text-center p-10 select-none pointer-events-none opacity-60">
+            <div className="w-16 h-16 rounded-2xl bg-white/90 border border-slate-200 shadow-sm flex items-center justify-center mb-3 text-slate-400">
+              <span className="material-symbols-outlined text-[32px]">architecture</span>
             </div>
-            <p className="text-sm font-bold text-slate-800">
-              Carga un plano arquitectónico
+            <p className="text-sm font-bold text-slate-700">
+              Lienzo arquitectónico listo
             </p>
             <p className="text-xs text-slate-400 mt-1 max-w-[280px]">
-              Arrastra un archivo aquí o haz clic para subirlo en formato PDF, PNG o JPG
+              Selecciona o sube un plano desde el panel lateral izquierdo para comenzar
             </p>
           </div>
         )}

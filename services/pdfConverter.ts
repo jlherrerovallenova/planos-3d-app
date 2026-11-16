@@ -14,15 +14,16 @@ export interface PdfConversionResult {
 }
 
 /**
- * Convierte una página de un archivo PDF en una imagen PNG en alta resolución.
+ * Convierte una página de un archivo PDF en una imagen PNG en alta resolución arquitectónica.
+ * Calcula una escala adaptativa para que el lado mayor siempre alcance resolución óptima (aprox. 2800px).
  * @param file Archivo PDF o ArrayBuffer
  * @param pageNumber Número de página (1-indexado, por defecto 1)
- * @param scale Escala de renderizado (por defecto 2.5 para planos arquitectónicos nítidos)
+ * @param scale Escala personalizada opcional (si se omite, se calcula dinámicamente)
  */
 export async function convertPdfToImage(
   file: File | ArrayBuffer,
   pageNumber: number = 1,
-  scale: number = 2.5
+  scale?: number
 ): Promise<PdfConversionResult> {
   const arrayBuffer = file instanceof File ? await file.arrayBuffer() : file;
   const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
@@ -31,7 +32,17 @@ export async function convertPdfToImage(
   const validPageNum = Math.max(1, Math.min(pageNumber, pdfDoc.numPages));
   const page = await pdfDoc.getPage(validPageNum);
 
-  const viewport = page.getViewport({ scale });
+  // Escala adaptativa para planos arquitectónicos de alta fidelidad:
+  // Objetivo: lado mayor ~2800px (calidad de imprenta / delineación CAD nítida)
+  let effectiveScale = scale;
+  if (!effectiveScale || effectiveScale <= 0) {
+    const baseViewport = page.getViewport({ scale: 1.0 });
+    const maxDim = Math.max(baseViewport.width, baseViewport.height);
+    const targetMaxDim = 2800;
+    effectiveScale = Math.max(1.5, Math.min(4.5, targetMaxDim / maxDim));
+  }
+
+  const viewport = page.getViewport({ scale: effectiveScale });
   const canvas = document.createElement('canvas');
   canvas.width = viewport.width;
   canvas.height = viewport.height;

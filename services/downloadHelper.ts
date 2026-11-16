@@ -211,8 +211,8 @@ async function generateBrochureCanvas({
   agencyPhone = '983 34 21 32',
   unitIdentifier = 'Portal 1 · 1º A',
   customTotalUsefulArea,
-  width = 2480,
-  height = 1754
+  width = 3508,
+  height = 2480
 }: {
   imageSrc: string;
   projectTitle: string;
@@ -318,13 +318,13 @@ async function generateBrochureCanvas({
         const leftColX = headerMarginX;
         const rightColX = leftColX + leftColW + colGap;
 
-        // 3.1 Tarjeta Izquierda para el Plano (#F8F6F1)
-        ctx.fillStyle = '#F8F6F1';
+        // 3.1 Tarjeta Izquierda para el Plano (Fondo Blanco Puro y Marco Azul Corporativo)
+        ctx.fillStyle = '#FFFFFF';
         drawCanvasRoundedRect(ctx, leftColX, bodyY, leftColW, bodyH, 4 * scale);
         ctx.fill();
 
-        ctx.strokeStyle = '#E7E5E4';
-        ctx.lineWidth = 1.2 * scale;
+        ctx.strokeStyle = '#102A45'; // Marco azul corporativo
+        ctx.lineWidth = 1.8 * scale;
         drawCanvasRoundedRect(ctx, leftColX, bodyY, leftColW, bodyH, 4 * scale);
         ctx.stroke();
 
@@ -389,7 +389,7 @@ async function generateBrochureCanvas({
 
         // Línea divisoria interior y pie de la tarjeta del plano
         const planCardFooterY = bodyY + bodyH - planFooterH;
-        ctx.strokeStyle = '#E7E5E4';
+        ctx.strokeStyle = '#E2E8F0';
         ctx.lineWidth = 1 * scale;
         ctx.beginPath();
         ctx.moveTo(leftColX + 24 * scale, planCardFooterY);
@@ -726,8 +726,8 @@ export async function exportCommercialBrochureImage({
     agencyPhone,
     unitIdentifier,
     customTotalUsefulArea,
-    width: 2480,
-    height: 1754
+    width: 3508,
+    height: 2480
   });
 
   if (!canvas) return false;
@@ -844,11 +844,11 @@ export async function exportCommercialBrochurePDF({
         const leftColX = margin;
         const rightColX = leftColX + leftColW + colGap;
 
-        // 3.1 Caja izquierda con fondo arena
-        doc.setFillColor(248, 246, 241); // #F8F6F1
+        // 3.1 Caja izquierda con fondo blanco puro y marco azul corporativo
+        doc.setFillColor(255, 255, 255); // Fondo blanco puro
         doc.roundedRect(leftColX, contentY, leftColW, contentH, 0.8, 0.8, 'F');
-        doc.setDrawColor(231, 229, 228); // #E7E5E4
-        doc.setLineWidth(0.2);
+        doc.setDrawColor(16, 42, 69); // #102A45 Marco Azul Corporativo
+        doc.setLineWidth(0.4);
         doc.roundedRect(leftColX, contentY, leftColW, contentH, 0.8, 0.8, 'S');
 
         // Imagen del plano centrada
@@ -902,7 +902,7 @@ export async function exportCommercialBrochurePDF({
 
         // Pie interior de la caja del plano
         const planCardFooterY = contentY + contentH - planFooterH;
-        doc.setDrawColor(231, 229, 228);
+        doc.setDrawColor(226, 232, 240); // #E2E8F0
         doc.setLineWidth(0.2);
         doc.line(leftColX + 4, planCardFooterY, leftColX + leftColW - 4, planCardFooterY);
 

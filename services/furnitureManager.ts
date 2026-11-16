@@ -268,3 +268,161 @@ export function generateDefaultFurnitureForRooms(rooms: RoomMarker[]): Furniture
 
   return items;
 }
+
+/**
+ * Superpone los bloques de mobiliario arquitectónico 2D interactivos sobre el plano original o limpio,
+ * generando una imagen sintetizada para que Gemini levante el render exactamente con la distribución configurada.
+ */
+export async function compositePlanWithFurniture(
+  imageSrc: string,
+  furnitureItems: FurnitureItem[]
+): Promise<{ base64: string; mimeType: string }> {
+  return new Promise((resolve) => {
+    if (!imageSrc || !furnitureItems || furnitureItems.length === 0) {
+      const match = imageSrc.match(/^data:([^;]+);base64,(.+)$/);
+      if (match) {
+        return resolve({ mimeType: match[1], base64: match[2] });
+      }
+      return resolve({ mimeType: 'image/png', base64: imageSrc });
+    }
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          return resolve({ mimeType: 'image/png', base64: imageSrc });
+        }
+
+        // 1. Dibujar imagen del plano base
+        ctx.drawImage(img, 0, 0, w, h);
+
+        // 2. Escala arquitectónica estimada: asumimos ancho medio de vivienda = 13.5 metros
+        const pixelsPerMeter = Math.max(18, (w * 0.9) / 13.5);
+
+        // 3. Dibujar cada elemento de mobiliario con simbología CAD 2D limpia
+        furnitureItems.forEach((item) => {
+          const itemPxX = (item.x / 100) * w;
+          const itemPxY = (item.y / 100) * h;
+          const itemW = Math.max(14, item.widthMeters * pixelsPerMeter);
+          const itemD = Math.max(12, item.depthMeters * pixelsPerMeter);
+
+          ctx.save();
+          ctx.translate(itemPxX, itemPxY);
+          ctx.rotate((item.rotation * Math.PI) / 180);
+
+          // Fondo semitransparente champán/blanco para tapar sutilmente el fondo
+          ctx.fillStyle = '#FAF8F5';
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = Math.max(1.5, Math.min(3.5, w * 0.0015));
+
+          const halfW = itemW / 2;
+          const halfD = itemD / 2;
+
+          ctx.beginPath();
+          ctx.rect(-halfW, -halfD, itemW, itemD);
+          ctx.fill();
+          ctx.stroke();
+
+          // Detalles específicos según tipología
+          if (item.type === 'sofa' || item.type === 'corner_sofa') {
+            // Respaldo
+            ctx.fillStyle = '#64748B';
+            ctx.fillRect(-halfW, -halfD, itemW, itemD * 0.28);
+            // Cojines
+            ctx.strokeStyle = '#94A3B8';
+            ctx.lineWidth = 1;
+            const cushionCount = item.widthMeters > 2 ? 3 : 2;
+            const cushionW = itemW / cushionCount;
+            for (let i = 1; i < cushionCount; i++) {
+              ctx.beginPath();
+              ctx.moveTo(-halfW + i * cushionW, -halfD + itemD * 0.28);
+              ctx.lineTo(-halfW + i * cushionW, halfD);
+              ctx.stroke();
+            }
+          } else if (item.type === 'bed_double' || item.type === 'bed_single') {
+            // Cabecero
+            ctx.fillStyle = '#78350F';
+            ctx.fillRect(-halfW, -halfD, itemW, itemD * 0.12);
+            // Almohadas
+            ctx.fillStyle = '#FFFFFF';
+            ctx.strokeStyle = '#D97706';
+            ctx.lineWidth = 1;
+            const pillowW = item.type === 'bed_double' ? itemW * 0.42 : itemW * 0.7;
+            const pillowH = itemD * 0.2;
+            if (item.type === 'bed_double') {
+              ctx.fillRect(-halfW + itemW * 0.05, -halfD + itemD * 0.15, pillowW, pillowH);
+              ctx.strokeRect(-halfW + itemW * 0.05, -halfD + itemD * 0.15, pillowW, pillowH);
+              ctx.fillRect(halfW - itemW * 0.05 - pillowW, -halfD + itemD * 0.15, pillowW, pillowH);
+              ctx.strokeRect(halfW - itemW * 0.05 - pillowW, -halfD + itemD * 0.15, pillowW, pillowH);
+            } else {
+              ctx.fillRect(-pillowW / 2, -halfD + itemD * 0.15, pillowW, pillowH);
+              ctx.strokeRect(-pillowW / 2, -halfD + itemD * 0.15, pillowW, pillowH);
+            }
+            // Sábana doblada
+            ctx.strokeStyle = '#B45309';
+            ctx.setLineDash([4, 3]);
+            ctx.beginPath();
+            ctx.moveTo(-halfW, halfD * 0.2);
+            ctx.lineTo(halfW, halfD * 0.2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          } else if (item.type === 'dining_table') {
+            // Sillas esquemáticas
+            ctx.fillStyle = '#CBD5E1';
+            const chairW = itemW * 0.28;
+            const chairD = itemD * 0.25;
+            // Silla arriba y abajo
+            ctx.fillRect(-chairW / 2, -halfD - chairD, chairW, chairD);
+            ctx.fillRect(-chairW / 2, halfD, chairW, chairD);
+          } else if (item.type === 'wardrobe') {
+            // Barra de colgar longitudinal y perchas como líneas CAD
+            ctx.strokeStyle = '#64748B';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(-halfW + 4, 0);
+            ctx.lineTo(halfW - 4, 0);
+            ctx.stroke();
+            const step = Math.max(6, itemW / 12);
+            for (let px = -halfW + 8; px < halfW - 8; px += step) {
+              ctx.beginPath();
+              ctx.moveTo(px, -halfD * 0.4);
+              ctx.lineTo(px, halfD * 0.4);
+              ctx.stroke();
+            }
+          }
+
+          ctx.restore();
+        });
+
+        const dataUrl = canvas.toDataURL('image/png', 0.98);
+        const parts = dataUrl.split(',');
+        resolve({
+          mimeType: 'image/png',
+          base64: parts[1] || ''
+        });
+      } catch (err) {
+        console.warn('Error al componer muebles sobre el plano:', err);
+        const match = imageSrc.match(/^data:([^;]+);base64,(.+)$/);
+        resolve({
+          mimeType: match ? match[1] : 'image/png',
+          base64: match ? match[2] : imageSrc
+        });
+      }
+    };
+    img.onerror = () => {
+      const match = imageSrc.match(/^data:([^;]+);base64,(.+)$/);
+      resolve({
+        mimeType: match ? match[1] : 'image/png',
+        base64: match ? match[2] : imageSrc
+      });
+    };
+    img.src = imageSrc;
+  });
+}
