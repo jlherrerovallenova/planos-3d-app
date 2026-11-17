@@ -227,10 +227,14 @@ DO NOT displace, duplicate, or invent a different furniture layout.`
 5. DOORS: Thin 2D CAD radial 90-degree arc swing lines.
 6. WARDROBES: Simple straight parallel lines for clothes hanging rail, strictly no triangular hangers.` : '';
 
+  const hasSpecificBrochureStyle = isVectorialStyle || isPryconsaStyle || isMetrovacesaStyle;
+  const strictStyleConsistencyMandate = 'CRITICAL ARCHITECTURAL CONSISTENCY & BRANDING ANCHOR: Exactly replicate the established style palette, line weights, wall fill color, and material finishes across all floor plans of this project. Absolute zero stylistic drift, zero creative reinterpretation, and zero material substitutions between floor plans.';
+
   if (is2D) {
     return [
       `Clean top-down 2D architectural presentation floor plan rendered strictly from the reference blueprint layout.`,
       `Zero perspective distortion, completely flat 2D graphic catalog floor plan with furniture symbols placed in top view.`,
+      strictStyleConsistencyMandate,
       strictOrthographic2dDirective,
       vectorBrochureDirective,
       pryconsaBrochureDirective,
@@ -243,20 +247,20 @@ DO NOT displace, duplicate, or invent a different furniture layout.`
       strictNoTextInRoomsDirective,
       roomsIdentificationClause,
       commercialWardrobes2dDirective,
-      `Interior style: ${selectedStyle.label}.`,
-      `Walls: ${selectedInteriorWall.promptKeyword} on interior walls, ${selectedExteriorWall.promptKeyword} on perimeter exterior walls.`,
-      `Flooring living & bedrooms: ${selectedLivingFloor.label}.`,
-      `Kitchen flooring: ${kitchenFloorPrompt}.`,
+      !hasSpecificBrochureStyle ? `Interior style: ${selectedStyle.label}.` : '',
+      !hasSpecificBrochureStyle ? `Walls: ${selectedInteriorWall.promptKeyword} on interior walls, ${selectedExteriorWall.promptKeyword} on perimeter exterior walls.` : '',
+      !hasSpecificBrochureStyle ? `Flooring living & bedrooms: ${selectedLivingFloor.label}.` : '',
+      !hasSpecificBrochureStyle ? `Kitchen flooring: ${kitchenFloorPrompt}.` : '',
       `Kitchen countertop: ${selectedCountertop.promptKeyword}.`,
       openKitchenUnifiedFlooringDirective,
       kitchenMinimalistRule,
-      `Bathrooms flooring: ${selectedBathGres60.promptKeyword}.`,
+      !hasSpecificBrochureStyle ? `Bathrooms flooring: ${selectedBathGres60.promptKeyword}.` : '',
       `${showerTrayRule}`,
       terraceDirective,
       strictExteriorVoidDirective,
       `Windows: ${selectedWindowType.promptKeyword} in ${selectedWindowFinish.promptKeyword}.`,
       `Doors & wardrobes: ${selectedDoor.promptKeyword}.`,
-      `Color scheme: ${selectedPalette.promptKeyword}.`,
+      !hasSpecificBrochureStyle ? `Color scheme: ${selectedPalette.promptKeyword}.` : '',
       cleanedExtraDetails ? `Extra notes: ${cleanedExtraDetails}.` : '',
       strictNoTablesDirective,
       `High-end architectural presentation graphics with clean, pristine, unbroken floor surfaces and top-view furniture.`
@@ -295,6 +299,7 @@ DO NOT displace, duplicate, or invent a different furniture layout.`
   }
   return [
     `Transform this clean architectural blueprint into an ultra-realistic ${angleDesc}.`,
+    strictStyleConsistencyMandate,
     strictFidelityMandate,
     furnitureMandate,
     strictSinglePlanMandate,
@@ -461,19 +466,9 @@ export function buildTargetedCorrectionPrompt(
 /**
  * Añade una pequeña variación de entropía y token temporal para evitar respuestas cacheadas en Gemini
  */
-export function appendPromptVariation(basePrompt: string, forceEntropy = false): string {
-  if (!forceEntropy) {
-    return basePrompt.trim();
-  }
-  const variations = [
-    '',
-    ' Render with pristine crisp clarity.',
-    ' Ensure distinctive architectural refinement.',
-    ' Focus on razor-sharp geometric alignment.',
-    ' Achieve ultra-clean material textures.'
-  ];
-  const randomSuffix = variations[Math.floor(Math.random() * variations.length)];
-  return `${basePrompt.trim()}${randomSuffix} [ref_${Date.now().toString(36)}]`;
+export function appendPromptVariation(basePrompt: string, _forceEntropy = false): string {
+  // Deterministic prompt output - suppresses random entropy variations and timestamps to guarantee 100% stylistic consistency across successive renders
+  return basePrompt.trim();
 }
 
 

@@ -61,7 +61,7 @@ import {
  * Realiza llamadas a Gemini con reintentos progresivos y retroceso exponencial (Backoff).
  * Protege contra errores temporales 500/503/429 o micro-cortes de red.
  */
-async function fetchGeminiWithBackoff(endpoint: string, payload: any, maxRetries = 3): Promise<Response> {
+async function fetchGeminiWithBackoff(endpoint: string, payload: any, maxRetries = 4): Promise<Response> {
   let attempt = 0;
   let lastResponse: Response | null = null;
   while (attempt < maxRetries) {
@@ -77,7 +77,7 @@ async function fetchGeminiWithBackoff(endpoint: string, payload: any, maxRetries
         return response;
       }
       if (response.status === 500 || response.status === 503 || response.status === 429) {
-        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 6000);
+        const delay = Math.min(1500 * Math.pow(2, attempt - 1), 8000);
         console.warn(`[Gemini API ${response.status}] Reintento ${attempt}/${maxRetries} en ${delay}ms...`);
         await new Promise((res) => setTimeout(res, delay));
         continue;
@@ -85,7 +85,7 @@ async function fetchGeminiWithBackoff(endpoint: string, payload: any, maxRetries
       return response;
     } catch (netErr) {
       if (attempt >= maxRetries) throw netErr;
-      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 6000);
+      const delay = Math.min(1500 * Math.pow(2, attempt - 1), 8000);
       console.warn(`[Error de Red Gemini] Reintento ${attempt}/${maxRetries} en ${delay}ms...`);
       await new Promise((res) => setTimeout(res, delay));
     }
@@ -1096,31 +1096,21 @@ function App() {
         throw new Error('No se encontró VITE_GEMINI_API_KEY en .env.local.');
       }
 
-      // Priorizar el motor de render seleccionado por el usuario en config.renderEngine
+      // Motor de render determinista: para 'auto' o selección fija, evitar saltos erráticos entre familias de modelos
       const chosenEngine = config.renderEngine && config.renderEngine !== 'auto' ? config.renderEngine : null;
-      const defaultSequence = [
-        'gemini-3-pro-image',
-        'gemini-3.1-flash-image',
-        'gemini-2.5-flash-image',
-        'gemini-3-pro-image-preview',
-        'gemini-3.1-flash-image-preview',
-        'gemini-3.1-flash-lite-image'
-      ];
       const candidateModels = chosenEngine
-        ? [chosenEngine, ...defaultSequence.filter((m) => m !== chosenEngine)]
-        : defaultSequence;
+        ? [chosenEngine]
+        : ['gemini-3.1-flash-image', 'gemini-3-pro-image', 'gemini-2.5-flash-image'];
 
       let generatedImage: { base64: string; mimeType: string } | null = null;
       let usedEngineName = '';
       let lastErrorMessage = '';
 
-      // Semilla efectiva: si lockSeed !== false, fijar semilla constante (por defecto 42 si no hay)
-      const effectiveSeed = config.lockSeed !== false
-        ? (typeof config.seed === 'number' && config.seed > 0 ? config.seed : 42)
-        : Math.floor(Math.random() * 1000000) + 1;
+      // Semilla efectiva: fijar semilla constante (42 por defecto) para consistencia absoluta de estilo entre planos
+      const effectiveSeed = typeof config.seed === 'number' && config.seed > 0 ? config.seed : 42;
 
-      // Generar prompt determinista sin variaciones ni timestamps a menos que lockSeed sea false
-      const promptToSend = appendPromptVariation(currentPrompt, config.lockSeed === false);
+      // Generar prompt determinista sin variaciones aleatorias ni timestamps dinámicos
+      const promptToSend = appendPromptVariation(currentPrompt, false);
 
       // Si el usuario configuró muebles interactivos, componer el plano guía amueblado para máxima fidelidad
       let referenceImgBase64 = currentImg.base64;
@@ -1162,7 +1152,7 @@ function App() {
             responseModalities?: string[];
             imageConfig?: { aspectRatio?: string; imageSize?: string };
           } = {
-            temperature: typeof config.generationTemperature === 'number' ? config.generationTemperature : 0.15,
+            temperature: typeof config.generationTemperature === 'number' ? config.generationTemperature : 0.02,
             seed: effectiveSeed,
             responseModalities: ['TEXT', 'IMAGE'],
             imageConfig: {
@@ -1372,19 +1362,11 @@ function App() {
         throw new Error('No se encontró VITE_GEMINI_API_KEY en .env.local.');
       }
 
-      // Priorizar el motor de render seleccionado por el usuario en config.renderEngine
+      // Motor de render para corrección quirúrgica coherente con el estilo del plano
       const chosenEngine = config.renderEngine && config.renderEngine !== 'auto' ? config.renderEngine : null;
-      const defaultSequence = [
-        'gemini-3.1-flash-image',
-        'gemini-3-pro-image',
-        'gemini-2.5-flash-image',
-        'gemini-3.1-flash-image-preview',
-        'gemini-3-pro-image-preview',
-        'gemini-3.1-flash-lite-image'
-      ];
       const candidateModels = chosenEngine
-        ? [chosenEngine, ...defaultSequence.filter((m) => m !== chosenEngine)]
-        : defaultSequence;
+        ? [chosenEngine]
+        : ['gemini-3.1-flash-image', 'gemini-3-pro-image', 'gemini-2.5-flash-image'];
 
       // Imagen base: priorizar el render actual (Image-to-Image) para preservar contexto arquitectónico
       const baseImgToRefine = renderedResult || sourceImage;
@@ -1411,11 +1393,8 @@ function App() {
         });
       }
 
-      const effectiveSeed = config.lockSeed !== false
-        ? (typeof config.seed === 'number' && config.seed > 0 ? config.seed : 42)
-        : Math.floor(Math.random() * 1000000) + 1;
-
-      const promptToSend = appendPromptVariation(targetedPrompt, config.lockSeed === false);
+      const effectiveSeed = typeof config.seed === 'number' && config.seed > 0 ? config.seed : 42;
+      const promptToSend = appendPromptVariation(targetedPrompt, false);
       parts.push({ text: promptToSend });
 
       let generatedImage: { base64: string; mimeType: string } | null = null;
@@ -1431,7 +1410,7 @@ function App() {
             responseModalities?: string[];
             imageConfig?: { aspectRatio?: string; imageSize?: string };
           } = {
-            temperature: typeof config.generationTemperature === 'number' ? config.generationTemperature : 0.15,
+            temperature: typeof config.generationTemperature === 'number' ? config.generationTemperature : 0.02,
             seed: effectiveSeed,
             responseModalities: ['TEXT', 'IMAGE'],
             imageConfig: {
@@ -1548,17 +1527,9 @@ function App() {
 
       // 3. Motores de imagen Gemini candidatos
       const chosenEngine = config.renderEngine && config.renderEngine !== 'auto' ? config.renderEngine : null;
-      const defaultSequence = [
-        'gemini-3.1-flash-image',
-        'gemini-3-pro-image',
-        'gemini-2.5-flash-image',
-        'gemini-3.1-flash-image-preview',
-        'gemini-3-pro-image-preview',
-        'gemini-3.1-flash-lite-image'
-      ];
       const candidateModels = chosenEngine
-        ? [chosenEngine, ...defaultSequence.filter((m) => m !== chosenEngine)]
-        : defaultSequence;
+        ? [chosenEngine]
+        : ['gemini-3.1-flash-image', 'gemini-3-pro-image', 'gemini-2.5-flash-image'];
 
       let generatedInterior: { base64: string; mimeType: string } | null = null;
       let usedEngineName = '';
@@ -1567,10 +1538,8 @@ function App() {
       for (const model of candidateModels) {
         try {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-          const effectiveSeed = config.lockSeed !== false
-            ? (typeof config.seed === 'number' && config.seed > 0 ? config.seed : 42)
-            : Math.floor(Math.random() * 1000000) + 1;
-          const promptToSend = appendPromptVariation(interiorPrompt, config.lockSeed === false);
+          const effectiveSeed = typeof config.seed === 'number' && config.seed > 0 ? config.seed : 42;
+          const promptToSend = appendPromptVariation(interiorPrompt, false);
           const parts: any[] = [
             {
               inlineData: {

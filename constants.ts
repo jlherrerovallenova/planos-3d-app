@@ -1063,7 +1063,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       renderEngine: 'auto',
       seed: 42,
       lockSeed: true,
-      generationTemperature: 0.15
+      generationTemperature: 0.02
     }
   },
   {
@@ -1102,7 +1102,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       renderEngine: 'auto',
       seed: 42,
       lockSeed: true,
-      generationTemperature: 0.15
+      generationTemperature: 0.02
     }
   },
   {
@@ -1141,7 +1141,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       renderEngine: 'auto',
       seed: 42,
       lockSeed: true,
-      generationTemperature: 0.15
+      generationTemperature: 0.02
     }
   },
   {
@@ -1180,7 +1180,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       renderEngine: 'auto',
       seed: 42,
       lockSeed: true,
-      generationTemperature: 0.15
+      generationTemperature: 0.02
     }
   },
   {
@@ -1219,7 +1219,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       renderEngine: 'auto',
       seed: 42,
       lockSeed: true,
-      generationTemperature: 0.15
+      generationTemperature: 0.02
     }
   },
   {
@@ -1258,7 +1258,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       renderEngine: 'auto',
       seed: 42,
       lockSeed: true,
-      generationTemperature: 0.15
+      generationTemperature: 0.02
     }
   },
   {
@@ -1297,7 +1297,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       renderEngine: 'auto',
       seed: 42,
       lockSeed: true,
-      generationTemperature: 0.15
+      generationTemperature: 0.02
     }
   },
   {
@@ -1336,7 +1336,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       renderEngine: 'auto',
       seed: 42,
       lockSeed: true,
-      generationTemperature: 0.15
+      generationTemperature: 0.02
     }
   },
   {
@@ -1374,7 +1374,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       renderEngine: 'auto',
       seed: 42,
       lockSeed: true,
-      generationTemperature: 0.15
+      generationTemperature: 0.02
     }
   },
   {
@@ -1412,7 +1412,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       renderEngine: 'auto',
       seed: 42,
       lockSeed: true,
-      generationTemperature: 0.15
+      generationTemperature: 0.02
     }
   },
   {
@@ -1450,7 +1450,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       renderEngine: 'auto',
       seed: 42,
       lockSeed: true,
-      generationTemperature: 0.15
+      generationTemperature: 0.02
     }
   },
   {
@@ -1488,7 +1488,7 @@ export const DEFAULT_PRESETS: PresetConfig[] = [
       renderEngine: 'auto',
       seed: 42,
       lockSeed: true,
-      generationTemperature: 0.15
+      generationTemperature: 0.02
     }
   }
 ];
